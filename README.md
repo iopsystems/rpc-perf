@@ -29,7 +29,7 @@ is developed and tested against the stable Rust toolchain.
 With Rust installed, clone this repo, and cd into this folder:
 
 ```shell
-git clone https://github.com/twitter/rpc-perf.git
+git clone https://github.com/iopsystems/rpc-perf.git
 cd rpc-perf
 cargo build --release
 ```
