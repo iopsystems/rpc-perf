@@ -74,45 +74,27 @@ rpc-perf configs/memcache.toml
 
 * high-resolution latency metrics
 * supports memcache and redis protocols
-* [mio][mio] for async networking
 * optional waterfall visualization of latencies
 * powerful workload configuration
 
-## Support
-
-Create a [new issue](https://github.com/twitter/rpc-perf/issues/new) on GitHub.
-
 ## Contributing
 
-We feel that a welcoming community is important and we ask that you follow
-Twitter's [Open Source Code of Conduct] in all interactions with the community.
+If you want to submit a patch, please follow these steps:
 
-## Authors
-
-* Brian Martin <bmartin@twitter.com>
-
-A full list of [contributors] can be found on GitHub.
-
-Follow [@TwitterOSS](https://twitter.com/twitteross) on Twitter for updates.
+1. create a new issue
+2. fork on github & clone your fork
+3. create a feature branch on your fork
+4. push your feature branch
+5. create a pull request linked to the issue
 
 ## License
 
-Copyright 2015-2019 Twitter, Inc.
+This software is licensed under the Apache 2.0 license, see [LICENSE](LICENSE) for details.
 
-Licensed under the Apache License, Version 2.0:
-https://www.apache.org/licenses/LICENSE-2.0
-
-## Security Issues?
-
-Please report sensitive security issues via Twitter's bug-bounty program
-(https://hackerone.com/twitter) rather than GitHub.
-
-[ci-build-badge]: https://img.shields.io/github/workflow/status/twitter/rpc-perf/CI/master?label=CI
-[ci-build-url]: https://github.com/twitter/rpc-perf/actions/workflows/cargo.yml?query=branch%3Amaster+event%3Apush
-[contributors]: https://github.com/twitter/rpc-perf/graphs/contributors?type=a
+[ci-build-badge]: https://img.shields.io/github/workflow/status/iopsystems/rpc-perf/CI/master?label=CI
+[ci-build-url]: https://github.com/iopsystems/rpc-perf/actions/workflows/cargo.yml?query=branch%3Amaster+event%3Apush
+[contributors]: https://github.com/iopsystems/rpc-perf/graphs/contributors?type=a
 [license-badge]: https://img.shields.io/badge/license-Apache%202.0-blue.svg
-[license-url]: https://github.com/twitter/rpc-perf/blob/master/LICENSE
-[mio]: https://github.com/carllerche/mio
-[Open Source Code of Conduct]: https://github.com/twitter/code-of-conduct/blob/master/code-of-conduct.md
+[license-url]: https://github.com/iopsystems/rpc-perf/blob/master/LICENSE
 [rustlang]: https://rust-lang.org/
 [rustup]: https://rustup.rs

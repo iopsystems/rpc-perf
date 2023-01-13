@@ -1206,7 +1206,7 @@ checksum = "08d43f7aa6b08d49f382cde6a7982047c3426db949b1424bc4b7ec9ae12c6ce2"
 [[package]]
 name = "rustcommon-atomics"
 version = "1.0.1"
-source = "git+https://github.com/twitter/rustcommon?rev=807b9f7#807b9f7fb123954d383869caa2dfaa17ef7bff4f"
+source = "git+https://github.com/pelikan-io/rustcommon?rev=807b9f7#807b9f7fb123954d383869caa2dfaa17ef7bff4f"
 dependencies = [
  "serde",
 ]
@@ -1214,7 +1214,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-heatmap"
 version = "0.1.2"
-source = "git+https://github.com/twitter/rustcommon?rev=807b9f7#807b9f7fb123954d383869caa2dfaa17ef7bff4f"
+source = "git+https://github.com/pelikan-io/rustcommon?rev=807b9f7#807b9f7fb123954d383869caa2dfaa17ef7bff4f"
 dependencies = [
  "rustcommon-atomics",
  "rustcommon-histogram",
@@ -1225,7 +1225,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-histogram"
 version = "1.0.1"
-source = "git+https://github.com/twitter/rustcommon?rev=807b9f7#807b9f7fb123954d383869caa2dfaa17ef7bff4f"
+source = "git+https://github.com/pelikan-io/rustcommon?rev=807b9f7#807b9f7fb123954d383869caa2dfaa17ef7bff4f"
 dependencies = [
  "rustcommon-atomics",
  "thiserror",
@@ -1234,7 +1234,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-logger"
 version = "0.1.0"
-source = "git+https://github.com/twitter/rustcommon?rev=807b9f7#807b9f7fb123954d383869caa2dfaa17ef7bff4f"
+source = "git+https://github.com/pelikan-io/rustcommon?rev=807b9f7#807b9f7fb123954d383869caa2dfaa17ef7bff4f"
 dependencies = [
  "ahash",
  "log",
@@ -1246,7 +1246,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-metrics"
 version = "0.1.1"
-source = "git+https://github.com/twitter/rustcommon?rev=807b9f7#807b9f7fb123954d383869caa2dfaa17ef7bff4f"
+source = "git+https://github.com/pelikan-io/rustcommon?rev=807b9f7#807b9f7fb123954d383869caa2dfaa17ef7bff4f"
 dependencies = [
  "linkme",
  "once_cell",
@@ -1260,7 +1260,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-metrics-derive"
 version = "0.1.1"
-source = "git+https://github.com/twitter/rustcommon?rev=807b9f7#807b9f7fb123954d383869caa2dfaa17ef7bff4f"
+source = "git+https://github.com/pelikan-io/rustcommon?rev=807b9f7#807b9f7fb123954d383869caa2dfaa17ef7bff4f"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -1271,7 +1271,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-ratelimiter"
 version = "1.1.1"
-source = "git+https://github.com/twitter/rustcommon?rev=807b9f7#807b9f7fb123954d383869caa2dfaa17ef7bff4f"
+source = "git+https://github.com/pelikan-io/rustcommon?rev=807b9f7#807b9f7fb123954d383869caa2dfaa17ef7bff4f"
 dependencies = [
  "rand",
  "rand_distr",
@@ -1281,7 +1281,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-time"
 version = "0.0.12"
-source = "git+https://github.com/twitter/rustcommon?rev=807b9f7#807b9f7fb123954d383869caa2dfaa17ef7bff4f"
+source = "git+https://github.com/pelikan-io/rustcommon?rev=807b9f7#807b9f7fb123954d383869caa2dfaa17ef7bff4f"
 dependencies = [
  "lazy_static",
  "libc",
@@ -1293,7 +1293,7 @@ dependencies = [
 [[package]]
 name = "rustcommon-waterfall"
 version = "1.0.1"
-source = "git+https://github.com/twitter/rustcommon?rev=807b9f7#807b9f7fb123954d383869caa2dfaa17ef7bff4f"
+source = "git+https://github.com/pelikan-io/rustcommon?rev=807b9f7#807b9f7fb123954d383869caa2dfaa17ef7bff4f"
 dependencies = [
  "dejavu",
  "image",
