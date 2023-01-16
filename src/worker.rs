@@ -8,11 +8,10 @@ use crate::metrics::*;
 use crate::session::TcpStream;
 use crate::*;
 use boring::x509::X509;
+use heatmap::Heatmap;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
-use rustcommon_heatmap::AtomicHeatmap;
-use rustcommon_heatmap::AtomicU64;
-use rustcommon_ratelimiter::Ratelimiter;
+use ratelimit::Ratelimiter;
 use std::io::{BufRead, Write};
 use std::net::SocketAddr;
 
@@ -36,9 +35,9 @@ pub struct Worker {
     request_ratelimit: Option<Arc<Ratelimiter>>,
     sessions: Slab<Session>,
     tls: Option<SslConnector>,
-    connect_heatmap: Option<Arc<AtomicHeatmap<u64, AtomicU64>>>,
-    request_heatmap: Option<Arc<AtomicHeatmap<u64, AtomicU64>>>,
-    request_waterfall: Option<Arc<AtomicHeatmap<u64, AtomicU64>>>,
+    connect_heatmap: Option<Arc<Heatmap>>,
+    request_heatmap: Option<Arc<Heatmap>>,
+    request_waterfall: Option<Arc<Heatmap>>,
     pipeline: usize,
 }
 
@@ -121,17 +120,17 @@ impl Worker {
     }
 
     /// Provide a heatmap for recording connect latency
-    pub fn set_connect_heatmap(&mut self, heatmap: Option<Arc<AtomicHeatmap<u64, AtomicU64>>>) {
+    pub fn set_connect_heatmap(&mut self, heatmap: Option<Arc<Heatmap>>) {
         self.connect_heatmap = heatmap;
     }
 
     /// Provide a heatmap for recording request latency
-    pub fn set_request_heatmap(&mut self, heatmap: Option<Arc<AtomicHeatmap<u64, AtomicU64>>>) {
+    pub fn set_request_heatmap(&mut self, heatmap: Option<Arc<Heatmap>>) {
         self.request_heatmap = heatmap;
     }
 
     /// Provide a heatmap for recording request latencies into the waterfall
-    pub fn set_request_waterfall(&mut self, heatmap: Option<Arc<AtomicHeatmap<u64, AtomicU64>>>) {
+    pub fn set_request_waterfall(&mut self, heatmap: Option<Arc<Heatmap>>) {
         self.request_waterfall = heatmap;
     }
 

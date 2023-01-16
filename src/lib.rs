@@ -9,7 +9,6 @@ extern crate rustcommon_logger;
 mod macros;
 
 mod admin;
-// mod buffer;
 mod codec;
 mod config;
 mod config_file;
@@ -24,9 +23,9 @@ pub use crate::metrics::*;
 pub use crate::session::{Session, TcpStream};
 pub use crate::time::*;
 
-use rustcommon_heatmap::{AtomicHeatmap, AtomicU64};
+use heatmap::Heatmap;
+use ratelimit::Ratelimiter;
 use rustcommon_logger::{File, LogBuilder, MultiLogBuilder, Output, Stdout};
-use rustcommon_ratelimiter::Ratelimiter;
 
 use std::sync::Arc;
 use std::thread::JoinHandle;
@@ -99,31 +98,43 @@ impl Builder {
             None
         };
 
-        let connect_heatmap = Some(Arc::new(AtomicHeatmap::<u64, AtomicU64>::new(
-            1_000_000,
-            3,
-            Duration::from_secs(config.general().interval().as_secs()),
-            Duration::from_millis(1000),
-        )));
+        let connect_heatmap = Some(Arc::new(
+            Heatmap::new(
+                0,
+                10,
+                30,
+                Duration::from_secs(config.general().interval().as_secs()),
+                Duration::from_millis(1000),
+            )
+            .unwrap(),
+        ));
 
-        let request_heatmap = Some(Arc::new(AtomicHeatmap::<u64, AtomicU64>::new(
-            1_000_000,
-            3,
-            Duration::from_secs(config.general().interval().as_secs()),
-            Duration::from_millis(1000),
-        )));
+        let request_heatmap = Some(Arc::new(
+            Heatmap::new(
+                0,
+                10,
+                30,
+                Duration::from_secs(config.general().interval().as_secs()),
+                Duration::from_millis(1000),
+            )
+            .unwrap(),
+        ));
 
         let request_waterfall =
             if config.waterfall().file().is_some() && config.general().windows().is_some() {
-                Some(Arc::new(AtomicHeatmap::<u64, AtomicU64>::new(
-                    1_000_000_000,
-                    3,
-                    Duration::from_secs(
-                        config.general().interval().as_secs()
-                            * config.general().windows().unwrap() as u64,
-                    ),
-                    Duration::from_millis(config.waterfall().resolution()),
-                )))
+                Some(Arc::new(
+                    Heatmap::new(
+                        0,
+                        10,
+                        30,
+                        Duration::from_secs(
+                            config.general().interval().as_secs()
+                                * config.general().windows().unwrap() as u64,
+                        ),
+                        Duration::from_millis(config.waterfall().resolution()),
+                    )
+                    .unwrap(),
+                ))
             } else {
                 None
             };

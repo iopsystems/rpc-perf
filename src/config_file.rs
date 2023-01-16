@@ -4,13 +4,13 @@
 
 use core::time::Duration;
 use rustcommon_logger::Level;
-use rustcommon_waterfall::{Palette, Scale};
 use serde_derive::*;
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
 use std::io::Read;
 use std::net::SocketAddr;
 use std::net::ToSocketAddrs;
+use waterfall::{Palette, Scale};
 use zookeeper::*;
 
 #[derive(Deserialize)]
@@ -313,11 +313,11 @@ impl Connection {
         self.ratelimit
     }
 
-    pub fn ratelimit_model(&self) -> rustcommon_ratelimiter::Refill {
+    pub fn ratelimit_model(&self) -> ratelimit::Refill {
         match self.ratelimit_model {
-            None | Some(RatelimitModel::Smooth) => rustcommon_ratelimiter::Refill::Smooth,
-            Some(RatelimitModel::Uniform) => rustcommon_ratelimiter::Refill::Uniform,
-            Some(RatelimitModel::Normal) => rustcommon_ratelimiter::Refill::Normal,
+            None | Some(RatelimitModel::Smooth) => ratelimit::Refill::Smooth,
+            Some(RatelimitModel::Uniform) => ratelimit::Refill::Uniform,
+            Some(RatelimitModel::Normal) => ratelimit::Refill::Normal,
         }
     }
 
@@ -549,11 +549,11 @@ impl Request {
         self.ratelimit
     }
 
-    pub fn ratelimit_model(&self) -> rustcommon_ratelimiter::Refill {
+    pub fn ratelimit_model(&self) -> ratelimit::Refill {
         match self.ratelimit_model {
-            None | Some(RatelimitModel::Smooth) => rustcommon_ratelimiter::Refill::Smooth,
-            Some(RatelimitModel::Uniform) => rustcommon_ratelimiter::Refill::Uniform,
-            Some(RatelimitModel::Normal) => rustcommon_ratelimiter::Refill::Normal,
+            None | Some(RatelimitModel::Smooth) => ratelimit::Refill::Smooth,
+            Some(RatelimitModel::Uniform) => ratelimit::Refill::Uniform,
+            Some(RatelimitModel::Normal) => ratelimit::Refill::Normal,
         }
     }
 }

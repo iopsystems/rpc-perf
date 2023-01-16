@@ -14,10 +14,10 @@ use mio::{Events, Poll, Token};
 use mpmc::Queue;
 use rand::{Rng, RngCore, SeedableRng};
 use rand_distr::Alphanumeric;
+use ratelimit::Ratelimiter;
 use rustcommon_logger::MultiLogBuilder;
 use rustcommon_logger::Stdout;
 use rustcommon_logger::{LevelFilter, LogBuilder};
-use rustcommon_ratelimiter::Ratelimiter;
 use slab::Slab;
 use std::io::Read;
 use std::io::Write;
@@ -31,8 +31,7 @@ use std::net::{SocketAddr, ToSocketAddrs};
 use rpc_perf::*;
 
 /// TODO(bmartin): this should be consolidated with rpc-perf
-use rustcommon_heatmap::AtomicHeatmap;
-use rustcommon_heatmap::AtomicU64;
+use heatmap::Heatmap;
 use std::sync::Arc;
 
 // TODO(bmartin): this should be split up into a library and binary
@@ -192,12 +191,16 @@ fn main() {
     // initialize work queue
     let work = Queue::with_capacity(1024 * 1024); // arbitrarily large
 
-    let request_heatmap = Some(Arc::new(AtomicHeatmap::<u64, AtomicU64>::new(
-        1_000_000,
-        3,
-        Duration::from_secs(60),
-        Duration::from_millis(1000),
-    )));
+    let request_heatmap = Some(Arc::new(
+        Heatmap::new(
+            0,
+            10,
+            30,
+            Duration::from_secs(60),
+            Duration::from_millis(1000),
+        )
+        .unwrap(),
+    ));
 
     // spawn admin
     let mut admin = Admin::for_replay(None, log);
@@ -441,7 +444,7 @@ struct Worker {
     ready_queue: VecDeque<Token>,
     poll: Poll,
     work: Queue<Request>,
-    request_heatmap: Option<Arc<AtomicHeatmap<u64, AtomicU64>>>,
+    request_heatmap: Option<Arc<Heatmap>>,
     rng: rand_xoshiro::Xoshiro256PlusPlus,
 }
 
@@ -451,7 +454,7 @@ impl Worker {
         poolsize: usize,
         tls: Option<SslConnector>,
         work: Queue<Request>,
-        request_heatmap: Option<Arc<AtomicHeatmap<u64, AtomicU64>>>,
+        request_heatmap: Option<Arc<Heatmap>>,
     ) -> Self {
         let poll = mio::Poll::new().unwrap();
 
