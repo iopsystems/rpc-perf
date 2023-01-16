@@ -5,13 +5,12 @@
 use crate::metrics::*;
 use crate::Arc;
 use crate::Config;
-use rustcommon_heatmap::AtomicHeatmap;
-use rustcommon_heatmap::AtomicU64;
+use heatmap::Heatmap;
+use ratelimit::Ratelimiter;
 use rustcommon_logger::Drain;
-use rustcommon_ratelimiter::Ratelimiter;
-use rustcommon_waterfall::WaterfallBuilder;
 use std::collections::HashMap;
 use std::time::Instant;
+use waterfall::WaterfallBuilder;
 
 use std::net::SocketAddr;
 use std::time::Duration;
@@ -20,11 +19,11 @@ use tiny_http::{Method, Response, Server};
 pub struct Admin {
     config: Option<Arc<Config>>,
     snapshot: Snapshot,
-    connect_heatmap: Option<Arc<AtomicHeatmap<u64, AtomicU64>>>,
+    connect_heatmap: Option<Arc<Heatmap>>,
     reconnect_ratelimit: Option<Arc<Ratelimiter>>,
-    request_heatmap: Option<Arc<AtomicHeatmap<u64, AtomicU64>>>,
+    request_heatmap: Option<Arc<Heatmap>>,
     request_ratelimit: Option<Arc<Ratelimiter>>,
-    request_waterfall: Option<Arc<AtomicHeatmap<u64, AtomicU64>>>,
+    request_waterfall: Option<Arc<Heatmap>>,
     server: Option<Server>,
     log: Box<dyn Drain>,
 }
@@ -67,7 +66,7 @@ impl Admin {
         }
     }
 
-    pub fn set_connect_heatmap(&mut self, heatmap: Option<Arc<AtomicHeatmap<u64, AtomicU64>>>) {
+    pub fn set_connect_heatmap(&mut self, heatmap: Option<Arc<Heatmap>>) {
         self.connect_heatmap = heatmap;
     }
 
@@ -75,7 +74,7 @@ impl Admin {
         self.reconnect_ratelimit = ratelimiter;
     }
 
-    pub fn set_request_heatmap(&mut self, heatmap: Option<Arc<AtomicHeatmap<u64, AtomicU64>>>) {
+    pub fn set_request_heatmap(&mut self, heatmap: Option<Arc<Heatmap>>) {
         self.request_heatmap = heatmap;
     }
 
@@ -83,7 +82,7 @@ impl Admin {
         self.request_ratelimit = ratelimiter;
     }
 
-    pub fn set_request_waterfall(&mut self, heatmap: Option<Arc<AtomicHeatmap<u64, AtomicU64>>>) {
+    pub fn set_request_waterfall(&mut self, heatmap: Option<Arc<Heatmap>>) {
         self.request_waterfall = heatmap;
     }
 
@@ -98,7 +97,7 @@ impl Admin {
 
         loop {
             while Instant::now() < next {
-                rustcommon_time::refresh_clock();
+                clocksource::refresh_clock();
                 let _ = self.log.flush();
                 snapshot =
                     Snapshot::new(self.connect_heatmap.as_ref(), self.request_heatmap.as_ref());
@@ -227,26 +226,26 @@ impl Admin {
             info!("Hit-rate: {:.2} %", hit_rate);
 
             if let Some(ref heatmap) = self.connect_heatmap {
-                let p25 = heatmap.percentile(25.0).unwrap_or(0);
-                let p50 = heatmap.percentile(50.0).unwrap_or(0);
-                let p75 = heatmap.percentile(75.0).unwrap_or(0);
-                let p90 = heatmap.percentile(90.0).unwrap_or(0);
-                let p99 = heatmap.percentile(99.0).unwrap_or(0);
-                let p999 = heatmap.percentile(99.9).unwrap_or(0);
-                let p9999 = heatmap.percentile(99.99).unwrap_or(0);
+                let p25 = heatmap.percentile(25.0).map(|b| b.high()).unwrap_or(0);
+                let p50 = heatmap.percentile(50.0).map(|b| b.high()).unwrap_or(0);
+                let p75 = heatmap.percentile(75.0).map(|b| b.high()).unwrap_or(0);
+                let p90 = heatmap.percentile(90.0).map(|b| b.high()).unwrap_or(0);
+                let p99 = heatmap.percentile(99.0).map(|b| b.high()).unwrap_or(0);
+                let p999 = heatmap.percentile(99.9).map(|b| b.high()).unwrap_or(0);
+                let p9999 = heatmap.percentile(99.99).map(|b| b.high()).unwrap_or(0);
                 info!("Connect Latency (us): p25: {} p50: {} p75: {} p90: {} p99: {} p999: {} p9999: {}",
                     p25, p50, p75, p90, p99, p999, p9999
                 );
             }
 
             if let Some(ref heatmap) = self.request_heatmap {
-                let p25 = heatmap.percentile(25.0).unwrap_or(0);
-                let p50 = heatmap.percentile(50.0).unwrap_or(0);
-                let p75 = heatmap.percentile(75.0).unwrap_or(0);
-                let p90 = heatmap.percentile(90.0).unwrap_or(0);
-                let p99 = heatmap.percentile(99.0).unwrap_or(0);
-                let p999 = heatmap.percentile(99.9).unwrap_or(0);
-                let p9999 = heatmap.percentile(99.99).unwrap_or(0);
+                let p25 = heatmap.percentile(25.0).map(|b| b.high()).unwrap_or(0);
+                let p50 = heatmap.percentile(50.0).map(|b| b.high()).unwrap_or(0);
+                let p75 = heatmap.percentile(75.0).map(|b| b.high()).unwrap_or(0);
+                let p90 = heatmap.percentile(90.0).map(|b| b.high()).unwrap_or(0);
+                let p99 = heatmap.percentile(99.0).map(|b| b.high()).unwrap_or(0);
+                let p999 = heatmap.percentile(99.9).map(|b| b.high()).unwrap_or(0);
+                let p9999 = heatmap.percentile(99.99).map(|b| b.high()).unwrap_or(0);
                 info!("Response Latency (us): p25: {} p50: {} p75: {} p90: {} p99: {} p999: {} p9999: {}",
                     p25, p50, p75, p90, p99, p999, p9999
                 );
@@ -278,7 +277,7 @@ impl Admin {
                                 .label(100000000, "100ms")
                                 .scale(scale)
                                 .palette(palette)
-                                .build(&heatmap.load());
+                                .build(&**heatmap);
                         }
                     }
                     break;
@@ -304,10 +303,7 @@ pub struct SnapshotEntry<T> {
 }
 
 impl Snapshot {
-    fn new(
-        connect_heatmap: Option<&Arc<AtomicHeatmap<u64, AtomicU64>>>,
-        request_heatmap: Option<&Arc<AtomicHeatmap<u64, AtomicU64>>>,
-    ) -> Self {
+    fn new(connect_heatmap: Option<&Arc<Heatmap>>, request_heatmap: Option<&Arc<Heatmap>>) -> Self {
         let mut counters = HashMap::new();
         let mut gauges = HashMap::new();
         for metric in rustcommon_metrics::metrics().static_metrics() {
@@ -344,16 +340,20 @@ impl Snapshot {
         let mut connect_percentiles = Vec::new();
         if let Some(heatmap) = connect_heatmap {
             for (label, value) in &percentiles {
-                connect_percentiles
-                    .push((label.to_string(), heatmap.percentile(*value).unwrap_or(0)));
+                connect_percentiles.push((
+                    label.to_string(),
+                    heatmap.percentile(*value).map(|b| b.high()).unwrap_or(0),
+                ));
             }
         }
 
         let mut request_percentiles = Vec::new();
         if let Some(heatmap) = request_heatmap {
             for (label, value) in &percentiles {
-                request_percentiles
-                    .push((label.to_string(), heatmap.percentile(*value).unwrap_or(0)));
+                request_percentiles.push((
+                    label.to_string(),
+                    heatmap.percentile(*value).map(|b| b.high()).unwrap_or(0),
+                ));
             }
         }
 
