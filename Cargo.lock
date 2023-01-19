@@ -266,18 +266,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "clocksource"
-version = "0.6.0"
-source = "git+https://github.com/pelikan-io/rustcommon?rev=767b4e9#767b4e9289c7a3f732b344b5faf11397733416bb"
-dependencies = [
- "lazy_static",
- "libc",
- "mach",
- "time 0.3.14",
- "winapi 0.3.9",
-]
-
-[[package]]
 name = "cmake"
 version = "0.1.48"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -556,7 +544,7 @@ version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "44a040d43defb8644617d52575557275232693a27c594d136b16c12283244683"
 dependencies = [
- "clocksource 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clocksource",
  "histogram",
  "thiserror",
 ]
@@ -804,6 +792,32 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5aa361d4faea93603064a027415f07bd8e1d5c88c9fbf68bf56a285428fd79ce"
 dependencies = [
  "autocfg",
+]
+
+[[package]]
+name = "metriken"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "af0a70e90189b46fa6b104f52d68566059d5dc34f55cd314755249a60727dc34"
+dependencies = [
+ "clocksource",
+ "heatmap",
+ "linkme",
+ "metriken-derive",
+ "once_cell",
+ "parking_lot",
+]
+
+[[package]]
+name = "metriken-derive"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3e58941ebb3d827378ea64a769df9cf65e47f75d78227969d70431c19578e5dc"
+dependencies = [
+ "proc-macro-crate",
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -1149,7 +1163,7 @@ version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4e9c124ab68f28501873b8c5ecfa0de688e37cbe4f1b5440ed1971135e7c84e8"
 dependencies = [
- "clocksource 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clocksource",
  "rand",
  "rand_distr",
 ]
@@ -1203,6 +1217,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a3f87b73ce11b1619a3c6332f45341e0047173771e8b8b73f87bfeefb7b56244"
 
 [[package]]
+name = "ringlog"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a481f46b429f20e0dc310ddee227e5e35b86acaff897bfc5db9e37aa35c828be"
+dependencies = [
+ "ahash",
+ "clocksource",
+ "log",
+ "metriken",
+ "mpmc",
+]
+
+[[package]]
 name = "rpc-perf"
 version = "4.0.0-alpha.0"
 dependencies = [
@@ -1210,19 +1237,19 @@ dependencies = [
  "boring",
  "chrono",
  "clap",
- "clocksource 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clocksource",
  "crc",
  "heatmap",
  "json",
+ "metriken",
  "mio 0.8.4",
  "mpmc",
  "rand",
  "rand_distr",
  "rand_xoshiro",
  "ratelimit",
+ "ringlog",
  "rtrb",
- "rustcommon-logger",
- "rustcommon-metrics",
  "serde",
  "serde_derive",
  "serde_json",
@@ -1259,42 +1286,6 @@ name = "rustc-hash"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "08d43f7aa6b08d49f382cde6a7982047c3426db949b1424bc4b7ec9ae12c6ce2"
-
-[[package]]
-name = "rustcommon-logger"
-version = "0.1.1"
-source = "git+https://github.com/pelikan-io/rustcommon?rev=767b4e9#767b4e9289c7a3f732b344b5faf11397733416bb"
-dependencies = [
- "ahash",
- "clocksource 0.6.0 (git+https://github.com/pelikan-io/rustcommon?rev=767b4e9)",
- "log",
- "mpmc",
- "rustcommon-metrics",
-]
-
-[[package]]
-name = "rustcommon-metrics"
-version = "0.1.2"
-source = "git+https://github.com/pelikan-io/rustcommon?rev=767b4e9#767b4e9289c7a3f732b344b5faf11397733416bb"
-dependencies = [
- "clocksource 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "heatmap",
- "linkme",
- "once_cell",
- "parking_lot",
- "rustcommon-metrics-derive",
-]
-
-[[package]]
-name = "rustcommon-metrics-derive"
-version = "0.1.1"
-source = "git+https://github.com/pelikan-io/rustcommon?rev=767b4e9#767b4e9289c7a3f732b344b5faf11397733416bb"
-dependencies = [
- "proc-macro-crate",
- "proc-macro2",
- "quote",
- "syn",
-]
 
 [[package]]
 name = "rusttype"
@@ -1680,7 +1671,7 @@ version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c502fce1fba95211d83b10b4c2975bb0e841ead7d4f54c0d2ed7525a4d2ef4fe"
 dependencies = [
- "clocksource 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clocksource",
  "dejavu",
  "heatmap",
  "histogram",

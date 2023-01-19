@@ -7,7 +7,7 @@ use crate::Arc;
 use crate::Config;
 use heatmap::Heatmap;
 use ratelimit::Ratelimiter;
-use rustcommon_logger::Drain;
+use ringlog::Drain;
 use std::collections::HashMap;
 use std::time::Instant;
 use waterfall::WaterfallBuilder;
@@ -306,7 +306,7 @@ impl Snapshot {
     fn new(connect_heatmap: Option<&Arc<Heatmap>>, request_heatmap: Option<&Arc<Heatmap>>) -> Self {
         let mut counters = HashMap::new();
         let mut gauges = HashMap::new();
-        for metric in rustcommon_metrics::metrics().static_metrics() {
+        for metric in metriken::metrics().static_metrics() {
             let any = match metric.as_any() {
                 Some(any) => any,
                 None => continue,

@@ -3,7 +3,7 @@
 // http://www.apache.org/licenses/LICENSE-2.0
 
 use core::time::Duration;
-use rustcommon_logger::Level;
+use ringlog::Level;
 use serde_derive::*;
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;

@@ -2,8 +2,8 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
-use rustcommon_metrics::metric;
-pub use rustcommon_metrics::{Counter, Gauge};
+use metriken::metric;
+pub use metriken::{Counter, Gauge};
 
 #[metric(name = "connect", description = "connect attempts")]
 pub static CONNECT: Counter = Counter::new();

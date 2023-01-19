@@ -5,7 +5,7 @@
 #![allow(clippy::unnecessary_unwrap)]
 
 #[macro_use]
-extern crate rustcommon_logger;
+extern crate ringlog;
 
 use boring::ssl::*;
 use boring::x509::X509;
@@ -15,9 +15,7 @@ use mpmc::Queue;
 use rand::{Rng, RngCore, SeedableRng};
 use rand_distr::Alphanumeric;
 use ratelimit::Ratelimiter;
-use rustcommon_logger::MultiLogBuilder;
-use rustcommon_logger::Stdout;
-use rustcommon_logger::{LevelFilter, LogBuilder};
+use ringlog::{LevelFilter, LogBuilder, MultiLogBuilder, Stdout};
 use slab::Slab;
 use std::io::Read;
 use std::io::Write;

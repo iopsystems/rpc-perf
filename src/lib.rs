@@ -3,7 +3,7 @@
 // http://www.apache.org/licenses/LICENSE-2.0
 
 #[macro_use]
-extern crate rustcommon_logger;
+extern crate ringlog;
 
 #[macro_use]
 mod macros;
@@ -25,7 +25,7 @@ pub use crate::time::*;
 
 use heatmap::Heatmap;
 use ratelimit::Ratelimiter;
-use rustcommon_logger::{File, LogBuilder, MultiLogBuilder, Output, Stdout};
+use ringlog::{File, LogBuilder, MultiLogBuilder, Output, Stdout};
 
 use std::sync::Arc;
 use std::thread::JoinHandle;
