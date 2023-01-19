@@ -1,50 +1,50 @@
 [package]
 name = "rpc-perf"
-version = "4.0.0-alpha.0"
-authors = ["Brian Martin <brian@iop.systems>"]
+version = "6.0.0-alpha.0"
+authors = ["Brian Martin <brayniac@gmail.com>"]
 edition = "2021"
 description = "RPC Performance Testing"
-homepage = "https://github.com/iopsystems/rpc-perf"
-repository = "https://github.com/iopsystems/rpc-perf"
+homepage = "https://github.com/brayniac/rpc-perf"
+repository = "https://github.com/brayniac/rpc-perf"
 license = "Apache-2.0"
 
 [[bin]]
 name = "rpc-perf"
 path = "src/main.rs"
 
-[[bin]]
-name = "rpc-replay"
-path = "src/replay.rs"
-
 [dependencies]
-backtrace = "0.3.66"
-boring = "2.0.0"
-chrono = "0.4.22"
-clap = "3.2.20"
-crc = "3.0.0"
-json = "0.12.4"
-mio = { version = "0.8.4", features = ["os-poll", "net"] }
-mpmc = "0.1.6"
-rand = { version = "0.8.5", features = ["small_rng"] }
-rand_xoshiro = { version = "0.6.0" }
-rand_distr = "0.4.3"
-rtrb = "0.2.2"
-heatmap = "0.7.0"
-rustcommon-logger = { git = "https://github.com/pelikan-io/rustcommon", rev = "767b4e9" }
-ratelimit = "0.5.1"
-rustcommon-metrics = { git = "https://github.com/pelikan-io/rustcommon", rev = "767b4e9" }
-clocksource = "0.6.0"
-waterfall = "0.8.0"
-serde = "1.0.144"
-serde_derive = "1.0.144"
-serde_json = "1.0.85"
-slab = "0.4.7"
-strum = "0.24.1"
-strum_macros = "0.24.3"
-sysconf = "0.3.4"
-thiserror = "1.0.34"
-tiny_http = "0.11.0"
-toml = "0.5.9"
-zipf = "7.0.0"
-zookeeper = "0.6.1"
-zstd = "0.11.2"
+async-channel = "1.8.0"
+boring = "2.1.0"
+bytes = "1.2.1"
+momento = "0.8.3"
+metriken = "0.1.0"
+mio = "0.8.5"
+tokio = { version = "1.21.2", features = ["full"] }
+rand = "*"
+rand_xoshiro = "*"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+tokio-uring = "0.4.0"
+
+[features]
+uring = []
+
+[profile.release]
+opt-level = 3
+debug = true
+rpath = false
+lto = true
+debug-assertions = false
+codegen-units = 1
+
+[profile.bench]
+opt-level = 3
+debug = true
+rpath = false
+lto = true
+debug-assertions = false
+codegen-units = 1
+
+[profile.dev]
+debug = true
+opt-level = 0
