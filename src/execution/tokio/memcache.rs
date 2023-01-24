@@ -1,3 +1,4 @@
+use async_memcached::Client;
 use super::*;
 
 pub fn launch_memcache_tasks(runtime: &mut Runtime, work_receiver: Receiver<WorkItem>) {
@@ -11,18 +12,18 @@ pub fn launch_memcache_tasks(runtime: &mut Runtime, work_receiver: Receiver<Work
 // a task for memcache compatible servers (eg: Pelikan Segcache, Memcached)
 #[allow(clippy::slow_vector_initialization)]
 pub async fn memcache_task(work_receiver: Receiver<WorkItem>) -> Result<()> {
-    let mut stream = None;
+    let mut client = None;
 
     let mut buf = Vec::with_capacity(4096);
     buf.resize(4096, 0);
 
     while RUNNING.load(Ordering::Relaxed) {
-        if stream.is_none() {
+        if client.is_none() {
             CONNECT.increment();
-            stream = Some(TcpStream::connect("127.0.0.1:12321").await?);
+            client = Some(Client::new("127.0.0.1:12321").await.map_err(|_| Error::new(ErrorKind::Other, "failed to create memcache client"))?);
         }
 
-        let mut s = stream.take().unwrap();
+        let mut c = client.take().unwrap();
 
         let work_item = work_receiver
             .recv()
@@ -32,70 +33,72 @@ pub async fn memcache_task(work_receiver: Receiver<WorkItem>) -> Result<()> {
         let result = match work_item {
             WorkItem::Get { key } => {
                 GET.increment();
-
-                unsafe {
-                    buf.set_len(0);
-                }
-                buf.extend_from_slice(format!("GET {}\r\n", key).as_bytes());
-
-                s.write_all(&buf).await?;
-
-                unsafe {
-                    buf.set_len(0);
-                }
-
-                match timeout(Duration::from_millis(200), s.read(&mut buf)).await {
-                    Ok(Ok(_)) => {
-                        stream = Some(s);
-
-                        Ok(true)
+                timeout(Duration::from_millis(200), c.get(key.as_bytes())).await.map(|r| {
+                    match r {
+                        Ok(None) => {
+                            GET_KEY_MISS.increment();
+                            Ok(())
+                        }
+                        Ok(Some(_)) => {
+                            GET_KEY_HIT.increment();
+                            Ok(())
+                        }
+                        Err(e) => {
+                            // GET_TIMEOUT.increment();
+                            GET_EX.increment();
+                            Err(e)
+                            // e
+                        }
                     }
-                    Ok(Err(_)) => Ok(false),
-                    Err(e) => Err(e),
-                }
+                })
             }
             WorkItem::Set { key, value } => {
-                unsafe {
-                    buf.set_len(0);
-                }
-                buf.extend_from_slice(
-                    format!("SET {} 0 0 {}\r\n{}\r\n", key, value.len(), value).as_bytes(),
-                );
-
-                s.write_all(&buf).await?;
-
-                unsafe {
-                    buf.set_len(0);
-                }
-
-                match timeout(Duration::from_millis(200), s.read(&mut buf)).await {
-                    Ok(Ok(_)) => {
-                        stream = Some(s);
-
-                        Ok(true)
+                SET.increment();
+                timeout(Duration::from_millis(200), c.set(key.as_bytes(), value.as_bytes(), None, None)).await.map(|r| {
+                    match r {
+                        Ok(_) => {
+                            SET_STORED.increment();
+                            Ok(())
+                        }
+                        Err(e) => {
+                            SET_EX.increment();
+                            Err(e)
+                        }
                     }
-                    Ok(Err(_)) => Ok(false),
-                    Err(e) => Err(e),
-                }
+                })
             }
-            // memcache backends don't support hash commands
-            WorkItem::HashGet { .. } | WorkItem::HashSet { .. } => {
-                continue;
+            WorkItem::Ping { .. } => {
+                PING.increment();
+                timeout(Duration::from_millis(200), c.version()).await.map(|r| {
+                    match r {
+                        Ok(_) => {
+                            PING_OK.increment();
+                            Ok(())
+                        }
+                        Err(e) => {
+                            PING_EX.increment();
+                        Err(e)
+                        }
+                    }
+                })
             }
-            WorkItem::Ping => {
-                // TODO: this could be implemented as the version command
+            _ => {
                 continue;
             }
         };
 
-        if let Ok(ok) = result {
-            if ok {
+        match result {
+            Ok(Ok(_)) => {
                 RESPONSE_OK.increment();
-            } else {
-                RESPONSE_EX.increment();
+                client = Some(c);
             }
-        } else {
-            RESPONSE_TIMEOUT.increment();
+            Ok(Err(_)) => {
+                RESPONSE_EX.increment();
+                client = Some(c);
+            }
+            Err(_) => {
+                RESPONSE_TIMEOUT.increment();
+            }
         }
     }
 

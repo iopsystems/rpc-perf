@@ -1,3 +1,4 @@
+use ringlog::Drain;
 use async_channel::{bounded, Receiver, Sender};
 use core::num::NonZeroU64;
 use core::sync::atomic::{AtomicBool, Ordering};
@@ -11,17 +12,16 @@ use rand::Rng;
 use rand::SeedableRng;
 use rand_xoshiro::Xoshiro256Plus;
 use std::sync::Arc;
-use tokio::io::*;
-use tokio::net::TcpStream;
-use tokio::runtime::Builder;
-use tokio::runtime::Runtime;
-use tokio::time::*;
+use ::tokio::io::*;
+use ::tokio::net::TcpStream;
+use ::tokio::runtime::Builder;
+use ::tokio::runtime::Runtime;
+use ::tokio::time::*;
 
-mod get;
-mod hash_get;
+use crate::*;
 
-use self::get::*;
-use self::hash_get::*;
+mod generators;
+use self::generators::*;
 
 mod memcache;
 mod momento;
@@ -51,6 +51,10 @@ counter!(HASH_SET);
 counter!(HASH_SET_EX);
 counter!(HASH_SET_STORED);
 
+counter!(PING);
+counter!(PING_EX);
+counter!(PING_OK);
+
 counter!(CONNECT);
 counter!(CONNECT_EX);
 
@@ -77,7 +81,9 @@ enum Protocol {
 }
 
 // this should take some sort of configuration
-pub fn run() -> Result<()> {
+pub fn run(log: Box<dyn Drain>) -> Result<()> {
+    let mut log = log;
+
     // Create the runtime
     let mut rt = Builder::new_multi_thread()
         .enable_all()
@@ -98,19 +104,25 @@ pub fn run() -> Result<()> {
     let klen = 64;
     let nkeys = 10_000;
     let distribution = Uniform::from(0..nkeys);
-    let keyspace = Keyspace::new(klen, nkeys, Box::new(distribution));
+    let keyspace = Keyspace::new(klen, nkeys, Box::new(distribution), None);
 
     // initialize inner keyspace (for hash operations)
     let klen = 16;
     let nkeys = 1000;
     let distribution = Uniform::from(0..nkeys);
-    let inner_keyspace = InnerKeyspace::new(klen, nkeys, Box::new(distribution));
+    let inner_keyspace = InnerKeyspace::new(klen, nkeys, Box::new(distribution), Some(Box::new(Uniform::from(1..16))));
 
     // launch the workload generator(s)
     rt.spawn(get_requests(
         work_sender.clone(),
         keyspace.clone(),
-        NonZeroU64::new(10),
+        NonZeroU64::new(0),
+    ));
+    rt.spawn(hash_delete_requests(
+        work_sender.clone(),
+        keyspace.clone(),
+        inner_keyspace.clone(),
+        NonZeroU64::new(5),
     ));
     rt.spawn(hash_get_requests(
         work_sender.clone(),
@@ -121,33 +133,51 @@ pub fn run() -> Result<()> {
     rt.spawn(hash_set_requests(
         work_sender.clone(),
         keyspace.clone(),
-        inner_keyspace,
+        inner_keyspace.clone(),
         64,
         NonZeroU64::new(5),
     ));
+    rt.spawn(hash_multi_get_requests(
+        work_sender.clone(),
+        keyspace.clone(),
+        inner_keyspace,
+        NonZeroU64::new(5),
+    ));
     rt.spawn(set_requests(work_sender, keyspace, 64, NonZeroU64::new(5)));
+
+    rt.spawn(async move {
+        while RUNNING.load(Ordering::Relaxed) {
+            sleep(Duration::from_millis(50)).await;
+            let _ = log.flush();
+        }
+        let _ = log.flush();
+    });
 
     for _ in 0..5 {
         rt.block_on(async {
             sleep(Duration::from_secs(WINDOW)).await;
         });
 
-        println!(
+        info!(
             "connect attempt/s: {}",
             CONNECT.reset() / WINDOW
         );
-        println!(
+        info!(
             "response error/s: {}",
             RESPONSE_EX.reset() / WINDOW
         );
-        println!(
+        info!(
             "response ok/s: {}",
             RESPONSE_OK.reset() / WINDOW
         );
-        println!(
+        info!(
             "response timeout/s: {}",
             RESPONSE_TIMEOUT.reset() / WINDOW
         );
+        info!(
+            "response latency p999: {}",
+            RESPONSE_LATENCY.percentile(99.9).map(|b| format!("{}", b.high())).unwrap_or_else(|_| "ERR".to_string())
+        )
     }
 
     RUNNING.store(false, Ordering::Relaxed);
@@ -162,6 +192,7 @@ where
 {
     keys: Arc<Box<[Arc<String>]>>,
     distribution: Box<T>,
+    cardinality: Option<Box<T>>,
     rng: Xoshiro256Plus,
 }
 
@@ -177,14 +208,18 @@ impl<T> InnerKeyspace<T>
 where
     T: Distribution<usize>,
 {
-    pub fn new(klen: usize, count: usize, distribution: Box<T>) -> Self {
+    pub fn new(klen: usize, count: usize, distribution: Box<T>, cardinality: Option<Box<T>>) -> Self {
         Self {
-            inner: Keyspace::new(klen, count, distribution),
+            inner: Keyspace::new(klen, count, distribution, cardinality),
         }
     }
 
     pub fn sample(&mut self) -> Arc<String> {
         self.inner.sample()
+    }
+
+    pub fn multi_sample(&mut self) -> Vec<Arc<String>> {
+        self.inner.multi_sample()
     }
 }
 
@@ -192,7 +227,7 @@ impl<T> Keyspace<T>
 where
     T: Distribution<usize>,
 {
-    pub fn new(klen: usize, count: usize, distribution: Box<T>) -> Self {
+    pub fn new(klen: usize, count: usize, distribution: Box<T>, cardinality: Option<Box<T>>) -> Self {
         let mut rng = Xoshiro256Plus::seed_from_u64(0);
 
         let mut keys = Vec::with_capacity(count);
@@ -208,6 +243,7 @@ where
         Keyspace {
             keys: Arc::new(keys.into_boxed_slice()),
             distribution,
+            cardinality,
             rng,
         }
     }
@@ -216,6 +252,21 @@ where
         let idx = self.distribution.sample(&mut self.rng);
         self.keys[idx].clone()
     }
+
+    pub fn multi_sample(&mut self) -> Vec<Arc<String>> {
+        let cardinality = if let Some(c) = &self.cardinality {
+            c.sample(&mut self.rng)
+        } else {
+            1
+        };
+
+        let mut samples = Vec::with_capacity(cardinality);
+        for _ in 0..cardinality {
+            let idx = self.distribution.sample(&mut self.rng);
+            samples.push(self.keys[idx].clone())
+        }
+        samples
+    }
 }
 
 #[allow(dead_code)]
@@ -223,9 +274,17 @@ pub enum WorkItem {
     Get {
         key: Arc<String>,
     },
+    HashDelete {
+        key: Arc<String>,
+        fields: Vec<Arc<String>>,
+    },
     HashGet {
         key: Arc<String>,
         field: Arc<String>,
+    },
+    HashMultiGet {
+        key: Arc<String>,
+        fields: Vec<Arc<String>>,
     },
     HashSet {
         key: Arc<String>,
@@ -239,128 +298,7 @@ pub enum WorkItem {
     Ping,
 }
 
-async fn set_requests<T: Distribution<usize>>(
-    work_sender: Sender<WorkItem>,
-    mut keyspace: Keyspace<T>,
-    vlen: usize,
-    rate: Option<NonZeroU64>,
-) -> Result<()> {
-    // initialize rng to generate values
-    let mut rng = Xoshiro256Plus::seed_from_u64(0);
 
-    // if the rate is none, we treat as non-ratelimited and add items to
-    // the work queue as quickly as possible
-    if rate.is_none() {
-        while RUNNING.load(Ordering::Relaxed) {
-            let key = keyspace.sample();
-
-            let value: String = (&mut rng)
-                .sample_iter(&Alphanumeric)
-                .take(vlen)
-                .map(char::from)
-                .collect();
-
-            let _ = work_sender.send(WorkItem::Set { key, value }).await;
-        }
-
-        return Ok(());
-    }
-
-    let rate = u64::from(rate.unwrap());
-
-    // TODO: this gives approximate rates
-    //
-    // timer granularity should be millisecond level on most platforms
-    // for higher rates, we can insert multiple work items every interval
-    let (quanta, interval) = if rate <= 1000 {
-        (1, 1000 / rate)
-    } else {
-        (rate / 1000, 1)
-    };
-
-    let mut interval = tokio::time::interval(Duration::from_millis(interval));
-
-    while RUNNING.load(Ordering::Relaxed) {
-        interval.tick().await;
-        for _ in 0..quanta {
-            let key = keyspace.sample();
-
-            let value: String = (&mut rng)
-                .sample_iter(&Alphanumeric)
-                .take(vlen)
-                .map(char::from)
-                .collect();
-
-            let _ = work_sender.send(WorkItem::Set { key, value }).await;
-        }
-    }
-
-    Ok(())
-}
-
-async fn hash_set_requests<T: Distribution<usize>>(
-    work_sender: Sender<WorkItem>,
-    mut keyspace: Keyspace<T>,
-    mut inner_keyspace: InnerKeyspace<T>,
-    vlen: usize,
-    rate: Option<NonZeroU64>,
-) -> Result<()> {
-    // initialize rng to generate values
-    let mut rng = Xoshiro256Plus::seed_from_u64(0);
-
-    // if the rate is none, we treat as non-ratelimited and add items to
-    // the work queue as quickly as possible
-    if rate.is_none() {
-        while RUNNING.load(Ordering::Relaxed) {
-            let key = keyspace.sample();
-            let field = inner_keyspace.sample();
-            let value: String = (&mut rng)
-                .sample_iter(&Alphanumeric)
-                .take(vlen)
-                .map(char::from)
-                .collect();
-
-            let _ = work_sender
-                .send(WorkItem::HashSet { key, field, value })
-                .await;
-        }
-
-        return Ok(());
-    }
-
-    let rate = u64::from(rate.unwrap());
-
-    // TODO: this gives approximate rates
-    //
-    // timer granularity should be millisecond level on most platforms
-    // for higher rates, we can insert multiple work items every interval
-    let (quanta, interval) = if rate <= 1000 {
-        (1, 1000 / rate)
-    } else {
-        (rate / 1000, 1)
-    };
-
-    let mut interval = tokio::time::interval(Duration::from_millis(interval));
-
-    while RUNNING.load(Ordering::Relaxed) {
-        interval.tick().await;
-        for _ in 0..quanta {
-            let key = keyspace.sample();
-            let field = inner_keyspace.sample();
-            let value: String = (&mut rng)
-                .sample_iter(&Alphanumeric)
-                .take(vlen)
-                .map(char::from)
-                .collect();
-
-            let _ = work_sender
-                .send(WorkItem::HashSet { key, field, value })
-                .await;
-        }
-    }
-
-    Ok(())
-}
 
 
 
