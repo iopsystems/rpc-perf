@@ -37,42 +37,48 @@ async fn task(work_receiver: Receiver<WorkItem>) -> Result<()> {
         let start = Instant::now();
         let result = match work_item {
             WorkItem::Get { key } => {
-                con.get::<&String, Vec<u8>>(key.as_ref()).await.map(|_| ())
+                timeout(Duration::from_millis(200), con.get::<&String, Vec<u8>>(key.as_ref())).await.map(|r| r.map(|_| ()))
             }
             WorkItem::Set { key, value } => {
-                con.set::<&String, Vec<u8>, ()>(key.as_ref(), value.into()).await
+                timeout(Duration::from_millis(200), con.set::<&String, Vec<u8>, ()>(key.as_ref(), value.into())).await
             }
             WorkItem::HashDelete { key, fields } => {
                 let fields: Vec<&String> = fields.iter().map(|v| v.borrow()).collect();
-                con.hdel::<&String, Vec<&String>, Vec<u8>>(key.as_ref(), fields).await.map(|_| ())
+                timeout(Duration::from_millis(200), con.hdel::<&String, Vec<&String>, Vec<u8>>(key.as_ref(), fields)).await.map(|r| r.map(|_| ()))
             }
             WorkItem::HashExists { key, field } => {
-                con.hexists::<&String, &String, bool>(key.as_ref(), field.as_ref()).await.map(|_| ())
+                timeout(Duration::from_millis(200), con.hexists::<&String, &String, bool>(key.as_ref(), field.as_ref())).await.map(|r| r.map(|_| ()))
             }
             WorkItem::HashGet { key, field } => {
-                con.hget::<&String, &String, Vec<u8>>(key.as_ref(), field.as_ref()).await.map(|_| ())
+                timeout(Duration::from_millis(200), con.hget::<&String, &String, Vec<u8>>(key.as_ref(), field.as_ref())).await.map(|r| r.map(|_| ()))
             }
             WorkItem::HashMultiGet { key, fields } => {
                 let fields: Vec<&String> = fields.iter().map(|v| v.borrow()).collect();
-                con.hget::<&String, Vec<&String>, Vec<u8>>(key.as_ref(), fields).await.map(|_| ())
+                timeout(Duration::from_millis(200), con.hget::<&String, Vec<&String>, Vec<u8>>(key.as_ref(), fields)).await.map(|r| r.map(|_| ()))
             }
             WorkItem::HashSet { key, field, value } => {
-                con.hset::<&String, &String, Vec<u8>, Vec<u8>>(key.as_ref(), field.as_ref(), value.into()).await.map(|_| ())
+                timeout(Duration::from_millis(200), con.hset::<&String, &String, Vec<u8>, Vec<u8>>(key.as_ref(), field.as_ref(), value.into())).await.map(|r| r.map(|_| ()))
             }
             WorkItem::Ping { .. } => {
-                redis::cmd("PING").query_async(&mut con).await
+                timeout(Duration::from_millis(200), redis::cmd("PING").query_async(&mut con)).await
             }
         };
 
         let stop = Instant::now();
 
-        RESPONSE_LATENCY.increment(stop, stop.duration_since(start).as_nanos(), 1);
+        match result {
+            Ok(Ok(_)) => {
+                connection = Some(con);
 
-        if result.is_ok() {
-            RESPONSE_OK.increment();
-            connection = Some(con);
-        } else {
-            RESPONSE_EX.increment();
+                RESPONSE_OK.increment();
+                RESPONSE_LATENCY.increment(stop, stop.duration_since(start).as_nanos(), 1);
+            }
+            Ok(Err(_)) => {
+                RESPONSE_EX.increment();
+            }
+            Err(_) => {
+                RESPONSE_TIMEOUT.increment();
+            }
         }
     }
 

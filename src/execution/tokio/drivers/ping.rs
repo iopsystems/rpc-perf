@@ -35,36 +35,57 @@ async fn task(work_receiver: Receiver<WorkItem>) -> Result<()> {
             .map_err(|_| Error::new(ErrorKind::Other, "channel closed"))?;
 
         let start = Instant::now();
-        if let WorkItem::Ping = work_item {
-            unsafe {
-                buf.set_len(0);
-            }
-            buf.extend_from_slice(b"PING\r\n");
-
-            s.write_all(&buf).await?;
-
-            unsafe {
-                buf.set_len(0);
-            }
-
-            if let Ok(result) = timeout(Duration::from_millis(200), s.read(&mut buf)).await {
-                match result {
-                    Ok(n) => {
-                        unsafe {
-                            buf.set_len(n);
-                        }
-                        if buf == b"PONG\r\n" {
-                            RESPONSE_OK.increment();
-                            stream = Some(s);
-                        } else {
-                            RESPONSE_EX.increment();
-                        }
-                    }
-                    Err(e) => {
-                        return Err(e);
-                    }
+        let result = match work_item {
+            WorkItem::Ping => {
+                unsafe {
+                    buf.set_len(0);
                 }
-            } else {
+                buf.extend_from_slice(b"PING\r\n");
+
+                s.write_all(&buf).await?;
+
+                unsafe {
+                    buf.set_len(0);
+                }
+
+                timeout(Duration::from_millis(200), s.read(&mut buf)).await.map(|r| {
+                    match r {
+                        Ok(n) => {
+                            unsafe {
+                                buf.set_len(n);
+                            }
+                            if buf == b"PONG\r\n" {
+                                RESPONSE_OK.increment();
+                                Ok(())
+                            } else {
+                                RESPONSE_EX.increment();
+                                Err(Error::new(ErrorKind::InvalidData, "unexpected data"))
+                            }
+                        }
+                        Err(e) => {
+                            Err(e)
+                        }
+                    }
+                })
+            }
+            _ => {
+                continue;
+            }
+        };
+
+        let stop = Instant::now();
+
+        match result {
+            Ok(Ok(_)) => {
+                stream = Some(s);
+
+                RESPONSE_OK.increment();
+                RESPONSE_LATENCY.increment(stop, stop.duration_since(start).as_nanos(), 1);
+            }
+            Ok(Err(_)) => {
+                RESPONSE_EX.increment();
+            }
+            Err(_) => {
                 RESPONSE_TIMEOUT.increment();
             }
         }

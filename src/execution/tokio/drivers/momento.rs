@@ -55,6 +55,7 @@ async fn task(
             .await
             .map_err(|_| Error::new(ErrorKind::Other, "channel closed"))?;
 
+        let start = Instant::now();
         let result = match work_item {
             WorkItem::Get { key } => {
                 GET.increment();
@@ -106,11 +107,15 @@ async fn task(
             }
         };
 
+        let stop = Instant::now();
+
         if let Ok(ok) = result {
             if ok {
                 RESPONSE_OK.increment();
+                RESPONSE_LATENCY.increment(stop, stop.duration_since(start).as_nanos(), 1);
             } else {
                 RESPONSE_EX.increment();
+                RESPONSE_LATENCY.increment(stop, stop.duration_since(start).as_nanos(), 1);
             }
         } else {
             RESPONSE_TIMEOUT.increment();
