@@ -4,9 +4,10 @@
 
 use super::*;
 
-pub async fn get_requests<T: Distribution<usize>>(
+pub async fn hash_exists_requests<T: Distribution<usize>>(
     work_sender: Sender<WorkItem>,
     mut keyspace: Keyspace<T>,
+    mut inner_keyspace: InnerKeyspace<T>,
     rate: Option<NonZeroU64>,
 ) -> Result<()> {
     // if the rate is none, we treat as non-ratelimited and add items to
@@ -14,8 +15,8 @@ pub async fn get_requests<T: Distribution<usize>>(
     if rate.is_none() {
         while RUNNING.load(Ordering::Relaxed) {
             let key = keyspace.sample();
-
-            let _ = work_sender.send(WorkItem::Get { key }).await;
+            let field = inner_keyspace.sample();
+            let _ = work_sender.send(WorkItem::HashExists { key, field }).await;
         }
 
         return Ok(());
@@ -27,7 +28,8 @@ pub async fn get_requests<T: Distribution<usize>>(
         interval.tick().await;
         for _ in 0..quanta {
             let key = keyspace.sample();
-            let _ = work_sender.send(WorkItem::Get { key }).await;
+            let field = inner_keyspace.sample();
+            let _ = work_sender.send(WorkItem::HashExists { key, field }).await;
         }
     }
 

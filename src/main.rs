@@ -1,3 +1,7 @@
+// Copyright 2023 IOP Systems, Inc.
+// Licensed under the Apache License, Version 2.0
+// http://www.apache.org/licenses/LICENSE-2.0
+
 #[macro_use]
 extern crate metriken;
 
@@ -10,6 +14,9 @@ use ringlog::LogBuilder;
 use ringlog::LevelFilter;
 
 mod execution;
+mod workload;
+
+use workload::stats::*;
 
 type Instant = clocksource::Instant<clocksource::Nanoseconds<u64>>;
 

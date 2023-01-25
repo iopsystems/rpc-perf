@@ -1,10 +1,16 @@
+// Copyright 2023 IOP Systems, Inc.
+// Licensed under the Apache License, Version 2.0
+// http://www.apache.org/licenses/LICENSE-2.0
+
 use super::*;
 
 use ::momento::simple_cache_client::Fields;
 use ::momento::simple_cache_client::SimpleCacheClient;
 use ::momento::simple_cache_client::SimpleCacheClientBuilder;
 
-pub fn launch_momento_tasks(runtime: &mut Runtime, work_receiver: Receiver<WorkItem>) {
+use std::collections::HashMap;
+
+pub fn launch_tasks(runtime: &mut Runtime, work_receiver: Receiver<WorkItem>) {
     let client_builder = {
         let _guard = runtime.enter();
 
@@ -32,14 +38,14 @@ pub fn launch_momento_tasks(runtime: &mut Runtime, work_receiver: Receiver<WorkI
     // create one task per "connection"
     // note: these may be channels instead of connections for multiplexed protocols
     for _ in 0..CONNECTIONS {
-        runtime.spawn(momento_task(
+        runtime.spawn(task(
             client_builder.clone().build(),
             work_receiver.clone(),
         ));
     }
 }
 
-pub async fn momento_task(
+async fn task(
     mut client: SimpleCacheClient,
     work_receiver: Receiver<WorkItem>,
 ) -> Result<()> {
@@ -95,7 +101,7 @@ pub async fn momento_task(
             )
             .await
             .map(|r| r.is_ok()),
-            WorkItem::Ping => {
+            _ => {
                 continue;
             }
         };

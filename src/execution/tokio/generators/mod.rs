@@ -1,7 +1,10 @@
 use super::*;
 
+use workload::WorkItem;
+
 mod get;
 mod hash_delete;
+mod hash_exists;
 mod hash_get;
 mod hash_multi_get;
 mod hash_set;
@@ -9,6 +12,7 @@ mod set;
 
 pub use get::*;
 pub use hash_delete::*;
+pub use hash_exists::*;
 pub use hash_get::*;
 pub use hash_multi_get::*;
 pub use hash_set::*;
