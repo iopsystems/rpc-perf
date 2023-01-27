@@ -1585,6 +1585,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ratelimit"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4e9c124ab68f28501873b8c5ecfa0de688e37cbe4f1b5440ed1971135e7c84e8"
+dependencies = [
+ "clocksource",
+ "rand",
+ "rand_distr",
+]
+
+[[package]]
 name = "redis"
 version = "0.22.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1684,6 +1695,7 @@ dependencies = [
  "rand",
  "rand_distr",
  "rand_xoshiro",
+ "ratelimit",
  "redis",
  "ringlog",
  "serde",

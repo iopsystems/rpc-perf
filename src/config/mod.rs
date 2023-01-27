@@ -1,201 +1,283 @@
-use std::collections::HashMap;
-use std::io::Read;
-use serde_derive::*;
+// Copyright 2021 Twitter, Inc.
+// Licensed under the Apache License, Version 2.0
+// http://www.apache.org/licenses/LICENSE-2.0
 
-// The default interval, in seconds, between reports on stdout
-fn default_interval() -> usize {
-    60
+// use crate::config_file::*;
+use rand_xoshiro::Xoshiro256Plus;
+use rand::Rng;
+use rand_distr::Alphanumeric;
+use rand_distr::Uniform;
+use rand_distr::{Distribution, WeightedAliasIndex};
+use std::net::SocketAddr;
+use zipf::ZipfDistribution;
+
+mod file;
+
+pub use file::*;
+
+pub const NAME: &str = env!("CARGO_PKG_NAME");
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+pub struct Config {
+    general: General,
+    debug: Debug,
+    // waterfall: Waterfall,
+    connection: Connection,
+    request: Request,
+    tls: Option<Tls>,
+    endpoints: Vec<SocketAddr>,
+    keyspaces: Vec<Keyspace>,
+    keyspace_dist: WeightedAliasIndex<usize>,
 }
 
-// The total test runtime in seconds
-fn default_duration() -> usize {
-    300
+#[derive(Clone)]
+pub enum KeyDistribution {
+    Uniform(Uniform<usize>),
+    Zipf(ZipfDistribution),
 }
 
-// The number of per-backend connections / channels to drive the load
-fn default_poolsize() -> usize {
-	1
-}
-
-// The number of worker threads used to drive the load.
-// NOTE: this doesn't mean exactly what we want yet, as we are just
-// setting the number of tokio worker threads to this value. The
-// workload generation tasks share this pool too.
-fn default_threads() -> usize {
-	1
-}
-
-fn empty_map() -> HashMap<String, String> {
-    HashMap::new()
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct File {
-	general: General,
-	keyspace: Vec<Keyspace>,
-}
-
-impl File {
-	pub fn general(&self) -> &General {
-		&self.general
-	}
-
-	pub fn load(filename: &str) -> Self {
-		let mut file = match std::fs::File::open(filename) {
-            Ok(c) => c,
-            Err(error) => {
-                eprintln!("error loading config file: {filename}\n{error}");
-                std::process::exit(1);
-            }
-        };
-        let mut content = String::new();
-        match file.read_to_string(&mut content) {
-            Ok(_) => {}
-            Err(error) => {
-                eprintln!("error reading config file: {filename}\n{error}");
-                std::process::exit(1);
-            }
+impl KeyDistribution {
+    pub fn sample(&self, rng: &mut Xoshiro256Plus) -> usize {
+        match self {
+            Self::Uniform(d) => d.sample(rng),
+            Self::Zipf(d) => d.sample(rng),
         }
-        let toml = toml::from_str(&content);
-        match toml {
-            Ok(toml) => toml,
-            Err(error) => {
-                eprintln!("Failed to parse TOML config: {filename}\n{error}");
-                std::process::exit(1);
-            }
-        }
-	}
-
-	pub fn keyspaces(&self) -> &[Keyspace] {
-		&self.keyspace
-	}
+    }
 }
 
-#[derive(Deserialize)]
-pub struct General {
-	protocol: Protocol,
-	#[serde(default = "default_interval")]
-	interval: usize,
-	#[serde(default = "default_duration")]
-	duration: usize,
-	#[serde(default = "default_poolsize")]
-	poolsize: usize,
-	#[serde(default = "default_threads")]
-	threads: usize,
-}
-
-impl General {
-	pub fn protocol(&self) -> Protocol {
-		self.protocol
-	}
-
-	pub fn threads(&self) -> usize {
-		self.threads
-	}
-
-	pub fn duration(&self) -> usize {
-		self.duration
-	}
-
-	pub fn interval(&self) -> usize {
-		self.interval
-	}
-
-	pub fn poolsize(&self) -> usize {
-		self.poolsize
-	}
-}
-
-// keyspace
-#[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[derive(Clone)]
 pub struct Keyspace {
-	key_length: usize,
-	key_count: usize,
-	distribution: Distribution,
-	commands: CommandConfig,
+    length: usize,
+    weight: usize,
+    cardinality: u32,
+    commands: Vec<Command>,
+    command_dist: WeightedAliasIndex<usize>,
+    inner_keys: Vec<InnerKey>,
+    inner_key_dist: Option<WeightedAliasIndex<usize>>,
+    values: Vec<Value>,
+    value_dist: WeightedAliasIndex<usize>,
+    ttl: usize,
+    key_type: FieldType,
+    batch_size: usize,
+    key_distribution: KeyDistribution,
 }
 
 impl Keyspace {
-	pub fn key_length(&self) -> usize {
-		self.key_length
-	}
+    pub fn length(&self) -> usize {
+        self.length
+    }
 
-	pub fn key_count(&self) -> usize {
-		self.key_count
-	}
+    pub fn cardinality(&self) -> u32 {
+        self.cardinality
+    }
+
+    // TODO(aetimmes): implement cardinality for Alphanumeric fields
+    pub fn generate_key(&self, rng: &mut Xoshiro256Plus) -> Vec<u8> {
+        match self.key_type {
+            FieldType::Alphanumeric => rng
+                .sample_iter(&Alphanumeric)
+                .take(self.length())
+                .collect::<Vec<u8>>(),
+            FieldType::U32 => format!(
+                "{:0>len$}",
+                self.key_distribution.sample(rng) as u32,
+                len = self.length()
+            )
+            .as_bytes()
+            .to_vec(),
+        }
+    }
+
+    //#TODO(atimmes): implement cardinality for Alphanumeric fields
+    pub fn generate_inner_key(&self, rng: &mut Xoshiro256Plus) -> Option<Vec<u8>> {
+        if let Some(ref dist) = self.inner_key_dist {
+            let idx = dist.sample(rng);
+            let conf = &self.inner_keys[idx];
+            let inner_key = match conf.field_type() {
+                FieldType::Alphanumeric => rng
+                    .sample_iter(&Alphanumeric)
+                    .take(conf.length())
+                    .collect::<Vec<u8>>(),
+                FieldType::U32 => format!(
+                    "{:0>len$}",
+                    &rng.gen_range(0u32..conf.cardinality()),
+                    len = conf.length()
+                )
+                .as_bytes()
+                .to_vec(),
+            };
+            Some(inner_key)
+        } else {
+            None
+        }
+    }
+
+    //#TODO(atimmes): implement cardinality for Alphanumeric fields
+    pub fn generate_value(&self, rng: &mut Xoshiro256Plus) -> Vec<u8> {
+        // if let Some(ref value_dist) = self.value_dist {
+            let value_idx = self.value_dist.sample(rng);
+            let value_conf = &self.values[value_idx];
+            let value = match value_conf.field_type() {
+                FieldType::Alphanumeric => rng
+                    .sample_iter(&Alphanumeric)
+                    .take(value_conf.length())
+                    .collect::<Vec<u8>>(),
+                FieldType::U32 => format!(
+                    "{:0>len$}",
+                    &rng.gen_range(0u32..value_conf.cardinality()),
+                    len = value_conf.length()
+                )
+                .as_bytes()
+                .to_vec(),
+            };
+            value
+        // } else {
+        //     None
+        // }
+    }
+
+    pub fn choose_command(&self, rng: &mut Xoshiro256Plus) -> &Command {
+        &self.commands[self.command_dist.sample(rng)]
+    }
+
+    pub fn choose_value(&self, rng: &mut Xoshiro256Plus) -> &Value {
+        &self.values[self.value_dist.sample(rng)]
+    }
+
+    pub fn ttl(&self) -> usize {
+        self.ttl
+    }
+
+    pub fn batch_size(&self) -> usize {
+        self.batch_size
+    }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct Distribution {
-	model: DistributionModel,
-	#[serde(serialize_with = "toml::ser::tables_last")]
-    #[serde(default = "empty_map")]
-	parameters: HashMap<String, String>,
-}
+impl Config {
+    pub fn new(file: Option<&str>) -> Self {
+        let config_file = if let Some(file) = file {
+            File::load(file)
+        } else {
+            fatal!("need a config file");
+        };
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "snake_case")]
-#[serde(deny_unknown_fields)]
-pub enum Protocol {
-    Memcache,
-    Momento,
-    Ping,
-    Resp,
-}
+        let mut keyspaces = Vec::new();
+        for k in config_file.keyspaces() {
+            let inner_keys = k.inner_keys();
+            let inner_key_weights: Vec<usize> = if inner_keys.is_empty() {
+                Vec::new()
+            } else {
+                inner_keys.iter().map(|v| v.weight()).collect()
+            };
+            let inner_key_dist = if inner_keys.is_empty() {
+                None
+            } else {
+                Some(WeightedAliasIndex::new(inner_key_weights).unwrap())
+            };
 
-#[derive(Debug, Deserialize, Clone, Copy, Eq, PartialEq)]
-#[serde(rename_all = "snake_case")]
-#[serde(deny_unknown_fields)]
-pub enum DistributionModel {
-	Uniform,
-	Zipf,
-}
+            let command_weights: Vec<usize> = k.commands().iter().map(|v| v.weight()).collect();
+            let command_dist = WeightedAliasIndex::new(command_weights).unwrap();
 
-#[derive(Deserialize, Clone, Copy, Eq, PartialEq)]
-#[serde(rename_all = "snake_case")]
-#[serde(deny_unknown_fields)]
-pub enum Type {
-	Bytes,
-	Ascii,
-	U32,
-}
+            let values = k.values();
+            let value_weights: Vec<usize> = if values.is_empty() {
+                Vec::new()
+            } else {
+                values.iter().map(|v| v.weight()).collect()
+            };
+            let value_dist = if values.is_empty() {
+                panic!("no values configured for keyspace");
+            } else {
+                WeightedAliasIndex::new(value_weights).unwrap()
+            };
 
-#[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct CommandConfig {
-	command: Command,
-	weight: usize,
-	// rate: usize,
-	// keyspace: Keyspace,
-}
+            let key_distribution = match k.key_distribution {
+                None => KeyDistribution::Uniform(Uniform::new(0, k.cardinality() as usize)),
+                Some(ref kd) => match kd.model {
+                    KeyDistributionModel::Uniform => {
+                        KeyDistribution::Uniform(Uniform::new(0, k.cardinality() as usize))
+                    }
+                    KeyDistributionModel::Zipf => {
+                        let exponent = kd
+                            .parameters
+                            .get("exponent")
+                            .unwrap_or(&"1.0".to_owned())
+                            .parse::<f64>()
+                            .expect("bad exponent for zipf distribution");
+                        KeyDistribution::Zipf(
+                            ZipfDistribution::new(k.cardinality() as usize, exponent)
+                                .expect("bad zipf config"),
+                        )
+                    }
+                },
+            };
 
-impl CommandConfig {
-	pub fn command(&self) -> Command {
-		self.command
-	}
+            let keyspace = Keyspace {
+                length: k.length(),
+                weight: k.weight(),
+                cardinality: k.cardinality(),
+                commands: k.commands(),
+                command_dist,
+                inner_keys: k.inner_keys(),
+                inner_key_dist,
+                values: k.values(),
+                value_dist,
+                ttl: k.ttl(),
+                key_type: k.key_type(),
+                batch_size: k.batch_size(),
+                key_distribution,
+            };
+            keyspaces.push(keyspace);
+        }
 
-	pub fn weight(&self) -> usize {
-		self.weight
-	}
-}
+        let weights: Vec<usize> = keyspaces.iter().map(|k| k.weight).collect();
+        let keyspace_dist = WeightedAliasIndex::new(weights).unwrap();
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "snake_case")]
-#[serde(deny_unknown_fields)]
-pub enum Command {
-	Add,
-	Get,
-	#[serde(alias = "hexists")]
-	HashExists,
-	#[serde(alias = "hget")]
-	HashGet,
-	#[serde(alias = "hmget")]
-	HashMultiGet,
-	#[serde(alias = "hset")]
-	HashSet,
-	Replace,
-	Set,
+        if config_file.target().endpoints().is_empty() {
+            fatal!("no target endpoints configured");
+        }
+
+        Self {
+            general: config_file.general(),
+            debug: config_file.debug(),
+            // waterfall: config_file.waterfall(),
+            tls: config_file.tls(),
+            connection: config_file.connection(),
+            request: config_file.request(),
+            endpoints: config_file.target().endpoints(),
+            keyspaces,
+            keyspace_dist,
+        }
+    }
+
+    pub fn general(&self) -> &General {
+        &self.general
+    }
+
+    pub fn debug(&self) -> &Debug {
+        &self.debug
+    }
+
+    // pub fn waterfall(&self) -> &Waterfall {
+    //     &self.waterfall
+    // }
+
+    pub fn tls(&self) -> Option<&Tls> {
+        self.tls.as_ref()
+    }
+
+    pub fn connection(&self) -> &Connection {
+        &self.connection
+    }
+
+    pub fn request(&self) -> &Request {
+        &self.request
+    }
+
+    pub fn endpoints(&self) -> Vec<SocketAddr> {
+        self.endpoints.clone()
+    }
+
+    pub fn choose_keyspace(&self, rng: &mut Xoshiro256Plus) -> &Keyspace {
+        &self.keyspaces[self.keyspace_dist.sample(rng)]
+    }
 }

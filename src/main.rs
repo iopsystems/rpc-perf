@@ -5,6 +5,7 @@
 #[macro_use]
 extern crate ringlog;
 
+use crate::config::Config;
 use core::sync::atomic::{AtomicBool, Ordering};
 use ringlog::MultiLogBuilder;
 use ringlog::Stdout;
@@ -28,7 +29,7 @@ heatmap!(
 );
 
 fn main() {
-    let config = config::File::load("configs/redis.toml");
+    let config = Config::new(Some("configs/redis.toml"));
 
     let debug_log = LogBuilder::new()
         .output(Box::new(Stdout::new()))

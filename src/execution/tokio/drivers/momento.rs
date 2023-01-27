@@ -59,14 +59,14 @@ async fn task(
                 GET.increment();
                 timeout(
                     Duration::from_millis(200),
-                    client.get("preview-cache", key.as_str()),
+                    client.get("preview-cache", (*key).to_owned()),
                 )
                 .await
                 .map(|r| r.is_ok())
             },
             WorkItem::Set { key, value } => timeout(
                 Duration::from_millis(200),
-                client.set("preview-cache", key.as_str(), value.as_str(), None),
+                client.set("preview-cache", (*key).to_owned(), (*value).to_owned(), None),
             )
             .await
             .map(|r| r.is_ok()),

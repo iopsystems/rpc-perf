@@ -4,11 +4,11 @@
 
 use crate::*;
 use crate::config::*;
-use crate::workload::*;
-use crate::workload::Keyspace;
+// use crate::workload::*;
+// use crate::workload::Keyspace;
 
 use async_channel::{bounded, Sender};
-use rand::distributions::{Alphanumeric, Uniform};
+// use rand::distributions::{Alphanumeric, Uniform};
 use rand::{Rng, SeedableRng};
 use rand_xoshiro::Xoshiro256Plus;
 use ringlog::Drain;
@@ -28,7 +28,7 @@ const CONNECTIONS: usize = 16;
 // const PROTOCOL: Protocol = Protocol::Memcache;
 
 // this should take some sort of configuration
-pub fn run(config: config::File, log: Box<dyn Drain>) -> Result<()> {
+pub fn run(config: Config, log: Box<dyn Drain>) -> Result<()> {
     let mut log = log;
 
     // Create the runtime
@@ -40,7 +40,7 @@ pub fn run(config: config::File, log: Box<dyn Drain>) -> Result<()> {
     // TODO: figure out what a reasonable size is here
     let (work_sender, work_receiver) = bounded(1_000_000);
 
-    let poolsize = config.general().poolsize();
+    let poolsize = config.connection().poolsize();
 
     match config.general().protocol() {
         Protocol::Memcache => drivers::memcache::launch_tasks(&mut rt, poolsize, work_receiver),
@@ -51,51 +51,51 @@ pub fn run(config: config::File, log: Box<dyn Drain>) -> Result<()> {
 
     // rt.spawn
 
-    for keyspace in config.keyspaces() {
-        let klen = keyspace.key_length();
-        let nkeys = keyspace.key_count();
-        // let dist = keyspace.distribution();
-        let dist = Uniform::from(0..nkeys);
-        let keyspace = Keyspace::new(klen, nkeys, Box::new(dist), None);
+    // for keyspace in config.keyspaces() {
+    //     let klen = keyspace.key_length();
+    //     let nkeys = keyspace.key_count();
+    //     // let dist = keyspace.distribution();
+    //     let dist = Uniform::from(0..nkeys);
+    //     let keyspace = Keyspace::new(klen, nkeys, Box::new(dist), None);
 
-        for command in keyspace.commands() {
+    //     for command in keyspace.commands() {
 
-        }
-    }
+    //     }
+    // }
 
-    for command in config.commands() {
-        match command.command() {
-            // config::Command::Add {
+    // for command in config.commands() {
+    //     match command.command() {
+    //         // config::Command::Add {
 
-            // }
-            config::Command::Get => {
-                let klen = command.keyspace().len();
-                let nkeys = command.keyspace().keys();
-                let distribution = Uniform::from(0..nkeys);
-                let keyspace = Keyspace::new(klen, nkeys, Box::new(distribution), None);
-                rt.spawn(get_requests(
-                    work_sender.clone(),
-                    keyspace.clone(),
-                    NonZeroU64::new(80000),
-                ));
-            }
-            config::Command::Set => {
-                let klen = command.keyspace().len();
-                let nkeys = command.keyspace().keys();
-                let distribution = Uniform::from(0..nkeys);
-                let keyspace = Keyspace::new(klen, nkeys, Box::new(distribution), None);
-                rt.spawn(set_requests(
-                    work_sender.clone(),
-                    keyspace.clone(),
-                    64,
-                    NonZeroU64::new(80000),
-                ));
-            }
-            _ => {
+    //         // }
+    //         config::Command::Get => {
+    //             let klen = command.keyspace().len();
+    //             let nkeys = command.keyspace().keys();
+    //             let distribution = Uniform::from(0..nkeys);
+    //             let keyspace = Keyspace::new(klen, nkeys, Box::new(distribution), None);
+    //             rt.spawn(get_requests(
+    //                 work_sender.clone(),
+    //                 keyspace.clone(),
+    //                 NonZeroU64::new(80000),
+    //             ));
+    //         }
+    //         config::Command::Set => {
+    //             let klen = command.keyspace().len();
+    //             let nkeys = command.keyspace().keys();
+    //             let distribution = Uniform::from(0..nkeys);
+    //             let keyspace = Keyspace::new(klen, nkeys, Box::new(distribution), None);
+    //             rt.spawn(set_requests(
+    //                 work_sender.clone(),
+    //                 keyspace.clone(),
+    //                 64,
+    //                 NonZeroU64::new(80000),
+    //             ));
+    //         }
+    //         _ => {
 
-            }
-        }
-    }
+    //         }
+    //     }
+    // }
 
     // // initialize keyspace - used for kv requests
     // let klen = 64;

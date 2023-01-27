@@ -38,7 +38,7 @@ async fn task(work_receiver: Receiver<WorkItem>) -> Result<()> {
         let result = match work_item {
             WorkItem::Get { key } => {
                 GET.increment();
-                match timeout(Duration::from_millis(200), con.get::<&String, Option<Vec<u8>>>(key.as_ref())).await {
+                match timeout(Duration::from_millis(200), con.get::<&[u8], Option<Vec<u8>>>(key.as_ref())).await {
                     Ok(Ok(None)) => {
                         GET_KEY_MISS.increment();
                         Ok(Ok(()))
@@ -58,7 +58,7 @@ async fn task(work_receiver: Receiver<WorkItem>) -> Result<()> {
             }
             WorkItem::Set { key, value } => {
                 SET.increment();
-                match timeout(Duration::from_millis(200), con.set::<&String, Vec<u8>, ()>(key.as_ref(), value.into())).await {
+                match timeout(Duration::from_millis(200), con.set::<&[u8], &[u8], ()>(key.as_ref(), value.as_ref())).await {
                     Ok(Ok(_)) => {
                         SET_STORED.increment();
                         Ok(Ok(()))
@@ -77,7 +77,7 @@ async fn task(work_receiver: Receiver<WorkItem>) -> Result<()> {
                 timeout(Duration::from_millis(200), con.hdel::<&String, Vec<&String>, Vec<u8>>(key.as_ref(), fields)).await.map(|r| r.map(|_| ()))
             }
             WorkItem::HashExists { key, field } => {
-                timeout(Duration::from_millis(200), con.hexists::<&String, &String, bool>(key.as_ref(), field.as_ref())).await.map(|r| r.map(|_| ()))
+                timeout(Duration::from_millis(200), con.hexists::<&[u8], &[u8], bool>(key.as_ref(), field.as_ref())).await.map(|r| r.map(|_| ()))
             }
             WorkItem::HashGet { key, field } => {
                 timeout(Duration::from_millis(200), con.hget::<&String, &String, Vec<u8>>(key.as_ref(), field.as_ref())).await.map(|r| r.map(|_| ()))

@@ -32,6 +32,7 @@ tokio = { version = "1.21.2", features = ["full"] }
 rand = "*"
 rand_distr = "*"
 rand_xoshiro = "*"
+ratelimit = "*"
 redis = { version = "0.22.3", features = ["tokio-comp"] }
 ringlog = "*"
 serde = "1.0.144"

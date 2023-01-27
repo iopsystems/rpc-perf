@@ -7,11 +7,11 @@ use std::sync::Arc;
 #[allow(dead_code)]
 pub enum WorkItem {
     Get {
-        key: Arc<String>,
+        key: Arc<[u8]>,
     },
     HashExists {
-        key: Arc<String>,
-        field: Arc<String>,
+        key: Arc<[u8]>,
+        field: Arc<[u8]>,
     },
     HashDelete {
         key: Arc<String>,
@@ -35,8 +35,8 @@ pub enum WorkItem {
         value: String,
     },
     Set {
-        key: Arc<String>,
-        value: String,
+        key: Arc<[u8]>,
+        value: Arc<[u8]>,
     },
     Ping,
 }

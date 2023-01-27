@@ -50,13 +50,13 @@ async fn task(work_receiver: Receiver<WorkItem>) -> Result<()> {
         let request = match &work_item {
             WorkItem::Get { key } => {
                 GET.increment();
-                Request::get(vec![key.as_bytes().to_owned().into_boxed_slice()].into_boxed_slice())
+                Request::get(vec![(**key).to_owned().into_boxed_slice()].into_boxed_slice())
             }
             WorkItem::Replace { key, value } => {
                 Request::replace(key.as_bytes().to_owned().into_boxed_slice(), value.as_bytes().to_owned().into_boxed_slice(), 0, Ttl::none(), false)
             }
             WorkItem::Set { key, value } => {
-                Request::set(key.as_bytes().to_owned().into_boxed_slice(), value.as_bytes().to_owned().into_boxed_slice(), 0, Ttl::none(), false)
+                Request::set((**key).to_owned().into_boxed_slice(), (**value).to_owned().into_boxed_slice(), 0, Ttl::none(), false)
             }
             _ => {
                 continue;
