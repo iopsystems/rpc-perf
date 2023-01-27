@@ -221,6 +221,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "572f695136211188308f16ad2ca5c851a712c464060ae6974944458eb83880ba"
 
 [[package]]
+name = "byteorder"
+version = "1.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "14c189c53d098945499cdfa7ecc63567cf3886b3332b312a5b4585d8d3a6a610"
+
+[[package]]
 name = "bytes"
 version = "0.5.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -333,12 +339,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "common"
+version = "0.3.1"
+source = "git+https://github.com/pelikan-io/pelikan#4d3cd13896a66ddb930d90571da657b97a177df8"
+dependencies = [
+ "boring",
+ "clocksource",
+ "macros",
+ "metriken",
+ "net 0.3.1 (git+https://github.com/pelikan-io/pelikan)",
+ "ringlog",
+ "serde",
+]
+
+[[package]]
 name = "concurrent-queue"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c278839b831783b70278b14df4d45e1beb1aad306c07bb796637de9a0e323e8e"
 dependencies = [
  "crossbeam-utils",
+]
+
+[[package]]
+name = "config"
+version = "0.3.1"
+source = "git+https://github.com/pelikan-io/pelikan#4d3cd13896a66ddb930d90571da657b97a177df8"
+dependencies = [
+ "common",
+ "log",
+ "serde",
+ "serde_json",
+ "toml",
+ "zookeeper",
 ]
 
 [[package]]
@@ -908,6 +941,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "libm"
+version = "0.2.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "348108ab3fba42ec82ff6e9564fc4ca0247bdccdc68dd8af9764bbc79c3c8ffb"
+
+[[package]]
 name = "link-cplusplus"
 version = "1.0.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -956,12 +995,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "logger"
+version = "0.3.1"
+source = "git+https://github.com/pelikan-io/pelikan#4d3cd13896a66ddb930d90571da657b97a177df8"
+dependencies = [
+ "common",
+ "config",
+ "ringlog",
+]
+
+[[package]]
 name = "mach"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b823e83b2affd8f40a9ee8c29dbc56404c1e34cd2710921f2801e2cf29527afa"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "macros"
+version = "0.3.1"
+source = "git+https://github.com/pelikan-io/pelikan#4d3cd13896a66ddb930d90571da657b97a177df8"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -1055,6 +1114,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "mio-extras"
+version = "2.0.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "52403fe290012ce777c4626790c8951324a2b9e3316b3143779c72b029742f19"
+dependencies = [
+ "lazycell",
+ "log",
+ "mio 0.6.23",
+ "slab",
+]
+
+[[package]]
 name = "miow"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1104,6 +1175,31 @@ name = "multimap"
 version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e5ce46fe64a9d73be07dcbe690a38ce1b293be448fd8ce1e6c1b8062c9f72c6a"
+
+[[package]]
+name = "net"
+version = "0.3.1"
+dependencies = [
+ "boring",
+ "boring-sys",
+ "foreign-types-shared",
+ "libc",
+ "metriken",
+ "mio 0.8.5",
+]
+
+[[package]]
+name = "net"
+version = "0.3.1"
+source = "git+https://github.com/pelikan-io/pelikan#4d3cd13896a66ddb930d90571da657b97a177df8"
+dependencies = [
+ "boring",
+ "boring-sys",
+ "foreign-types-shared",
+ "libc",
+ "metriken",
+ "mio 0.8.5",
+]
 
 [[package]]
 name = "net2"
@@ -1165,6 +1261,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "578ede34cf02f8924ab9447f50c28075b4d3e5b269972345e7e0372b38c6cdcd"
 dependencies = [
  "autocfg",
+ "libm",
 ]
 
 [[package]]
@@ -1393,6 +1490,43 @@ dependencies = [
 ]
 
 [[package]]
+name = "protocol-common"
+version = "0.3.1"
+source = "git+https://github.com/pelikan-io/pelikan#4d3cd13896a66ddb930d90571da657b97a177df8"
+dependencies = [
+ "bytes 1.3.0",
+ "common",
+ "config",
+ "logger",
+ "storage-types",
+]
+
+[[package]]
+name = "protocol-memcache"
+version = "0.3.1"
+source = "git+https://github.com/pelikan-io/pelikan#4d3cd13896a66ddb930d90571da657b97a177df8"
+dependencies = [
+ "common",
+ "logger",
+ "metriken",
+ "nom 5.1.2",
+ "protocol-common",
+]
+
+[[package]]
+name = "protocol-ping"
+version = "0.3.1"
+source = "git+https://github.com/pelikan-io/pelikan#4d3cd13896a66ddb930d90571da657b97a177df8"
+dependencies = [
+ "common",
+ "config",
+ "logger",
+ "metriken",
+ "protocol-common",
+ "storage-types",
+]
+
+[[package]]
 name = "quote"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1429,6 +1563,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ec0be4795e2f6a28069bec0b5ff3e2ac9bafc99e6a9a7dc3547996c5c816922c"
 dependencies = [
  "getrandom",
+]
+
+[[package]]
+name = "rand_distr"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "32cb0b9bc82b0a0876c2dd994a7e7a2683d3e7390ca40e6886785ef0c7e3ee31"
+dependencies = [
+ "num-traits",
+ "rand",
 ]
 
 [[package]]
@@ -1534,12 +1678,22 @@ dependencies = [
  "metriken",
  "mio 0.8.5",
  "momento",
+ "net 0.3.1",
+ "protocol-memcache",
+ "protocol-ping",
  "rand",
+ "rand_distr",
  "rand_xoshiro",
  "redis",
  "ringlog",
+ "serde",
+ "serde_derive",
+ "session",
+ "slab",
  "tokio 1.24.1",
  "tokio-uring",
+ "toml",
+ "zipf",
 ]
 
 [[package]]
@@ -1679,6 +1833,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "session"
+version = "0.3.1"
+source = "git+https://github.com/pelikan-io/pelikan#4d3cd13896a66ddb930d90571da657b97a177df8"
+dependencies = [
+ "bytes 1.3.0",
+ "common",
+ "log",
+ "metriken",
+ "net 0.3.1 (git+https://github.com/pelikan-io/pelikan)",
+ "protocol-common",
+]
+
+[[package]]
 name = "sha1_smol"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1727,6 +1894,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a507befe795404456341dfab10cef66ead4c041f62b8b11bbb92bffe5d0953e0"
 
 [[package]]
+name = "snowflake"
+version = "1.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "27207bb65232eda1f588cf46db2fee75c0808d557f6b3cf19a75f5d6d7c94df1"
+
+[[package]]
 name = "socket2"
 version = "0.4.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1747,6 +1920,11 @@ name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
+
+[[package]]
+name = "storage-types"
+version = "0.3.1"
+source = "git+https://github.com/pelikan-io/pelikan#4d3cd13896a66ddb930d90571da657b97a177df8"
 
 [[package]]
 name = "syn"
@@ -2399,4 +2577,39 @@ checksum = "d59cefebd0c892fa2dd6de581e937301d8552cb44489cdff035c6187cb63fa5e"
 dependencies = [
  "winapi 0.2.8",
  "winapi-build",
+]
+
+[[package]]
+name = "zipf"
+version = "7.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "835688a7a1b5d2dfaeb5b7e1b4cfb979e7095a70cd1c72fe083f4904ef3e995e"
+dependencies = [
+ "rand",
+]
+
+[[package]]
+name = "zookeeper"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b4c33bece4e00dc8fbd92ad66a0b3f066940bdd075dd40635b555648f16d9e95"
+dependencies = [
+ "byteorder",
+ "bytes 0.5.6",
+ "lazy_static",
+ "log",
+ "mio 0.6.23",
+ "mio-extras",
+ "snowflake",
+ "zookeeper_derive",
+]
+
+[[package]]
+name = "zookeeper_derive"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "42307291e3c8b2e4082e5647572da863f0470511d0ecb1618a4cd0a361549723"
+dependencies = [
+ "quote",
+ "syn",
 ]

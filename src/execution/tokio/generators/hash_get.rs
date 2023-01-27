@@ -1,9 +1,13 @@
+// Copyright 2023 IOP Systems, Inc.
+// Licensed under the Apache License, Version 2.0
+// http://www.apache.org/licenses/LICENSE-2.0
+
 use super::*;
 
-pub async fn hash_get_requests<T: Distribution<usize>>(
+pub async fn hash_get_requests(
     work_sender: Sender<WorkItem>,
-    mut keyspace: Keyspace<T>,
-    mut inner_keyspace: InnerKeyspace<T>,
+    mut keyspace: Keyspace,
+    mut inner_keyspace: InnerKeyspace,
     rate: Option<NonZeroU64>,
 ) -> Result<()> {
     // if the rate is none, we treat as non-ratelimited and add items to

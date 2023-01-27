@@ -10,36 +10,34 @@ use ::momento::simple_cache_client::SimpleCacheClientBuilder;
 
 use std::collections::HashMap;
 
-pub fn launch_tasks(runtime: &mut Runtime, work_receiver: Receiver<WorkItem>) {
-    let client_builder = {
+/// Launch tasks with one channel per task as gRPC is mux-enabled.
+pub fn launch_tasks(runtime: &mut Runtime, poolsize: usize, work_receiver: Receiver<WorkItem>) {
+    let client = {
         let _guard = runtime.enter();
 
         // initialize the Momento cache client
         if std::env::var("MOMENTO_AUTHENTICATION").is_err() {
             eprintln!("environment variable `MOMENTO_AUTHENTICATION` is not set");
-            // let _ = log_drain.flush();
             std::process::exit(1);
         }
         let auth_token =
             std::env::var("MOMENTO_AUTHENTICATION").expect("MOMENTO_AUTHENTICATION must be set");
-        let client_builder =
+        let client =
             match SimpleCacheClientBuilder::new(auth_token, NonZeroU64::new(600).unwrap()) {
-                Ok(c) => c,
+                Ok(c) => c.build(),
                 Err(e) => {
                     eprintln!("could not create cache client: {}", e);
-                    // let _ = log_drain.flush();
                     std::process::exit(1);
                 }
             };
 
-        client_builder
+        client
     };
 
-    // create one task per "connection"
-    // note: these may be channels instead of connections for multiplexed protocols
-    for _ in 0..CONNECTIONS {
+    // create one task per channel
+    for _ in 0..poolsize {
         runtime.spawn(task(
-            client_builder.clone().build(),
+            client.clone(),
             work_receiver.clone(),
         ));
     }

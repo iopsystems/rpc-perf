@@ -7,15 +7,15 @@ use crate::Instant;
 use std::borrow::Borrow;
 use super::*;
 
-pub fn launch_tasks(runtime: &mut Runtime, work_receiver: Receiver<WorkItem>) {
+/// Launch tasks with one conncetion per task as RESP protocol is not mux-enabled.
+pub fn launch_tasks(runtime: &mut Runtime, poolsize: usize, work_receiver: Receiver<WorkItem>) {
     // create one task per "connection"
     // note: these may be channels instead of connections for multiplexed protocols
-    for _ in 0..CONNECTIONS {
+    for _ in 0..poolsize {
         runtime.spawn(task(work_receiver.clone()));
     }
 }
 
-// a task for RESP compatible servers (eg: Redis)
 #[allow(dead_code)]
 #[allow(clippy::slow_vector_initialization)]
 async fn task(work_receiver: Receiver<WorkItem>) -> Result<()> {
@@ -37,10 +37,40 @@ async fn task(work_receiver: Receiver<WorkItem>) -> Result<()> {
         let start = Instant::now();
         let result = match work_item {
             WorkItem::Get { key } => {
-                timeout(Duration::from_millis(200), con.get::<&String, Vec<u8>>(key.as_ref())).await.map(|r| r.map(|_| ()))
+                GET.increment();
+                match timeout(Duration::from_millis(200), con.get::<&String, Option<Vec<u8>>>(key.as_ref())).await {
+                    Ok(Ok(None)) => {
+                        GET_KEY_MISS.increment();
+                        Ok(Ok(()))
+                    }
+                    Ok(Ok(Some(_))) => {
+                        GET_KEY_HIT.increment();
+                        Ok(Ok(()))
+                    }
+                    Ok(Err(e)) => {
+                        GET_EX.increment();
+                        Ok(Err(e))
+                    }
+                    Err(e) => {
+                        Err(e)
+                    }
+                }
             }
             WorkItem::Set { key, value } => {
-                timeout(Duration::from_millis(200), con.set::<&String, Vec<u8>, ()>(key.as_ref(), value.into())).await
+                SET.increment();
+                match timeout(Duration::from_millis(200), con.set::<&String, Vec<u8>, ()>(key.as_ref(), value.into())).await {
+                    Ok(Ok(_)) => {
+                        SET_STORED.increment();
+                        Ok(Ok(()))
+                    }
+                    Ok(Err(e)) => {
+                        SET_EX.increment();
+                        Ok(Err(e))
+                    }
+                    Err(e) => {
+                        Err(e)
+                    }
+                }
             }
             WorkItem::HashDelete { key, fields } => {
                 let fields: Vec<&String> = fields.iter().map(|v| v.borrow()).collect();
@@ -62,6 +92,9 @@ async fn task(work_receiver: Receiver<WorkItem>) -> Result<()> {
             WorkItem::Ping { .. } => {
                 timeout(Duration::from_millis(200), redis::cmd("PING").query_async(&mut con)).await
             }
+            _ => {
+                continue;
+            }
         };
 
         let stop = Instant::now();
@@ -75,6 +108,7 @@ async fn task(work_receiver: Receiver<WorkItem>) -> Result<()> {
             }
             Ok(Err(_)) => {
                 RESPONSE_EX.increment();
+                RESPONSE_LATENCY.increment(stop, stop.duration_since(start).as_nanos(), 1);
             }
             Err(_) => {
                 RESPONSE_TIMEOUT.increment();

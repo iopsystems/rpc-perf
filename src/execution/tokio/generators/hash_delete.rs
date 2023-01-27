@@ -4,10 +4,10 @@
 
 use super::*;
 
-pub async fn hash_delete_requests<T: Distribution<usize>>(
+pub async fn hash_delete_requests(
     work_sender: Sender<WorkItem>,
-    mut keyspace: Keyspace<T>,
-    mut inner_keyspace: InnerKeyspace<T>,
+    mut keyspace: Keyspace,
+    mut inner_keyspace: InnerKeyspace,
     rate: Option<NonZeroU64>,
 ) -> Result<()> {
     // if the rate is none, we treat as non-ratelimited and add items to

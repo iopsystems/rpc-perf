@@ -2,29 +2,28 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
+use protocol_memcache::*;
 use session::BufMut;
 use session::Buf;
 use std::borrow::BorrowMut;
 use std::borrow::Borrow;
-use protocol_ping::Compose;
 use session::Buffer;
-use protocol_ping::{Parse, Request, Response};
+use protocol_memcache::{Compose, Parse, Request, Response};
 use super::*;
+use super::Error;
 
-/// Launch tasks with one conncetion per task as ping protocol is not mux-enabled.
+/// Launch tasks with one conncetion per task as memcache protocol is not mux-enabled.
 pub fn launch_tasks(runtime: &mut Runtime, poolsize: usize, work_receiver: Receiver<WorkItem>) {
-    // create one task per "connection"
-    // note: these may be channels instead of connections for multiplexed protocols
+    // create one task per connection
     for _ in 0..poolsize {
         runtime.spawn(task(work_receiver.clone()));
     }
 }
 
-// a task for ping servers (eg: Pelikan Pingserver)
 #[allow(clippy::slow_vector_initialization)]
 async fn task(work_receiver: Receiver<WorkItem>) -> Result<()> {
     let mut stream = None;
-    let parser = protocol_ping::ResponseParser::new();
+    let parser = protocol_memcache::ResponseParser {};
     let mut read_buffer = Buffer::new(4096);
     let mut write_buffer = Buffer::new(4096);
 
@@ -48,14 +47,22 @@ async fn task(work_receiver: Receiver<WorkItem>) -> Result<()> {
         let start = Instant::now();
         
         // compose request into buffer
-        match work_item {
-            WorkItem::Ping => {
-                Request::Ping.compose(&mut write_buffer);
+        let request = match &work_item {
+            WorkItem::Get { key } => {
+                GET.increment();
+                Request::get(vec![key.as_bytes().to_owned().into_boxed_slice()].into_boxed_slice())
+            }
+            WorkItem::Replace { key, value } => {
+                Request::replace(key.as_bytes().to_owned().into_boxed_slice(), value.as_bytes().to_owned().into_boxed_slice(), 0, Ttl::none(), false)
+            }
+            WorkItem::Set { key, value } => {
+                Request::set(key.as_bytes().to_owned().into_boxed_slice(), value.as_bytes().to_owned().into_boxed_slice(), 0, Ttl::none(), false)
             }
             _ => {
                 continue;
             }
-        }
+        };
+        request.compose(&mut write_buffer);
 
         // println!("wrote: {} bytes to buffer", write_buffer.remaining());
 
@@ -108,11 +115,47 @@ async fn task(work_receiver: Receiver<WorkItem>) -> Result<()> {
         match response {
             Ok(Ok(response)) => {
                 // validate response
-                match work_item {
-                    WorkItem::Ping => {
+                match &work_item {
+                    WorkItem::Get { .. }=> {
                         match response {
-                            Response::Pong => {
-                                PING_OK.increment();
+                            Response::Values(values) => {
+                                if values.values().is_empty() {
+                                    GET_KEY_MISS.increment();
+                                } else {
+                                    GET_KEY_HIT.increment();
+                                }
+                            }
+                            _ => {
+                                GET_EX.increment();
+                                RESPONSE_EX.increment();
+                                continue;
+                            }
+                        }
+                    }
+                    WorkItem::Replace { .. }=> {
+                        match response {
+                            Response::Stored(_) => {
+                                REPLACE_STORED.increment();
+                            }
+                            Response::NotStored(_) => {
+                                REPLACE_NOT_STORED.increment();
+                            }
+                            _ => {
+                                REPLACE_EX.increment();
+                                RESPONSE_EX.increment();
+                                continue;
+                            }
+                        }
+                    }
+                    WorkItem::Set { .. }=> {
+                        match response {
+                            Response::Stored(_) => {
+                                SET_STORED.increment();
+                            }
+                            _ => {
+                                SET_EX.increment();
+                                RESPONSE_EX.increment();
+                                continue;
                             }
                         }
                     }
@@ -129,7 +172,7 @@ async fn task(work_receiver: Receiver<WorkItem>) -> Result<()> {
             }
             Ok(Err(_)) => {
                 // record execption
-                match work_item {
+                match &work_item {
                     WorkItem::Ping => {
                         error!("ping exception");
                         PING_EX.increment();

@@ -3,22 +3,23 @@
 // http://www.apache.org/licenses/LICENSE-2.0
 
 #[macro_use]
-extern crate metriken;
-
-#[macro_use]
 extern crate ringlog;
 
+use core::sync::atomic::{AtomicBool, Ordering};
 use ringlog::MultiLogBuilder;
 use ringlog::Stdout;
 use ringlog::LogBuilder;
 use ringlog::LevelFilter;
 
+mod config;
 mod execution;
 mod workload;
 
 use workload::stats::*;
 
 type Instant = clocksource::Instant<clocksource::Nanoseconds<u64>>;
+
+static RUNNING: AtomicBool = AtomicBool::new(true);
 
 heatmap!(
     RESPONSE_LATENCY,
@@ -27,6 +28,8 @@ heatmap!(
 );
 
 fn main() {
+    let config = config::File::load("configs/redis.toml");
+
     let debug_log = LogBuilder::new()
         .output(Box::new(Stdout::new()))
         // .log_queue_depth(debug_config.log_queue_depth())
@@ -42,6 +45,8 @@ fn main() {
 
     info!("rpc-perf alpha");
 
+
+
     info!("exection model: async with tokio executor");
-    let _ = execution::tokio::run(log);
+    let _ = execution::tokio::run(config, log);
 }

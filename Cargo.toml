@@ -22,11 +22,25 @@ memcache-async = "*"
 momento = "0.10.0"
 metriken = "0.1.0"
 mio = "0.8.5"
+net = { path = "../pelikan/src/net" }
+# protocol-common = { git = "https://github.com/pelikan-io/pelikan" }
+# protocol-memcache = { path = "../pelikan/src/protocol/memcache" }
+# protocol-ping = { path = "../pelikan/src/protocol/ping" }
+protocol-memcache = { git = "https://github.com/pelikan-io/pelikan" }
+protocol-ping = { git = "https://github.com/pelikan-io/pelikan" }
 tokio = { version = "1.21.2", features = ["full"] }
 rand = "*"
+rand_distr = "*"
 rand_xoshiro = "*"
 redis = { version = "0.22.3", features = ["tokio-comp"] }
 ringlog = "*"
+serde = "1.0.144"
+serde_derive = "1.0.144"
+# session = { path = "../pelikan/src/session" }
+session = { git = "https://github.com/pelikan-io/pelikan" }
+slab = "*"
+toml = "*"
+zipf = "7.0.0"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 tokio-uring = "0.4.0"

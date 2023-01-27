@@ -30,6 +30,10 @@ pub enum WorkItem {
         field: Arc<String>,
         value: String,
     },
+    Replace {
+        key: Arc<String>,
+        value: String,
+    },
     Set {
         key: Arc<String>,
         value: String,

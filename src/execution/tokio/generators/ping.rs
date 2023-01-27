@@ -4,18 +4,15 @@
 
 use super::*;
 
-pub async fn get_requests(
+pub async fn ping_requests(
     work_sender: Sender<WorkItem>,
-    mut keyspace: Keyspace,
     rate: Option<NonZeroU64>,
 ) -> Result<()> {
     // if the rate is none, we treat as non-ratelimited and add items to
     // the work queue as quickly as possible
     if rate.is_none() {
         while RUNNING.load(Ordering::Relaxed) {
-            let key = keyspace.sample();
-
-            let _ = work_sender.send(WorkItem::Get { key }).await;
+            let _ = work_sender.send(WorkItem::Ping {}).await;
         }
 
         return Ok(());
@@ -26,8 +23,7 @@ pub async fn get_requests(
     while RUNNING.load(Ordering::Relaxed) {
         interval.tick().await;
         for _ in 0..quanta {
-            let key = keyspace.sample();
-            let _ = work_sender.send(WorkItem::Get { key }).await;
+            let _ = work_sender.send(WorkItem::Ping {}).await;
         }
     }
 

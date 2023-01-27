@@ -6,6 +6,9 @@ mod item;
 
 pub mod stats;
 
+use crate::config::CommandConfig;
+use rand_distr::Uniform;
+use zipf::ZipfDistribution;
 pub use item::WorkItem;
 
 use rand::Rng;
@@ -13,36 +16,34 @@ use rand::SeedableRng;
 use rand::distributions::Alphanumeric;
 use rand_xoshiro::Xoshiro256Plus;
 use std::sync::Arc;
-use rand::prelude::Distribution;
+use rand::prelude::Distribution as RandDistribution;
 
 
 
 #[derive(Clone)]
-pub struct Keyspace<T>
-where
-    T: Distribution<usize>,
-{
+pub struct Keyspace {
     keys: Arc<Box<[Arc<String>]>>,
-    distribution: Box<T>,
-    cardinality: Option<Box<T>>,
+    distribution: Distribution,
+    // cardinality: Option<Box<T>>,
     rng: Xoshiro256Plus,
+    command: Vec<CommandConfig>,
+    command_distr: WeightedIndexDistribution,
+}
+
+pub enum Distribution {
+	Uniform(Uniform<usize>),
+	Zipf(ZipfDistribution),
 }
 
 #[derive(Clone)]
-pub struct InnerKeyspace<T>
-where
-    T: Distribution<usize>,
-{
-    inner: Keyspace<T>,
+pub struct InnerKeyspace {
+    inner: Keyspace,
 }
 
-impl<T> InnerKeyspace<T>
-where
-    T: Distribution<usize>,
-{
-    pub fn new(klen: usize, count: usize, distribution: Box<T>, cardinality: Option<Box<T>>) -> Self {
+impl InnerKeyspace {
+    pub fn new(klen: usize, count: usize, distribution: Distribution) -> Self {
         Self {
-            inner: Keyspace::new(klen, count, distribution, cardinality),
+            inner: Keyspace::new(klen, count, distribution),
         }
     }
 
@@ -55,11 +56,8 @@ where
     }
 }
 
-impl<T> Keyspace<T>
-where
-    T: Distribution<usize>,
-{
-    pub fn new(klen: usize, count: usize, distribution: Box<T>, cardinality: Option<Box<T>>) -> Self {
+impl Keyspace {
+    pub fn new(klen: usize, count: usize, distribution: Distribution) -> Self {
         let mut rng = Xoshiro256Plus::seed_from_u64(0);
 
         let mut keys = Vec::with_capacity(count);
@@ -75,7 +73,7 @@ where
         Keyspace {
             keys: Arc::new(keys.into_boxed_slice()),
             distribution,
-            cardinality,
+            // cardinality,
             rng,
         }
     }

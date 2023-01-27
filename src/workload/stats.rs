@@ -2,10 +2,12 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
-counter!(GET);
-counter!(GET_EX);
-counter!(GET_KEY_HIT);
-counter!(GET_KEY_MISS);
+// counter!(GET);
+// counter!(GET_EX);
+// counter!(GET_KEY_HIT);
+// counter!(GET_KEY_MISS);
+
+pub use protocol_memcache::*;
 
 counter!(SET);
 counter!(SET_EX);

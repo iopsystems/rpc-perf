@@ -1,0 +1,12 @@
+[general]
+protocol = "resp"
+interval = 60
+duration = 300
+threads = 8
+poolsize = 128
+
+[[command]]
+command = "get"
+# key = { length = 64, count = 10_000_000, distribution = "zipf" }
+# value = { length = 16 }
+rate = 1
