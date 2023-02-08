@@ -91,7 +91,7 @@ If you want to submit a patch, please follow these steps:
 
 This software is licensed under the Apache 2.0 license, see [LICENSE](LICENSE) for details.
 
-[ci-build-badge]: https://img.shields.io/github/workflow/status/iopsystems/rpc-perf/CI/main?label=CI
+[ci-build-badge]: https://img.shields.io/github/actions/workflow/status/iopsystems/rpc-perf/cargo.yml?branch=main
 [ci-build-url]: https://github.com/iopsystems/rpc-perf/actions/workflows/cargo.yml?query=branch%3Amain+event%3Apush
 [contributors]: https://github.com/iopsystems/rpc-perf/graphs/contributors?type=a
 [license-badge]: https://img.shields.io/badge/license-Apache%202.0-blue.svg
