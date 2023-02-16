@@ -14,6 +14,7 @@ use std::collections::HashMap;
 
 /// Launch tasks with one channel per task as gRPC is mux-enabled.
 pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiver<WorkItem>) {
+    info!("launching momento protocol tasks");
     let client = {
         let _guard = runtime.enter();
 

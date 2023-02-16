@@ -10,6 +10,7 @@ use std::net::SocketAddr;
 
 /// Launch tasks with one conncetion per task as RESP protocol is not mux-enabled.
 pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiver<WorkItem>) {
+    info!("launching resp protocol tasks");
     // create one task per "connection"
     // note: these may be channels instead of connections for multiplexed protocols
     for _ in 0..config.connection().poolsize() {
