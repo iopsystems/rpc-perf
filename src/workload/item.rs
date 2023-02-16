@@ -51,5 +51,18 @@ pub enum WorkItem {
         key: Arc<[u8]>,
         value: Arc<[u8]>,
     },
+    SortedSetAdd {
+        key: Arc<[u8]>,
+        data: Vec<(Arc<[u8]>, f64)>,
+    },
+    SortedSetIncrement {
+        key: Arc<[u8]>,
+        member: Arc<[u8]>,
+        amount: f64,
+    },
+    SortedSetRemove {
+        key: Arc<[u8]>,
+        data: Vec<Arc<[u8]>>,
+    },
     Ping,
 }

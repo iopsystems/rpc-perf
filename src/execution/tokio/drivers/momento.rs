@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
+use std::borrow::Borrow;
 use super::*;
 
 use ::momento::response::*;
@@ -57,7 +58,7 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
                 GET.increment();
                 match timeout(
                     Duration::from_millis(200),
-                    client.get("preview-cache", (*key).to_owned()),
+                    client.get("preview-cache", &*key),
                 )
                 .await
                 {
@@ -112,8 +113,8 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
                     Duration::from_millis(200),
                     client.dictionary_delete(
                         "preview-cache",
-                        Into::<Vec<u8>>::into(&*key),
-                        Fields::Some(fields.iter().map(|f| Into::<Vec<u8>>::into(&**f)).collect()),
+                        &*key,
+                        Fields::Some(fields.iter().map(|f| &**f).collect()),
                     ),
                 )
                 .await
@@ -135,8 +136,8 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
                     Duration::from_millis(200),
                     client.dictionary_get(
                         "preview-cache",
-                        Into::<Vec<u8>>::into(&*key),
-                        vec![Into::<Vec<u8>>::into(&*field)],
+                        &*key,
+                        vec![&*field],
                     ),
                 )
                 .await
@@ -168,8 +169,8 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
                     Duration::from_millis(200),
                     client.dictionary_increment(
                         "preview-cache",
-                        Into::<Vec<u8>>::into(&*key),
-                        Into::<Vec<u8>>::into(&*field),
+                        &*key,
+                        &*field,
                         amount,
                         CollectionTtl::new(None, false),
                     ),
@@ -200,8 +201,8 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
                     Duration::from_millis(200),
                     client.dictionary_get(
                         "preview-cache",
-                        Into::<Vec<u8>>::into(&*key),
-                        fields.iter().map(|f| Into::<Vec<u8>>::into(&**f)).collect(),
+                        &*key,
+                        fields.iter().map(|f| &**f).collect(),
                     ),
                 )
                 .await
@@ -211,7 +212,7 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
                             let mut hit = 0;
                             let mut miss = 0;
                             for field in fields {
-                                if dict.contains_key(&Into::<Vec<u8>>::into(&*field)) {
+                                if dict.contains_key(&*field) {
                                     hit += 1;
                                 } else {
                                     miss += 1;
@@ -238,7 +239,7 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
                 HASH_SET.increment();
                 let data: HashMap<Vec<u8>, Vec<u8>> = data
                     .iter()
-                    .map(|(k, v)| (Into::<Vec<u8>>::into(&**k), Into::<Vec<u8>>::into(&**v)))
+                    .map(|(k, v)| (k.to_vec(), v.to_vec()))
                     .collect();
                 match timeout(
                     Duration::from_millis(200),
@@ -261,6 +262,83 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
                     }
                     Err(_) => Err(ResponseError::Timeout),
                 }
+            }
+            WorkItem::SortedSetAdd { key, data } => {
+                let data: Vec<sorted_set::SortedSetElement> = data
+                    .iter()
+                    .map(|(name, score)| sorted_set::SortedSetElement { name: name.to_vec(), score: *score })
+                    .collect();
+                match timeout(
+                    Duration::from_millis(200),
+                    client.sorted_set_put(
+                        "preview-cache",
+                        Into::<Vec<u8>>::into(&*key),
+                        data,
+                        CollectionTtl::new(None, false),
+                    ),
+                )
+                .await
+                {
+                    Ok(Ok(_)) => {
+                        // SORTED_SET_SET_STORED.add(fields as _);
+                        Ok(())
+                    }
+                    Ok(Err(_)) => {
+                        // SORTED_SET_SET_EX.increment();
+                        Err(ResponseError::Exception)
+                    }
+                    Err(_) => Err(ResponseError::Timeout),
+                }
+                // Ok(())
+            }
+            WorkItem::SortedSetIncrement { key, member, amount } => {
+                match timeout(
+                    Duration::from_millis(200),
+                    client.sorted_set_increment(
+                        "preview-cache",
+                        &*key,
+                        &*member,
+                        amount,
+                        CollectionTtl::new(None, false),
+                    ),
+                )
+                .await
+                {
+                    Ok(Ok(_)) => {
+                        // SORTED_SET_SET_STORED.add(fields as _);
+                        Ok(())
+                    }
+                    Ok(Err(_)) => {
+                        // SORTED_SET_SET_EX.increment();
+                        Err(ResponseError::Exception)
+                    }
+                    Err(_) => Err(ResponseError::Timeout),
+                }
+                // Ok(())
+            }
+            WorkItem::SortedSetRemove { key, data } => {
+                let names: Vec<&[u8]> = data.iter().map(|v| v.borrow()).collect();
+                match timeout(
+                    Duration::from_millis(200),
+                    client.sorted_set_remove(
+                        "preview-cache",
+                        &*key,
+                        names,
+                    ),
+                )
+                .await
+                {
+                    Ok(Ok(_)) => {
+                        // SORTED_SET_SET_STORED.add(fields as _);
+                        Ok(())
+                    }
+                    Ok(Err(_)) => {
+                        // SORTED_SET_SET_EX.increment();
+                        Err(ResponseError::Exception)
+                    }
+                    Err(_) => Err(ResponseError::Timeout),
+                }
+                // Ok(())
             }
             _ => {
                 continue;

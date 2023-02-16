@@ -65,7 +65,7 @@ async fn task(
                 GET.increment();
                 match timeout(
                     Duration::from_millis(200),
-                    con.get::<&[u8], Option<Vec<u8>>>(key.as_ref()),
+                    con.get::<&[u8], Option<Vec<u8>>>(&key),
                 )
                 .await
                 {
@@ -88,7 +88,7 @@ async fn task(
                 SET.increment();
                 match timeout(
                     Duration::from_millis(200),
-                    con.set::<&[u8], &[u8], ()>(key.as_ref(), value.as_ref()),
+                    con.set::<&[u8], &[u8], ()>(&key, &value),
                 )
                 .await
                 {
@@ -108,7 +108,7 @@ async fn task(
                 let fields: Vec<&[u8]> = fields.iter().map(|v| v.borrow()).collect();
                 match timeout(
                     Duration::from_millis(200),
-                    con.hdel::<&[u8], Vec<&[u8]>, Vec<u8>>(key.as_ref(), fields),
+                    con.hdel::<&[u8], Vec<&[u8]>, Vec<u8>>(&key, fields),
                 )
                 .await
                 {
@@ -126,7 +126,7 @@ async fn task(
             WorkItem::HashExists { key, field } => {
                 match timeout(
                     Duration::from_millis(200),
-                    con.hexists::<&[u8], &[u8], bool>(key.as_ref(), field.as_ref()),
+                    con.hexists::<&[u8], &[u8], bool>(&key, &field),
                 )
                 .await
                 {
@@ -142,7 +142,7 @@ async fn task(
             WorkItem::HashGet { key, field } => {
                 match timeout(
                     Duration::from_millis(200),
-                    con.hget::<&[u8], &[u8], Vec<u8>>(key.as_ref(), field.as_ref()),
+                    con.hget::<&[u8], &[u8], Vec<u8>>(&key, &field),
                 )
                 .await
                 {
@@ -154,7 +154,7 @@ async fn task(
             WorkItem::HashIncrement { key, field, amount } => {
                 match timeout(
                     Duration::from_millis(200),
-                    con.hincr::<&[u8], &[u8], i64, i64>(key.as_ref(), field.as_ref(), amount),
+                    con.hincr::<&[u8], &[u8], i64, i64>(&key, &field, amount),
                 )
                 .await
                 {
@@ -167,7 +167,7 @@ async fn task(
                 let fields: Vec<&[u8]> = fields.iter().map(|v| v.borrow()).collect();
                 match timeout(
                     Duration::from_millis(200),
-                    con.hget::<&[u8], Vec<&[u8]>, Vec<u8>>(key.as_ref(), fields),
+                    con.hget::<&[u8], Vec<&[u8]>, Vec<u8>>(&key, fields),
                 )
                 .await
                 {
@@ -201,7 +201,7 @@ async fn task(
                         data.iter().map(|(k, v)| (k.as_ref(), v.as_ref())).collect();
                     match timeout(
                         Duration::from_millis(200),
-                        con.hset_multiple::<&[u8], &[u8], &[u8], Vec<u8>>(key.as_ref(), &d),
+                        con.hset_multiple::<&[u8], &[u8], &[u8], Vec<u8>>(&key, &d),
                     )
                     .await
                     {
@@ -225,6 +225,78 @@ async fn task(
                     }
                     Ok(Err(_)) => {
                         PING_EX.increment();
+                        Err(ResponseError::Exception)
+                    }
+                    Err(_) => Err(ResponseError::Timeout),
+                }
+            }
+            WorkItem::SortedSetAdd { key, data } => {
+                if data.is_empty() {
+                    connection = Some(con);
+                    continue;
+                } else if data.len() == 1 {
+                    let (member, score) = data.first().unwrap();
+                    match timeout(
+                        Duration::from_millis(200),
+                        con.zadd::<&[u8], f64, &[u8], f64>(
+                            key.as_ref(),
+                            member.as_ref(),
+                            *score,
+                        ),
+                    )
+                    .await
+                    {
+                        Ok(Ok(_)) => Ok(()),
+                        Ok(Err(_)) => Err(ResponseError::Exception),
+                        Err(_) => Err(ResponseError::Timeout),
+                    }
+                } else {
+                    let d: Vec<(f64, &[u8])> =
+                        data.iter().map(|(m, s)| (*s, m.as_ref())).collect();
+                    match timeout(
+                        Duration::from_millis(200),
+                        con.hset_multiple::<&[u8], f64, &[u8], f64>(&key, &d),
+                    )
+                    .await
+                    {
+                        Ok(Ok(_)) => Ok(()),
+                        Ok(Err(_)) => Err(ResponseError::Exception),
+                        Err(_) => Err(ResponseError::Timeout),
+                    }
+                }
+            }
+            WorkItem::SortedSetIncrement { key, member, amount } => {
+                match timeout(
+                    Duration::from_millis(200),
+                    con.zincr::<&[u8], &[u8], f64, f64>(&key, &member, amount),
+                )
+                .await
+                {
+                    Ok(Ok(_)) => {
+                        // DELETE_DELETED.increment();
+                        Ok(())
+                    }
+                    Ok(Err(_)) => {
+                        // DELETE_EX.increment();
+                        Err(ResponseError::Exception)
+                    }
+                    Err(_) => Err(ResponseError::Timeout),
+                }
+            }
+            WorkItem::SortedSetRemove { key, data } => {
+                let members: Vec<&[u8]> = data.iter().map(|v| v.borrow()).collect();
+                match timeout(
+                    Duration::from_millis(200),
+                    con.zrem::<&[u8], Vec<&[u8]>, usize>(&key, members),
+                )
+                .await
+                {
+                    Ok(Ok(_)) => {
+                        // DELETE_DELETED.increment();
+                        Ok(())
+                    }
+                    Ok(Err(_)) => {
+                        // DELETE_EX.increment();
                         Err(ResponseError::Exception)
                     }
                     Err(_) => Err(ResponseError::Timeout),
