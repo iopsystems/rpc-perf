@@ -32,7 +32,7 @@ async fn task(
 
     let client = redis::Client::open(format!("redis://{}", endpoint))
         .map_err(|e| {
-            warn!("failed to connect: {e}");
+            warn!("failed to create redis client: {e}");
             Error::new(ErrorKind::Other, "failed to create redis client")
         })?;
     let mut connection = None;
@@ -47,12 +47,14 @@ async fn task(
                         CONNECT_CURR.add(1);
                         Some(c)
                     }
-                    Ok(Err(_)) => {
+                    Ok(Err(e)) => {
+                        warn!("error connecting: {e}");
                         CONNECT_EX.increment();
                         sleep(Duration::from_millis(100)).await;
                         continue;
                     }
                     Err(_) => {
+                        warn!("connect timeout");
                         CONNECT_TIMEOUT.increment();
                         sleep(Duration::from_millis(100)).await;
                         continue;
