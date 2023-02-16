@@ -14,6 +14,7 @@ pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiv
     // note: these may be channels instead of connections for multiplexed protocols
     for _ in 0..config.connection().poolsize() {
         for endpoint in config.endpoints() {
+
             runtime.spawn(task(work_receiver.clone(), endpoint, config.clone()));
         }
     }
@@ -26,6 +27,8 @@ async fn task(
     endpoint: SocketAddr,
     config: Config,
 ) -> Result<()> {
+    debug!("launching resp task for endpoint: {endpoint}");
+
     let client = redis::Client::open(format!("redis://{}", endpoint))
         .map_err(|_| Error::new(ErrorKind::Other, "failed to create redis client"))?;
     let mut connection = None;
