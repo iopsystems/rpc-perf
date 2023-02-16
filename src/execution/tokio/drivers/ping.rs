@@ -2,27 +2,34 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
-use session::BufMut;
-use session::Buf;
-use std::borrow::BorrowMut;
-use std::borrow::Borrow;
-use protocol_ping::Compose;
-use session::Buffer;
-use protocol_ping::{Parse, Request, Response};
 use super::*;
+use protocol_ping::Compose;
+use protocol_ping::{Parse, Request, Response};
+use session::Buf;
+use session::BufMut;
+use session::Buffer;
+use std::borrow::Borrow;
+use std::borrow::BorrowMut;
+use std::net::SocketAddr;
 
 /// Launch tasks with one conncetion per task as ping protocol is not mux-enabled.
-pub fn launch_tasks(runtime: &mut Runtime, poolsize: usize, work_receiver: Receiver<WorkItem>) {
+pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiver<WorkItem>) {
     // create one task per "connection"
     // note: these may be channels instead of connections for multiplexed protocols
-    for _ in 0..poolsize {
-        runtime.spawn(task(work_receiver.clone()));
+    for _ in 0..config.connection().poolsize() {
+        for endpoint in config.endpoints() {
+            runtime.spawn(task(work_receiver.clone(), endpoint, config.clone()));
+        }
     }
 }
 
 // a task for ping servers (eg: Pelikan Pingserver)
 #[allow(clippy::slow_vector_initialization)]
-async fn task(work_receiver: Receiver<WorkItem>) -> Result<()> {
+async fn task(
+    work_receiver: Receiver<WorkItem>,
+    endpoint: SocketAddr,
+    config: Config,
+) -> Result<()> {
     let mut stream = None;
     let parser = protocol_ping::ResponseParser::new();
     let mut read_buffer = Buffer::new(4096);
@@ -31,10 +38,21 @@ async fn task(work_receiver: Receiver<WorkItem>) -> Result<()> {
     while RUNNING.load(Ordering::Relaxed) {
         if stream.is_none() {
             CONNECT.increment();
-            stream = Some(TcpStream::connect("127.0.0.1:12321").await?);
+            stream =
+                match timeout(config.connection().timeout(), TcpStream::connect(endpoint)).await {
+                    Ok(Ok(s)) => Some(s),
+                    Ok(Err(_)) => {
+                        CONNECT_EX.increment();
+                        sleep(Duration::from_millis(100)).await;
+                        continue;
+                    }
+                    Err(_) => {
+                        CONNECT_TIMEOUT.increment();
+                        sleep(Duration::from_millis(100)).await;
+                        continue;
+                    }
+                }
         }
-
-        // println!("have connection, getting work");
 
         let mut s = stream.take().unwrap();
 
@@ -43,16 +61,18 @@ async fn task(work_receiver: Receiver<WorkItem>) -> Result<()> {
             .await
             .map_err(|_| Error::new(ErrorKind::Other, "channel closed"))?;
 
-        // println!("got work, composing request");
-
         let start = Instant::now();
-        
+
         // compose request into buffer
         match work_item {
             WorkItem::Ping => {
                 Request::Ping.compose(&mut write_buffer);
             }
+            WorkItem::Reconnect => {
+                continue;
+            }
             _ => {
+                stream = Some(s);
                 continue;
             }
         }
@@ -68,9 +88,16 @@ async fn task(work_receiver: Receiver<WorkItem>) -> Result<()> {
         // read until response or timeout
         let mut remaining_time = 200_000_000;
         let response = loop {
-            match timeout(Duration::from_millis(remaining_time / 1000000), s.read(read_buffer.borrow_mut())).await {
+            match timeout(
+                Duration::from_millis(remaining_time / 1000000),
+                s.read(read_buffer.borrow_mut()),
+            )
+            .await
+            {
                 Ok(Ok(n)) => {
-                    unsafe { read_buffer.advance_mut(n); }
+                    unsafe {
+                        read_buffer.advance_mut(n);
+                    }
                     match parser.parse(read_buffer.borrow()) {
                         Ok(resp) => {
                             let consumed = resp.consumed();
@@ -78,27 +105,27 @@ async fn task(work_receiver: Receiver<WorkItem>) -> Result<()> {
 
                             read_buffer.advance(consumed);
 
-                            break Ok(Ok(resp));
+                            break Ok(resp);
                         }
                         Err(e) => match e.kind() {
                             ErrorKind::WouldBlock => {
                                 let elapsed = start.elapsed().as_nanos();
                                 remaining_time = remaining_time.saturating_sub(elapsed);
                                 if remaining_time == 0 {
-                                    break Err(());
+                                    break Err(ResponseError::Timeout);
                                 }
-                            },
-                            _ => {
-                                break Ok(Err(()));
                             }
-                        }
+                            _ => {
+                                break Err(ResponseError::Exception);
+                            }
+                        },
                     }
                 }
                 Ok(Err(_)) => {
-                    break Ok(Err(()));
+                    break Err(ResponseError::Exception);
                 }
                 Err(_) => {
-                    break Err(());
+                    break Err(ResponseError::Timeout);
                 }
             }
         };
@@ -106,16 +133,14 @@ async fn task(work_receiver: Receiver<WorkItem>) -> Result<()> {
         let stop = Instant::now();
 
         match response {
-            Ok(Ok(response)) => {
+            Ok(response) => {
                 // validate response
                 match work_item {
-                    WorkItem::Ping => {
-                        match response {
-                            Response::Pong => {
-                                PING_OK.increment();
-                            }
+                    WorkItem::Ping => match response {
+                        Response::Pong => {
+                            PING_OK.increment();
                         }
-                    }
+                    },
                     _ => {
                         error!("unexpected work item");
                         unimplemented!();
@@ -127,7 +152,7 @@ async fn task(work_receiver: Receiver<WorkItem>) -> Result<()> {
                 RESPONSE_OK.increment();
                 RESPONSE_LATENCY.increment(stop, stop.duration_since(start).as_nanos(), 1);
             }
-            Ok(Err(_)) => {
+            Err(ResponseError::Exception) => {
                 // record execption
                 match work_item {
                     WorkItem::Ping => {
@@ -140,7 +165,7 @@ async fn task(work_receiver: Receiver<WorkItem>) -> Result<()> {
                     }
                 }
             }
-            Err(_) => {
+            Err(ResponseError::Timeout) => {
                 error!("timeout");
                 RESPONSE_TIMEOUT.increment();
             }

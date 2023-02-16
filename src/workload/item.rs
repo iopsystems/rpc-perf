@@ -2,11 +2,19 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 #[allow(dead_code)]
 pub enum WorkItem {
+    Add {
+        key: Arc<[u8]>,
+        value: Arc<[u8]>,
+    },
     Get {
+        key: Arc<[u8]>,
+    },
+    Delete {
         key: Arc<[u8]>,
     },
     HashExists {
@@ -14,25 +22,30 @@ pub enum WorkItem {
         field: Arc<[u8]>,
     },
     HashDelete {
-        key: Arc<String>,
-        fields: Vec<Arc<String>>,
+        key: Arc<[u8]>,
+        fields: Vec<Arc<[u8]>>,
     },
     HashGet {
-        key: Arc<String>,
-        field: Arc<String>,
+        key: Arc<[u8]>,
+        field: Arc<[u8]>,
+    },
+    HashIncrement {
+        key: Arc<[u8]>,
+        field: Arc<[u8]>,
+        amount: i64,
     },
     HashMultiGet {
-        key: Arc<String>,
-        fields: Vec<Arc<String>>,
+        key: Arc<[u8]>,
+        fields: Vec<Arc<[u8]>>,
     },
     HashSet {
-        key: Arc<String>,
-        field: Arc<String>,
-        value: String,
+        key: Arc<[u8]>,
+        data: HashMap<Arc<[u8]>, Arc<[u8]>>,
     },
+    Reconnect,
     Replace {
-        key: Arc<String>,
-        value: String,
+        key: Arc<[u8]>,
+        value: Arc<[u8]>,
     },
     Set {
         key: Arc<[u8]>,

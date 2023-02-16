@@ -3,11 +3,11 @@
 // http://www.apache.org/licenses/LICENSE-2.0
 
 // use crate::config_file::*;
-use rand_xoshiro::Xoshiro256Plus;
 use rand::Rng;
 use rand_distr::Alphanumeric;
 use rand_distr::Uniform;
 use rand_distr::{Distribution, WeightedAliasIndex};
+use rand_xoshiro::Xoshiro256Plus;
 use std::net::SocketAddr;
 use zipf::ZipfDistribution;
 
@@ -18,13 +18,14 @@ pub use file::*;
 pub const NAME: &str = env!("CARGO_PKG_NAME");
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+#[derive(Clone)]
 pub struct Config {
     general: General,
     debug: Debug,
     // waterfall: Waterfall,
     connection: Connection,
     request: Request,
-    tls: Option<Tls>,
+    // tls: Option<Tls>,
     endpoints: Vec<SocketAddr>,
     keyspaces: Vec<Keyspace>,
     keyspace_dist: WeightedAliasIndex<usize>,
@@ -56,9 +57,9 @@ pub struct Keyspace {
     inner_key_dist: Option<WeightedAliasIndex<usize>>,
     values: Vec<Value>,
     value_dist: WeightedAliasIndex<usize>,
-    ttl: usize,
+    // ttl: usize,
     key_type: FieldType,
-    batch_size: usize,
+    // batch_size: usize,
     key_distribution: KeyDistribution,
 }
 
@@ -115,22 +116,22 @@ impl Keyspace {
     //#TODO(atimmes): implement cardinality for Alphanumeric fields
     pub fn generate_value(&self, rng: &mut Xoshiro256Plus) -> Vec<u8> {
         // if let Some(ref value_dist) = self.value_dist {
-            let value_idx = self.value_dist.sample(rng);
-            let value_conf = &self.values[value_idx];
-            let value = match value_conf.field_type() {
-                FieldType::Alphanumeric => rng
-                    .sample_iter(&Alphanumeric)
-                    .take(value_conf.length())
-                    .collect::<Vec<u8>>(),
-                FieldType::U32 => format!(
-                    "{:0>len$}",
-                    &rng.gen_range(0u32..value_conf.cardinality()),
-                    len = value_conf.length()
-                )
-                .as_bytes()
-                .to_vec(),
-            };
-            value
+        let value_idx = self.value_dist.sample(rng);
+        let value_conf = &self.values[value_idx];
+        let value = match value_conf.field_type() {
+            FieldType::Alphanumeric => rng
+                .sample_iter(&Alphanumeric)
+                .take(value_conf.length())
+                .collect::<Vec<u8>>(),
+            FieldType::U32 => format!(
+                "{:0>len$}",
+                &rng.gen_range(0u32..value_conf.cardinality()),
+                len = value_conf.length()
+            )
+            .as_bytes()
+            .to_vec(),
+        };
+        value
         // } else {
         //     None
         // }
@@ -144,13 +145,13 @@ impl Keyspace {
         &self.values[self.value_dist.sample(rng)]
     }
 
-    pub fn ttl(&self) -> usize {
-        self.ttl
-    }
+    // pub fn ttl(&self) -> usize {
+    //     self.ttl
+    // }
 
-    pub fn batch_size(&self) -> usize {
-        self.batch_size
-    }
+    // pub fn batch_size(&self) -> usize {
+    //     self.batch_size
+    // }
 }
 
 impl Config {
@@ -221,9 +222,9 @@ impl Config {
                 inner_key_dist,
                 values: k.values(),
                 value_dist,
-                ttl: k.ttl(),
+                // ttl: k.ttl(),
                 key_type: k.key_type(),
-                batch_size: k.batch_size(),
+                // batch_size: k.batch_size(),
                 key_distribution,
             };
             keyspaces.push(keyspace);
@@ -240,7 +241,7 @@ impl Config {
             general: config_file.general(),
             debug: config_file.debug(),
             // waterfall: config_file.waterfall(),
-            tls: config_file.tls(),
+            // tls: config_file.tls(),
             connection: config_file.connection(),
             request: config_file.request(),
             endpoints: config_file.target().endpoints(),
@@ -261,9 +262,9 @@ impl Config {
     //     &self.waterfall
     // }
 
-    pub fn tls(&self) -> Option<&Tls> {
-        self.tls.as_ref()
-    }
+    // pub fn tls(&self) -> Option<&Tls> {
+    //     self.tls.as_ref()
+    // }
 
     pub fn connection(&self) -> &Connection {
         &self.connection

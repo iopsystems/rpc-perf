@@ -4,14 +4,15 @@
 
 use super::*;
 
-use ::momento::simple_cache_client::Fields;
-use ::momento::simple_cache_client::SimpleCacheClient;
-use ::momento::simple_cache_client::SimpleCacheClientBuilder;
+use ::momento::response::*;
+use ::momento::*;
+// use ::momento::simple_cache_client::SimpleCacheClient;
+// use ::momento::simple_cache_client::SimpleCacheClientBuilder;
 
 use std::collections::HashMap;
 
 /// Launch tasks with one channel per task as gRPC is mux-enabled.
-pub fn launch_tasks(runtime: &mut Runtime, poolsize: usize, work_receiver: Receiver<WorkItem>) {
+pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiver<WorkItem>) {
     let client = {
         let _guard = runtime.enter();
 
@@ -23,7 +24,7 @@ pub fn launch_tasks(runtime: &mut Runtime, poolsize: usize, work_receiver: Recei
         let auth_token =
             std::env::var("MOMENTO_AUTHENTICATION").expect("MOMENTO_AUTHENTICATION must be set");
         let client =
-            match SimpleCacheClientBuilder::new(auth_token, NonZeroU64::new(600).unwrap()) {
+            match SimpleCacheClientBuilder::new(auth_token, std::time::Duration::from_secs(600)) {
                 Ok(c) => c.build(),
                 Err(e) => {
                     eprintln!("could not create cache client: {}", e);
@@ -34,19 +35,16 @@ pub fn launch_tasks(runtime: &mut Runtime, poolsize: usize, work_receiver: Recei
         client
     };
 
+    CONNECT.increment();
+    CONNECT_CURR.add(1);
+
     // create one task per channel
-    for _ in 0..poolsize {
-        runtime.spawn(task(
-            client.clone(),
-            work_receiver.clone(),
-        ));
+    for _ in 0..config.connection().poolsize() {
+        runtime.spawn(task(client.clone(), work_receiver.clone()));
     }
 }
 
-async fn task(
-    mut client: SimpleCacheClient,
-    work_receiver: Receiver<WorkItem>,
-) -> Result<()> {
+async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) -> Result<()> {
     while RUNNING.load(Ordering::Relaxed) {
         let work_item = work_receiver
             .recv()
@@ -57,49 +55,225 @@ async fn task(
         let result = match work_item {
             WorkItem::Get { key } => {
                 GET.increment();
-                timeout(
+                match timeout(
                     Duration::from_millis(200),
                     client.get("preview-cache", (*key).to_owned()),
                 )
                 .await
-                .map(|r| r.is_ok())
-            },
-            WorkItem::Set { key, value } => timeout(
-                Duration::from_millis(200),
-                client.set("preview-cache", (*key).to_owned(), (*value).to_owned(), None),
-            )
-            .await
-            .map(|r| r.is_ok()),
-            WorkItem::HashDelete { key, fields } => timeout(
-                Duration::from_millis(200),
-                client.dictionary_delete("preview-cache", key.as_str(), Fields::Some(fields.iter().map(|f| f.as_str()).collect())),
-            )
-            .await
-            .map(|r| r.is_ok()),
-            WorkItem::HashGet { key, field } => timeout(
-                Duration::from_millis(200),
-                client.dictionary_get("preview-cache", key.as_str(), vec![field.as_str()]),
-            )
-            .await
-            .map(|r| r.is_ok()),
-            WorkItem::HashMultiGet { key, fields } => timeout(
-                Duration::from_millis(200),
-                client.dictionary_get("preview-cache", key.as_str(), fields.iter().map(|f| f.as_str()).collect()),
-            )
-            .await
-            .map(|r| r.is_ok()),
-            WorkItem::HashSet { key, field, value } => timeout(
-                Duration::from_millis(200),
-                client.dictionary_set(
-                    "preview-cache",
-                    key.as_str(),
-                    HashMap::from([(field.as_str(), value)]),
-                    None,
-                    false,
-                ),
-            )
-            .await
-            .map(|r| r.is_ok()),
+                {
+                    Ok(Ok(r)) => match r.result {
+                        MomentoGetStatus::HIT => {
+                            GET_KEY_HIT.increment();
+                            Ok(())
+                        }
+                        MomentoGetStatus::MISS => {
+                            GET_KEY_MISS.increment();
+                            Ok(())
+                        }
+                        MomentoGetStatus::ERROR => {
+                            GET_EX.increment();
+                            Err(ResponseError::Exception)
+                        }
+                    },
+                    Ok(Err(_)) => {
+                        GET_EX.increment();
+                        Err(ResponseError::Exception)
+                    }
+                    Err(_) => Err(ResponseError::Timeout),
+                }
+            }
+            WorkItem::Set { key, value } => {
+                SET.increment();
+                match timeout(
+                    Duration::from_millis(200),
+                    client.set(
+                        "preview-cache",
+                        (*key).to_owned(),
+                        (*value).to_owned(),
+                        None,
+                    ),
+                )
+                .await
+                {
+                    Ok(Ok(r)) => match r.result {
+                        MomentoSetStatus::OK => {
+                            SET_STORED.increment();
+                            Ok(())
+                        }
+                        MomentoSetStatus::ERROR => {
+                            SET_EX.increment();
+                            Err(ResponseError::Exception)
+                        }
+                    },
+                    Ok(Err(_)) => {
+                        SET_EX.increment();
+                        Err(ResponseError::Exception)
+                    }
+                    Err(_) => Err(ResponseError::Timeout),
+                }
+            }
+            WorkItem::HashDelete { key, fields } => {
+                // HDEL.increment();
+                match timeout(
+                    Duration::from_millis(200),
+                    client.dictionary_delete(
+                        "preview-cache",
+                        Into::<Vec<u8>>::into(&*key),
+                        Fields::Some(fields.iter().map(|f| Into::<Vec<u8>>::into(&**f)).collect()),
+                    ),
+                )
+                .await
+                {
+                    Ok(Ok(())) => {
+                        // HDEL_DELETED.increment();
+                        Ok(())
+                    }
+                    Ok(Err(_)) => {
+                        // HDEL_EX.increment();
+                        Err(ResponseError::Exception)
+                    }
+                    Err(_) => Err(ResponseError::Timeout),
+                }
+            }
+            WorkItem::HashGet { key, field } => {
+                // HGET.increment();
+                match timeout(
+                    Duration::from_millis(200),
+                    client.dictionary_get(
+                        "preview-cache",
+                        Into::<Vec<u8>>::into(&*key),
+                        vec![Into::<Vec<u8>>::into(&*field)],
+                    ),
+                )
+                .await
+                {
+                    Ok(Ok(r)) => match r.result {
+                        MomentoDictionaryGetStatus::FOUND => {
+                            // HGET_FIELD_HIT.increment();
+                            Ok(())
+                        }
+                        MomentoDictionaryGetStatus::MISSING => {
+                            // HGET_FIELD_MISS.increment();
+                            Ok(())
+                        }
+                        MomentoDictionaryGetStatus::ERROR => {
+                            // HGET_EX.increment();
+                            Err(ResponseError::Exception)
+                        }
+                    },
+                    Ok(Err(_)) => {
+                        // HGET_EX.increment();
+                        Err(ResponseError::Exception)
+                    }
+                    Err(_) => Err(ResponseError::Timeout),
+                }
+            }
+            WorkItem::HashIncrement { key, field, amount } => {
+                // HGET.increment();
+                match timeout(
+                    Duration::from_millis(200),
+                    client.dictionary_increment(
+                        "preview-cache",
+                        Into::<Vec<u8>>::into(&*key),
+                        Into::<Vec<u8>>::into(&*field),
+                        amount,
+                        CollectionTtl::new(None, false),
+                    ),
+                )
+                .await
+                {
+                    Ok(Ok(r)) => {
+                        #[allow(clippy::if_same_then_else)]
+                        if r.value == amount {
+                            // miss
+                            // HINCRBY_MISS.increment();
+                        } else {
+                            // hit
+                            // HINCRBY_HIT.increment();
+                        }
+                        Ok(())
+                    }
+                    Ok(Err(_)) => {
+                        // HINCRBY_EX.increment();
+                        Err(ResponseError::Exception)
+                    }
+                    Err(_) => Err(ResponseError::Timeout),
+                }
+            }
+            WorkItem::HashMultiGet { key, fields } => {
+                HASH_GET.increment();
+                match timeout(
+                    Duration::from_millis(200),
+                    client.dictionary_get(
+                        "preview-cache",
+                        Into::<Vec<u8>>::into(&*key),
+                        fields.iter().map(|f| Into::<Vec<u8>>::into(&**f)).collect(),
+                    ),
+                )
+                .await
+                {
+                    Ok(Ok(r)) => match r.dictionary {
+                        Some(dict) => {
+                            let mut hit = 0;
+                            let mut miss = 0;
+                            for field in fields {
+                                if dict.contains_key(&Into::<Vec<u8>>::into(&*field)) {
+                                    hit += 1;
+                                } else {
+                                    miss += 1;
+                                }
+                            }
+                            HASH_GET_FIELD_HIT.add(hit);
+                            HASH_GET_FIELD_MISS.add(miss);
+                            Ok(())
+                        }
+                        None => {
+                            HASH_GET_FIELD_MISS.add(fields.len() as _);
+                            Ok(())
+                        }
+                    },
+                    Ok(Err(_)) => {
+                        HASH_GET_EX.increment();
+                        Err(ResponseError::Exception)
+                    }
+                    Err(_) => Err(ResponseError::Timeout),
+                }
+            }
+            WorkItem::HashSet { key, data } => {
+                let fields = data.len();
+                HASH_SET.increment();
+                let data: HashMap<Vec<u8>, Vec<u8>> = data
+                    .iter()
+                    .map(|(k, v)| (Into::<Vec<u8>>::into(&**k), Into::<Vec<u8>>::into(&**v)))
+                    .collect();
+                match timeout(
+                    Duration::from_millis(200),
+                    client.dictionary_set(
+                        "preview-cache",
+                        Into::<Vec<u8>>::into(&*key),
+                        data,
+                        CollectionTtl::new(None, false),
+                    ),
+                )
+                .await
+                {
+                    Ok(Ok(r)) => match r.result {
+                        MomentoDictionarySetStatus::OK => {
+                            HASH_SET_STORED.add(fields as _);
+                            Ok(())
+                        }
+                        MomentoDictionarySetStatus::ERROR => {
+                            HASH_SET_EX.increment();
+                            Err(ResponseError::Exception)
+                        }
+                    },
+                    Ok(Err(_)) => {
+                        HASH_GET_EX.increment();
+                        Err(ResponseError::Exception)
+                    }
+                    Err(_) => Err(ResponseError::Timeout),
+                }
+            }
             _ => {
                 continue;
             }
@@ -107,16 +281,17 @@ async fn task(
 
         let stop = Instant::now();
 
-        if let Ok(ok) = result {
-            if ok {
+        match result {
+            Ok(_) => {
                 RESPONSE_OK.increment();
                 RESPONSE_LATENCY.increment(stop, stop.duration_since(start).as_nanos(), 1);
-            } else {
-                RESPONSE_EX.increment();
-                RESPONSE_LATENCY.increment(stop, stop.duration_since(start).as_nanos(), 1);
             }
-        } else {
-            RESPONSE_TIMEOUT.increment();
+            Err(ResponseError::Exception) => {
+                RESPONSE_EX.increment();
+            }
+            Err(ResponseError::Timeout) => {
+                RESPONSE_TIMEOUT.increment();
+            }
         }
     }
 
