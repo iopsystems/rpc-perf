@@ -151,6 +151,18 @@ async fn task(
                     Err(_) => Err(ResponseError::Timeout),
                 }
             }
+            WorkItem::HashIncrement { key, field, amount } => {
+                match timeout(
+                    Duration::from_millis(200),
+                    con.hincr::<&[u8], &[u8], i64, i64>(key.as_ref(), field.as_ref(), amount),
+                )
+                .await
+                {
+                    Ok(Ok(_)) => Ok(()),
+                    Ok(Err(_)) => Err(ResponseError::Exception),
+                    Err(_) => Err(ResponseError::Timeout),
+                }
+            }
             WorkItem::HashMultiGet { key, fields } => {
                 let fields: Vec<&[u8]> = fields.iter().map(|v| v.borrow()).collect();
                 match timeout(

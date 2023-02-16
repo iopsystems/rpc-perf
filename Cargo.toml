@@ -18,8 +18,9 @@ boring = "2.1.0"
 bytes = "1.2.1"
 clocksource = "0.6.0"
 memcache-async = "*"
-momento = "0.21.0"
-metriken = "0.1.0"
+# momento = "0.21.0"
+momento = { path = "../client-sdk-rust" }
+metriken = "0.1.1"
 mio = "0.8.5"
 net = { git = "https://github.com/pelikan-io/pelikan" }
 protocol-memcache = { git = "https://github.com/pelikan-io/pelikan" }

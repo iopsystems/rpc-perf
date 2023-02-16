@@ -95,16 +95,10 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
                 )
                 .await
                 {
-                    Ok(Ok(r)) => match r.result {
-                        MomentoSetStatus::OK => {
-                            SET_STORED.increment();
-                            Ok(())
-                        }
-                        MomentoSetStatus::ERROR => {
-                            SET_EX.increment();
-                            Err(ResponseError::Exception)
-                        }
-                    },
+                    Ok(Ok(_)) => {
+                        SET_STORED.increment();
+                        Ok(())
+                    }
                     Ok(Err(_)) => {
                         SET_EX.increment();
                         Err(ResponseError::Exception)
@@ -124,7 +118,7 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
                 )
                 .await
                 {
-                    Ok(Ok(())) => {
+                    Ok(Ok(_)) => {
                         // HDEL_DELETED.increment();
                         Ok(())
                     }
@@ -257,16 +251,10 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
                 )
                 .await
                 {
-                    Ok(Ok(r)) => match r.result {
-                        MomentoDictionarySetStatus::OK => {
-                            HASH_SET_STORED.add(fields as _);
-                            Ok(())
-                        }
-                        MomentoDictionarySetStatus::ERROR => {
-                            HASH_SET_EX.increment();
-                            Err(ResponseError::Exception)
-                        }
-                    },
+                    Ok(Ok(_)) => {
+                        HASH_SET_STORED.add(fields as _);
+                        Ok(())
+                    }
                     Ok(Err(_)) => {
                         HASH_GET_EX.increment();
                         Err(ResponseError::Exception)
