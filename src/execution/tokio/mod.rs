@@ -93,7 +93,7 @@ pub fn run(config: Config, log: Box<dyn Drain>) -> Result<()> {
                 connect_sr
             );
             info!(
-                "Connection Rates (/s): Attempt: {} Opened: {} Errors: {} Timeout: {}",
+                "Connection Rates (/s): Attempt: {:.2} Opened: {:.2} Errors: {:.2} Timeout: {:.2}",
                 connect_total as f64 / window as f64,
                 connect_ok as f64 / window as f64,
                 connect_ex as f64 / window as f64,
@@ -141,7 +141,7 @@ pub fn run(config: Config, log: Box<dyn Drain>) -> Result<()> {
                 set_sr,
             );
             info!(
-                "response rate (/s): ok: {} error: {} timeout: {}",
+                "response rate (/s): ok: {:.2} error: {:.2} timeout: {:.2}",
                 RESPONSE_OK.reset() / window,
                 RESPONSE_EX.reset() / window,
                 RESPONSE_TIMEOUT.reset() / window,
