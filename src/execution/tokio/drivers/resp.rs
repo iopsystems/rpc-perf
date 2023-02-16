@@ -28,7 +28,7 @@ async fn task(
     endpoint: SocketAddr,
     config: Config,
 ) -> Result<()> {
-    debug!("launching resp task for endpoint: {endpoint}");
+    warn!("launching resp task for endpoint: {endpoint}");
 
     let client = redis::Client::open(format!("redis://{}", endpoint))
         .map_err(|e| {
@@ -48,13 +48,13 @@ async fn task(
                         Some(c)
                     }
                     Ok(Err(e)) => {
-                        warn!("error connecting: {e}");
+                        trace!("error connecting: {e}");
                         CONNECT_EX.increment();
                         sleep(Duration::from_millis(100)).await;
                         continue;
                     }
                     Err(_) => {
-                        warn!("connect timeout");
+                        trace!("connect timeout");
                         CONNECT_TIMEOUT.increment();
                         sleep(Duration::from_millis(100)).await;
                         continue;
