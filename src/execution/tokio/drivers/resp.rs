@@ -31,7 +31,10 @@ async fn task(
     debug!("launching resp task for endpoint: {endpoint}");
 
     let client = redis::Client::open(format!("redis://{}", endpoint))
-        .map_err(|_| Error::new(ErrorKind::Other, "failed to create redis client"))?;
+        .map_err(|e| {
+            warn!("failed to connect: {e}");
+            Error::new(ErrorKind::Other, "failed to create redis client")
+        })?;
     let mut connection = None;
 
     while RUNNING.load(Ordering::Relaxed) {
