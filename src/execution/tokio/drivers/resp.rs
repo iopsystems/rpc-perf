@@ -10,7 +10,7 @@ use std::net::SocketAddr;
 
 /// Launch tasks with one conncetion per task as RESP protocol is not mux-enabled.
 pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiver<WorkItem>) {
-    info!("launching resp protocol tasks");
+    debug!("launching resp protocol tasks");
     // create one task per "connection"
     // note: these may be channels instead of connections for multiplexed protocols
     for _ in 0..config.connection().poolsize() {
@@ -28,7 +28,7 @@ async fn task(
     endpoint: SocketAddr,
     config: Config,
 ) -> Result<()> {
-    warn!("launching resp task for endpoint: {endpoint}");
+    trace!("launching resp task for endpoint: {endpoint}");
 
     let client = redis::Client::open(format!("redis://{}", endpoint))
         .map_err(|e| {
@@ -105,7 +105,8 @@ async fn task(
                         SET_STORED.increment();
                         Ok(())
                     }
-                    Ok(Err(_)) => {
+                    Ok(Err(e)) => {
+                        warn!("failed to set: {e}");
                         SET_EX.increment();
                         Err(ResponseError::Exception)
                     }
