@@ -2,6 +2,8 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
+use rand::Rng;
+
 use super::*;
 use std::collections::HashMap;
 use tokio::time::Interval;
@@ -67,7 +69,46 @@ pub async fn requests(work_sender: Sender<WorkItem>, config: Config) -> Result<(
                         data,
                     }
                 }
+                Verb::MultiGet => WorkItem::MultiGet {
+                    keys: vec![keyspace.generate_key(&mut rng).into()],
+                },
                 Verb::Ping => WorkItem::Ping {},
+                Verb::SortedSetAdd => WorkItem::SortedSetAdd {
+                    key: keyspace.generate_key(&mut rng).into(),
+                    members: vec![(
+                        keyspace.generate_inner_key(&mut rng).unwrap().into(),
+                        rng.gen(),
+                    )],
+                },
+                Verb::SortedSetRemove => WorkItem::SortedSetRemove {
+                    key: keyspace.generate_key(&mut rng).into(),
+                    members: vec![keyspace.generate_inner_key(&mut rng).unwrap().into()],
+                },
+                Verb::SortedSetIncrement => WorkItem::SortedSetIncrement {
+                    key: keyspace.generate_key(&mut rng).into(),
+                    member: keyspace.generate_inner_key(&mut rng).unwrap().into(),
+                    amount: rng.gen(),
+                },
+                Verb::SortedSetScore => WorkItem::SortedSetScore {
+                    key: keyspace.generate_key(&mut rng).into(),
+                    member: keyspace.generate_inner_key(&mut rng).unwrap().into(),
+                },
+                Verb::SortedSetMultiScore => WorkItem::SortedSetMultiScore {
+                    key: keyspace.generate_key(&mut rng).into(),
+                    members: vec![keyspace.generate_inner_key(&mut rng).unwrap().into()],
+                },
+                Verb::SortedSetRank => WorkItem::SortedSetRank {
+                    key: keyspace.generate_key(&mut rng).into(),
+                    member: keyspace.generate_inner_key(&mut rng).unwrap().into(),
+                },
+                Verb::SortedSetRange => {
+                    todo!()
+                    // WorkItem::SortedSetRange {
+                    //     key: keyspace.generate_key(&mut rng).into(),
+                    //     start: 0,
+                    //     stop: -1,
+                    // }
+                }
             };
 
             let _ = work_sender.send(work_item).await;

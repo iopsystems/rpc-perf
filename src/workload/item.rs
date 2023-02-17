@@ -42,6 +42,9 @@ pub enum WorkItem {
         key: Arc<[u8]>,
         data: HashMap<Arc<[u8]>, Arc<[u8]>>,
     },
+    MultiGet {
+        keys: Vec<Arc<[u8]>>,
+    },
     Reconnect,
     Replace {
         key: Arc<[u8]>,
@@ -53,16 +56,33 @@ pub enum WorkItem {
     },
     SortedSetAdd {
         key: Arc<[u8]>,
-        data: Vec<(Arc<[u8]>, f64)>,
+        members: Vec<(Arc<[u8]>, f64)>,
     },
     SortedSetIncrement {
         key: Arc<[u8]>,
         member: Arc<[u8]>,
         amount: f64,
     },
+    SortedSetMultiScore {
+        key: Arc<[u8]>,
+        members: Vec<Arc<[u8]>>,
+    },
+    SortedSetRange {
+        key: Arc<[u8]>,
+        start: i64,
+        stop: i64,
+    },
+    SortedSetRank {
+        key: Arc<[u8]>,
+        member: Arc<[u8]>,
+    },
     SortedSetRemove {
         key: Arc<[u8]>,
-        data: Vec<Arc<[u8]>>,
+        members: Vec<Arc<[u8]>>,
+    },
+    SortedSetScore {
+        key: Arc<[u8]>,
+        member: Arc<[u8]>,
     },
     Ping,
 }

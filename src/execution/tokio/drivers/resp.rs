@@ -15,7 +15,6 @@ pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiv
     // note: these may be channels instead of connections for multiplexed protocols
     for _ in 0..config.connection().poolsize() {
         for endpoint in config.endpoints() {
-
             runtime.spawn(task(work_receiver.clone(), endpoint, config.clone()));
         }
     }
@@ -30,11 +29,10 @@ async fn task(
 ) -> Result<()> {
     trace!("launching resp task for endpoint: {endpoint}");
 
-    let client = redis::Client::open(format!("redis://{}", endpoint))
-        .map_err(|e| {
-            warn!("failed to create redis client: {e}");
-            Error::new(ErrorKind::Other, "failed to create redis client")
-        })?;
+    let client = redis::Client::open(format!("redis://{}", endpoint)).map_err(|e| {
+        warn!("failed to create redis client: {e}");
+        Error::new(ErrorKind::Other, "failed to create redis client")
+    })?;
     let mut connection = None;
 
     while RUNNING.load(Ordering::Relaxed) {
@@ -105,8 +103,7 @@ async fn task(
                         SET_STORED.increment();
                         Ok(())
                     }
-                    Ok(Err(e)) => {
-                        warn!("failed to set: {e}");
+                    Ok(Err(_)) => {
                         SET_EX.increment();
                         Err(ResponseError::Exception)
                     }
@@ -240,19 +237,15 @@ async fn task(
                     Err(_) => Err(ResponseError::Timeout),
                 }
             }
-            WorkItem::SortedSetAdd { key, data } => {
-                if data.is_empty() {
+            WorkItem::SortedSetAdd { key, members } => {
+                if members.is_empty() {
                     connection = Some(con);
                     continue;
-                } else if data.len() == 1 {
-                    let (member, score) = data.first().unwrap();
+                } else if members.len() == 1 {
+                    let (member, score) = members.first().unwrap();
                     match timeout(
                         Duration::from_millis(200),
-                        con.zadd::<&[u8], f64, &[u8], f64>(
-                            key.as_ref(),
-                            member.as_ref(),
-                            *score,
-                        ),
+                        con.zadd::<&[u8], f64, &[u8], f64>(key.as_ref(), member.as_ref(), *score),
                     )
                     .await
                     {
@@ -262,10 +255,10 @@ async fn task(
                     }
                 } else {
                     let d: Vec<(f64, &[u8])> =
-                        data.iter().map(|(m, s)| (*s, m.as_ref())).collect();
+                        members.iter().map(|(m, s)| (*s, m.as_ref())).collect();
                     match timeout(
                         Duration::from_millis(200),
-                        con.hset_multiple::<&[u8], f64, &[u8], f64>(&key, &d),
+                        con.zadd_multiple::<&[u8], f64, &[u8], f64>(&key, &d),
                     )
                     .await
                     {
@@ -275,7 +268,11 @@ async fn task(
                     }
                 }
             }
-            WorkItem::SortedSetIncrement { key, member, amount } => {
+            WorkItem::SortedSetIncrement {
+                key,
+                member,
+                amount,
+            } => {
                 match timeout(
                     Duration::from_millis(200),
                     con.zincr::<&[u8], &[u8], f64, f64>(&key, &member, amount),
@@ -293,8 +290,8 @@ async fn task(
                     Err(_) => Err(ResponseError::Timeout),
                 }
             }
-            WorkItem::SortedSetRemove { key, data } => {
-                let members: Vec<&[u8]> = data.iter().map(|v| v.borrow()).collect();
+            WorkItem::SortedSetRemove { key, members } => {
+                let members: Vec<&[u8]> = members.iter().map(|v| v.borrow()).collect();
                 match timeout(
                     Duration::from_millis(200),
                     con.zrem::<&[u8], Vec<&[u8]>, usize>(&key, members),
@@ -309,6 +306,30 @@ async fn task(
                         // DELETE_EX.increment();
                         Err(ResponseError::Exception)
                     }
+                    Err(_) => Err(ResponseError::Timeout),
+                }
+            }
+            WorkItem::SortedSetScore { key, member } => {
+                match timeout(
+                    Duration::from_millis(200),
+                    con.zscore::<&[u8], &[u8], f64>(key.as_ref(), member.as_ref()),
+                )
+                .await
+                {
+                    Ok(Ok(_)) => Ok(()),
+                    Ok(Err(_)) => Err(ResponseError::Exception),
+                    Err(_) => Err(ResponseError::Timeout),
+                }
+            }
+            WorkItem::SortedSetRank { key, member } => {
+                match timeout(
+                    Duration::from_millis(200),
+                    con.zscore::<&[u8], &[u8], Option<u64>>(key.as_ref(), member.as_ref()),
+                )
+                .await
+                {
+                    Ok(Ok(_)) => Ok(()),
+                    Ok(Err(_)) => Err(ResponseError::Exception),
                     Err(_) => Err(ResponseError::Timeout),
                 }
             }

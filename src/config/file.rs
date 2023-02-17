@@ -429,26 +429,77 @@ impl Keyspace {
 #[serde(rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
 pub enum Verb {
-    /// Sends a simple 'ping' to a pingserver.
+    /// Sends a `PING` to the server and expects a `PONG`
+    /// * Ping: `PING`
+    /// * RESP: `PING`
     Ping,
-    /// Simple key-value get which reads the value for one or more keys
-    /// depending on the batch size.
+    /// Read the value for a key.
+    /// * Memcache: `get`
+    /// * Momento: `get`
+    /// * RESP: `GET`
     Get,
-    /// Simple key-value set which will overwrite the value for a key.
+    /// Set the value for a key.
+    /// * Memcache: `set`
+    /// * Momento: `set`
+    /// * RESP: `SET`
     Set,
     /// Remove a key.
+    /// * Memcache: `delete`
+    /// * Momento: `delete`
+    /// * RESP: `DEL`
     Delete,
-    /// Deletes one or more fields from the hash stored at the key
+    /// Delete one or more fields in a hash.
+    /// * Momento: `dictionary_delete`
+    /// * RESP: `HDEL`
     HashDelete,
-    /// Check the existence of a single field in the hash stored at the key
+    /// Check if a field exists in a hash.
+    /// * Momento: `dictionary_get`
+    /// * RESP: `HEXISTS`
     HashExists,
-    /// Hash get, reads the value for one field within the hash stored at the key.
+    /// Reads the value for one field in a hash.
+    /// * Momento: `dictionary_get`
+    /// * RESP: `HGET`
     HashGet,
-    /// Hash get, reads the value for multiple fields within the hash stored
-    /// at the key.
+    /// Reads the value for multiple fields in a hash.
+    /// * Momento: `dictionary_get`
+    /// * RESP: `HMGET`
     HashMultiGet,
-    /// Hash set, set the value for a field within the hash stored at the key.
+    /// Set the value for a field in a hash.
+    /// * Momento: `dictionary_set`
+    /// * RESP: `HSET`
     HashSet,
+    /// Get multiple keys.
+    /// * Memcache: `get`
+    /// * RESP: `MGET`
+    MultiGet,
+    /// Adds one or more members to a sorted set.
+    /// * Momento: `sorted_set_put`
+    /// * RESP: `ZADD`
+    SortedSetAdd,
+    /// Increment the score for a member of a sorted set.
+    /// * Moemento: `sorted_set_increment`
+    /// * RESP: `ZINCRBY`
+    SortedSetIncrement,
+    /// Retrieve the score for a one or more members of a sorted set.
+    /// * Momento: `sorted_set_get_score`
+    /// * RESP: `ZMSCORE`
+    SortedSetMultiScore,
+    /// Retrieve members from a sorted set.
+    /// * Momento: `sorted_set_fetch`
+    /// * RESP: `ZRANGE`
+    SortedSetRange,
+    /// Retrieve the rank for a member of a sorted set.
+    /// * Momento: `sorted_set_get_rank`
+    /// * RESP: `ZRANK`
+    SortedSetRank,
+    /// Removes one or more members from a sorted set.
+    /// * Momento: `sorted_set_remove`
+    /// * RESP: `ZREM`
+    SortedSetRemove,
+    /// Retrieve the score for a member of a sorted set.
+    /// * Momento: `sorted_set_get_score`
+    /// * RESP: `ZSCORE`
+    SortedSetScore,
     // TODO(bmartin): the commands below were previously supported
     // /// Sends a payload with a CRC to an echo server and checks for corruption.
     // Echo,

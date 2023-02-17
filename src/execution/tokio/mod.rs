@@ -2,7 +2,6 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
-use crate::config::*;
 use crate::*;
 // use crate::workload::*;
 // use crate::workload::Keyspace;

@@ -2,8 +2,8 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
-use std::borrow::Borrow;
 use super::*;
+use std::borrow::Borrow;
 
 use ::momento::response::*;
 use ::momento::*;
@@ -135,11 +135,7 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
                 // HGET.increment();
                 match timeout(
                     Duration::from_millis(200),
-                    client.dictionary_get(
-                        "preview-cache",
-                        &*key,
-                        vec![&*field],
-                    ),
+                    client.dictionary_get("preview-cache", &*key, vec![&*field]),
                 )
                 .await
                 {
@@ -238,10 +234,8 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
             WorkItem::HashSet { key, data } => {
                 let fields = data.len();
                 HASH_SET.increment();
-                let data: HashMap<Vec<u8>, Vec<u8>> = data
-                    .iter()
-                    .map(|(k, v)| (k.to_vec(), v.to_vec()))
-                    .collect();
+                let data: HashMap<Vec<u8>, Vec<u8>> =
+                    data.iter().map(|(k, v)| (k.to_vec(), v.to_vec())).collect();
                 match timeout(
                     Duration::from_millis(200),
                     client.dictionary_set(
@@ -264,17 +258,20 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
                     Err(_) => Err(ResponseError::Timeout),
                 }
             }
-            WorkItem::SortedSetAdd { key, data } => {
-                let data: Vec<sorted_set::SortedSetElement> = data
+            WorkItem::SortedSetAdd { key, members } => {
+                let members: Vec<sorted_set::SortedSetElement> = members
                     .iter()
-                    .map(|(name, score)| sorted_set::SortedSetElement { name: name.to_vec(), score: *score })
+                    .map(|(name, score)| sorted_set::SortedSetElement {
+                        name: name.to_vec(),
+                        score: *score,
+                    })
                     .collect();
                 match timeout(
                     Duration::from_millis(200),
                     client.sorted_set_put(
                         "preview-cache",
                         Into::<Vec<u8>>::into(&*key),
-                        data,
+                        members,
                         CollectionTtl::new(None, false),
                     ),
                 )
@@ -292,7 +289,11 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
                 }
                 // Ok(())
             }
-            WorkItem::SortedSetIncrement { key, member, amount } => {
+            WorkItem::SortedSetIncrement {
+                key,
+                member,
+                amount,
+            } => {
                 match timeout(
                     Duration::from_millis(200),
                     client.sorted_set_increment(
@@ -317,15 +318,11 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
                 }
                 // Ok(())
             }
-            WorkItem::SortedSetRemove { key, data } => {
-                let names: Vec<&[u8]> = data.iter().map(|v| v.borrow()).collect();
+            WorkItem::SortedSetRemove { key, members } => {
+                let names: Vec<&[u8]> = members.iter().map(|v| v.borrow()).collect();
                 match timeout(
                     Duration::from_millis(200),
-                    client.sorted_set_remove(
-                        "preview-cache",
-                        &*key,
-                        names,
-                    ),
+                    client.sorted_set_remove("preview-cache", &*key, names),
                 )
                 .await
                 {
