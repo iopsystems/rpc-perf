@@ -14,7 +14,7 @@ pub async fn requests(work_sender: Sender<WorkItem>, config: Config) -> Result<(
 
     let rate = NonZeroU64::new(config.request().ratelimit().unwrap_or(0) as u64);
 
-    info!("request ratelimit: {}");
+    info!("request ratelimit: {:?}", rate);
 
     let mut ratelimit_params = if rate.is_some() {
         Some(convert_ratelimit(rate.unwrap()))
