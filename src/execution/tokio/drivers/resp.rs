@@ -334,8 +334,9 @@ async fn task(
                     Err(_) => Err(ResponseError::Timeout),
                 }
             }
-            _ => {
+            w => {
                 REQUEST_UNSUPPORTED.increment();
+                info!("unsupported: {:?}", w);
                 connection = Some(con);
                 continue;
             }
