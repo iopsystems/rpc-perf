@@ -334,6 +334,10 @@ async fn task(
                     Err(_) => Err(ResponseError::Timeout),
                 }
             }
+            WorkItem::Reconnect => {
+                CONNECT_CURR.sub(1);
+                continue;
+            }
             w => {
                 REQUEST_UNSUPPORTED.increment();
                 info!("unsupported: {:?}", w);

@@ -126,7 +126,9 @@ pub async fn reconnect(work_sender: Sender<WorkItem>, config: Config) -> Result<
     let mut ratelimit_params = if rate.is_some() {
         Some(convert_ratelimit(rate.unwrap()))
     } else {
-        None
+        // NOTE: we treat reconnect differently and don't generate any reconnects
+        // if there is no ratelimit specified.
+        return Ok(());
     };
 
     while RUNNING.load(Ordering::Relaxed) {
