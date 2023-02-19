@@ -29,7 +29,20 @@ counter!(PING_OK);
 counter!(CONNECT);
 counter!(CONNECT_EX);
 
+// Total requests taken off the work queue
+counter!(REQUEST);
+// Requests that were successfully generated and sent
+counter!(REQUEST_OK);
+// Requests which were just reconnects
+counter!(REQUEST_RECONNECT);
+// Requests which were skipped due to protocol incompatibility
+counter!(REQUEST_UNSUPPORTED);
+
+// Responses which encountered some exception while processing
 counter!(RESPONSE_EX);
+// Responses which were successful
 counter!(RESPONSE_OK);
+// Responses not received due to timeout
 counter!(RESPONSE_TIMEOUT);
+// Responses that were unexpected for the protocol
 counter!(RESPONSE_INVALID);

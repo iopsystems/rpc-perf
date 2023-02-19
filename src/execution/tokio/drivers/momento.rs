@@ -53,6 +53,7 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
             .await
             .map_err(|_| Error::new(ErrorKind::Other, "channel closed"))?;
 
+        REQUEST.increment();
         let start = Instant::now();
         let result = match work_item {
             WorkItem::Get { key } => {
@@ -342,6 +343,8 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
                 continue;
             }
         };
+
+        REQUEST_OK.increment();
 
         let stop = Instant::now();
 

@@ -70,13 +70,17 @@ async fn task(
                 Request::Ping.compose(&mut write_buffer);
             }
             WorkItem::Reconnect => {
+                REQUEST_RECONNECT.increment();
                 continue;
             }
             _ => {
+                REQUEST_UNSUPPORTED.increment();
                 stream = Some(s);
                 continue;
             }
         }
+
+        REQUEST_OK.increment();
 
         // println!("wrote: {} bytes to buffer", write_buffer.remaining());
 

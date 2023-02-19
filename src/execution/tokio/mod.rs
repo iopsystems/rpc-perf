@@ -99,6 +99,25 @@ pub fn run(config: Config, log: Box<dyn Drain>) -> Result<()> {
                 connect_timeout as f64 / window as f64,
             );
 
+            let request_ok = REQUEST_OK.reset();
+            let request_reconnect = REQUEST_RECONNECT.reset();
+            let request_unsupported = REQUEST_UNSUPPORTED.reset();
+            let request_total = REQUEST.reset() - request_reconnect;
+
+            let request_sr = 100.0 * request_ok as f64 / request_total as f64;
+            let request_ur = 100.0 * request_unsupported as f64 / request_total as f64;
+
+            info!(
+                "Request: Success: {:.2} % Unsupported: {:.2} %",
+                request_sr,
+                request_ur,
+            );
+            info!(
+                "Request Rate (/s): Ok: {:.2} Unsupported: {:.2}",
+                request_ok as f64 / window as f64,
+                request_unsupported as f64 / window as f64,
+            );
+
             let response_ok = RESPONSE_OK.reset();
             let response_ex = RESPONSE_EX.reset();
             let response_timeout = RESPONSE_TIMEOUT.reset();

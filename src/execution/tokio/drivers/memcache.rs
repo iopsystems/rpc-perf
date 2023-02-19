@@ -65,6 +65,7 @@ async fn task(
             .await
             .map_err(|_| Error::new(ErrorKind::Other, "channel closed"))?;
 
+        REQUEST.increment();
         let start = Instant::now();
 
         // compose request into buffer
@@ -116,6 +117,7 @@ async fn task(
                 continue;
             }
         };
+        REQUEST_OK.increment();
         request.compose(&mut write_buffer);
 
         // send request

@@ -66,6 +66,7 @@ async fn task(
             .await
             .map_err(|_| Error::new(ErrorKind::Other, "channel closed"))?;
 
+        REQUEST.increment();
         let start = Instant::now();
         let result = match work_item {
             WorkItem::Get { key } => {
@@ -334,10 +335,13 @@ async fn task(
                 }
             }
             _ => {
+                REQUEST_UNSUPPORTED.increment();
                 connection = Some(con);
                 continue;
             }
         };
+
+        REQUEST_OK.increment();
 
         let stop = Instant::now();
 
