@@ -1,284 +1,262 @@
-// Copyright 2021 Twitter, Inc.
-// Licensed under the Apache License, Version 2.0
-// http://www.apache.org/licenses/LICENSE-2.0
 
-// use crate::config_file::*;
-use rand::Rng;
-use rand_distr::Alphanumeric;
-use rand_distr::Uniform;
-use rand_distr::{Distribution, WeightedAliasIndex};
-use rand_xoshiro::Xoshiro256Plus;
-use std::net::SocketAddr;
-use zipf::ZipfDistribution;
 
-mod file;
+use core::num::NonZeroU64;
+use std::io::Read;
+use std::time::Duration;
 
-pub use file::*;
+use serde::Deserialize;
 
-pub const NAME: &str = env!("CARGO_PKG_NAME");
-pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+mod debug;
+pub use debug::Debug;
 
-#[derive(Clone)]
+#[derive(Clone, Deserialize)]
 pub struct Config {
-    general: General,
-    debug: Debug,
-    // waterfall: Waterfall,
-    connection: Connection,
-    request: Request,
-    // tls: Option<Tls>,
-    endpoints: Vec<SocketAddr>,
-    keyspaces: Vec<Keyspace>,
-    keyspace_dist: WeightedAliasIndex<usize>,
-}
-
-#[derive(Clone)]
-pub enum KeyDistribution {
-    Uniform(Uniform<usize>),
-    Zipf(ZipfDistribution),
-}
-
-impl KeyDistribution {
-    pub fn sample(&self, rng: &mut Xoshiro256Plus) -> usize {
-        match self {
-            Self::Uniform(d) => d.sample(rng),
-            Self::Zipf(d) => d.sample(rng),
-        }
-    }
-}
-
-#[derive(Clone)]
-pub struct Keyspace {
-    length: usize,
-    weight: usize,
-    cardinality: u32,
-    commands: Vec<Command>,
-    command_dist: WeightedAliasIndex<usize>,
-    inner_keys: Vec<InnerKey>,
-    inner_key_dist: Option<WeightedAliasIndex<usize>>,
-    values: Vec<Value>,
-    value_dist: WeightedAliasIndex<usize>,
-    // ttl: usize,
-    key_type: FieldType,
-    // batch_size: usize,
-    key_distribution: KeyDistribution,
-}
-
-impl Keyspace {
-    pub fn length(&self) -> usize {
-        self.length
-    }
-
-    pub fn cardinality(&self) -> u32 {
-        self.cardinality
-    }
-
-    // TODO(aetimmes): implement cardinality for Alphanumeric fields
-    pub fn generate_key(&self, rng: &mut Xoshiro256Plus) -> Vec<u8> {
-        match self.key_type {
-            FieldType::Alphanumeric => rng
-                .sample_iter(&Alphanumeric)
-                .take(self.length())
-                .collect::<Vec<u8>>(),
-            FieldType::U32 => format!(
-                "{:0>len$}",
-                self.key_distribution.sample(rng) as u32,
-                len = self.length()
-            )
-            .as_bytes()
-            .to_vec(),
-        }
-    }
-
-    //#TODO(atimmes): implement cardinality for Alphanumeric fields
-    pub fn generate_inner_key(&self, rng: &mut Xoshiro256Plus) -> Option<Vec<u8>> {
-        if let Some(ref dist) = self.inner_key_dist {
-            let idx = dist.sample(rng);
-            let conf = &self.inner_keys[idx];
-            let inner_key = match conf.field_type() {
-                FieldType::Alphanumeric => rng
-                    .sample_iter(&Alphanumeric)
-                    .take(conf.length())
-                    .collect::<Vec<u8>>(),
-                FieldType::U32 => format!(
-                    "{:0>len$}",
-                    &rng.gen_range(0u32..conf.cardinality()),
-                    len = conf.length()
-                )
-                .as_bytes()
-                .to_vec(),
-            };
-            Some(inner_key)
-        } else {
-            None
-        }
-    }
-
-    //#TODO(atimmes): implement cardinality for Alphanumeric fields
-    pub fn generate_value(&self, rng: &mut Xoshiro256Plus) -> Vec<u8> {
-        // if let Some(ref value_dist) = self.value_dist {
-        let value_idx = self.value_dist.sample(rng);
-        let value_conf = &self.values[value_idx];
-        let value = match value_conf.field_type() {
-            FieldType::Alphanumeric => rng
-                .sample_iter(&Alphanumeric)
-                .take(value_conf.length())
-                .collect::<Vec<u8>>(),
-            FieldType::U32 => format!(
-                "{:0>len$}",
-                &rng.gen_range(0u32..value_conf.cardinality()),
-                len = value_conf.length()
-            )
-            .as_bytes()
-            .to_vec(),
-        };
-        value
-        // } else {
-        //     None
-        // }
-    }
-
-    pub fn choose_command(&self, rng: &mut Xoshiro256Plus) -> &Command {
-        &self.commands[self.command_dist.sample(rng)]
-    }
-
-    pub fn choose_value(&self, rng: &mut Xoshiro256Plus) -> &Value {
-        &self.values[self.value_dist.sample(rng)]
-    }
-
-    // pub fn ttl(&self) -> usize {
-    //     self.ttl
-    // }
-
-    // pub fn batch_size(&self) -> usize {
-    //     self.batch_size
-    // }
+	general: General,
+	connection: Connection,
+	debug: Debug,
+	keyspaces: Vec<Keyspace>,
+	endpoints: Vec<String>,
+	request: Request,
 }
 
 impl Config {
-    pub fn new(file: Option<&str>) -> Self {
-        let config_file = if let Some(file) = file {
-            File::load(file)
-        } else {
-            fatal!("need a config file");
+	pub fn new(filename: &str) -> Self {
+        let mut file = match std::fs::File::open(filename) {
+            Ok(c) => c,
+            Err(error) => {
+                eprintln!("error loading config file: {filename}\n{error}");
+                std::process::exit(1);
+            }
         };
-
-        let mut keyspaces = Vec::new();
-        for k in config_file.keyspaces() {
-            let inner_keys = k.inner_keys();
-            let inner_key_weights: Vec<usize> = if inner_keys.is_empty() {
-                Vec::new()
-            } else {
-                inner_keys.iter().map(|v| v.weight()).collect()
-            };
-            let inner_key_dist = if inner_keys.is_empty() {
-                None
-            } else {
-                Some(WeightedAliasIndex::new(inner_key_weights).unwrap())
-            };
-
-            let command_weights: Vec<usize> = k.commands().iter().map(|v| v.weight()).collect();
-            let command_dist = WeightedAliasIndex::new(command_weights).unwrap();
-
-            let values = k.values();
-            let value_weights: Vec<usize> = if values.is_empty() {
-                Vec::new()
-            } else {
-                values.iter().map(|v| v.weight()).collect()
-            };
-            let value_dist = if values.is_empty() {
-                panic!("no values configured for keyspace");
-            } else {
-                WeightedAliasIndex::new(value_weights).unwrap()
-            };
-
-            let key_distribution = match k.key_distribution {
-                None => KeyDistribution::Uniform(Uniform::new(0, k.cardinality() as usize)),
-                Some(ref kd) => match kd.model {
-                    KeyDistributionModel::Uniform => {
-                        KeyDistribution::Uniform(Uniform::new(0, k.cardinality() as usize))
-                    }
-                    KeyDistributionModel::Zipf => {
-                        let exponent = kd
-                            .parameters
-                            .get("exponent")
-                            .unwrap_or(&"1.0".to_owned())
-                            .parse::<f64>()
-                            .expect("bad exponent for zipf distribution");
-                        KeyDistribution::Zipf(
-                            ZipfDistribution::new(k.cardinality() as usize, exponent)
-                                .expect("bad zipf config"),
-                        )
-                    }
-                },
-            };
-
-            let keyspace = Keyspace {
-                length: k.length(),
-                weight: k.weight(),
-                cardinality: k.cardinality(),
-                commands: k.commands(),
-                command_dist,
-                inner_keys: k.inner_keys(),
-                inner_key_dist,
-                values: k.values(),
-                value_dist,
-                // ttl: k.ttl(),
-                key_type: k.key_type(),
-                // batch_size: k.batch_size(),
-                key_distribution,
-            };
-            keyspaces.push(keyspace);
+        let mut content = String::new();
+        match file.read_to_string(&mut content) {
+            Ok(_) => {}
+            Err(error) => {
+                eprintln!("error reading config file: {filename}\n{error}");
+                std::process::exit(1);
+            }
         }
-
-        let weights: Vec<usize> = keyspaces.iter().map(|k| k.weight).collect();
-        let keyspace_dist = WeightedAliasIndex::new(weights).unwrap();
-
-        if config_file.target().endpoints().is_empty() {
-            fatal!("no target endpoints configured");
-        }
-
-        Self {
-            general: config_file.general(),
-            debug: config_file.debug(),
-            // waterfall: config_file.waterfall(),
-            // tls: config_file.tls(),
-            connection: config_file.connection(),
-            request: config_file.request(),
-            endpoints: config_file.target().endpoints(),
-            keyspaces,
-            keyspace_dist,
+        let toml = toml::from_str(&content);
+        match toml {
+            Ok(toml) => toml,
+            Err(error) => {
+                eprintln!("Failed to parse TOML config: {filename}\n{error}");
+                std::process::exit(1);
+            }
         }
     }
 
-    pub fn general(&self) -> &General {
-        &self.general
-    }
+	pub fn general(&self) -> &General {
+		&self.general
+	} 
 
-    pub fn debug(&self) -> &Debug {
-        &self.debug
-    }
+	pub fn connection(&self) -> &Connection {
+		&self.connection
+	}
 
-    // pub fn waterfall(&self) -> &Waterfall {
-    //     &self.waterfall
-    // }
+	pub fn endpoints(&self) -> &[String] {
+		&self.endpoints
+	}
 
-    // pub fn tls(&self) -> Option<&Tls> {
-    //     self.tls.as_ref()
-    // }
+	pub fn request(&self) -> &Request {
+		&self.request
+	}
 
-    pub fn connection(&self) -> &Connection {
-        &self.connection
-    }
+	pub fn keyspaces(&self) -> &[Keyspace] {
+		&self.keyspaces
+	}
 
-    pub fn request(&self) -> &Request {
-        &self.request
-    }
+	pub fn debug(&self) -> &Debug {
+		&self.debug
+	}
+}
 
-    pub fn endpoints(&self) -> Vec<SocketAddr> {
-        self.endpoints.clone()
-    }
+#[derive(Clone, Deserialize)]
+pub struct General {
+	threads: usize,
+	protocol: Protocol,
+	interval: u64,
+	duration: u64,
+}
 
-    pub fn choose_keyspace(&self, rng: &mut Xoshiro256Plus) -> &Keyspace {
-        &self.keyspaces[self.keyspace_dist.sample(rng)]
-    }
+impl General {
+	pub fn threads(&self) -> usize {
+		self.threads
+	}
+
+	pub fn protocol(&self) -> Protocol {
+		self.protocol
+	}
+
+	pub fn interval(&self) -> Duration {
+		Duration::from_secs(self.interval)
+	}
+
+	pub fn duration(&self) -> Duration {
+		Duration::from_secs(self.duration)
+	}
+}
+
+#[derive(Clone, Copy, Deserialize, Debug)]
+pub enum Protocol {
+	Memcache,
+	Momento,
+	Ping,
+	Resp,
+}
+
+#[derive(Clone, Deserialize)]
+pub struct Connection {
+	poolsize: usize,
+	timeout: u64,
+	ratelimit: u64,
+	reconnect_rate: u64,
+}
+
+impl Connection {
+	pub fn timeout(&self) -> Duration {
+		Duration::from_millis(self.timeout)
+	}
+
+	pub fn poolsize(&self) -> usize {
+		self.poolsize
+	}
+
+	pub fn reconnect_rate(&self) -> Option<NonZeroU64> {
+		NonZeroU64::new(self.reconnect_rate)
+	}
+}
+
+#[derive(Clone, Deserialize)]
+pub struct Endpoints {
+	endpoints: Vec<String>,
+}
+
+#[derive(Clone, Deserialize)]
+pub struct Request {
+	// milliseconds
+	timeout: u64,
+	// zero is treated as unlimited
+	ratelimit: u64,
+}
+
+impl Request {
+	pub fn timeout(&self) -> Duration {
+		Duration::from_millis(self.timeout)
+	}
+
+	pub fn ratelimit(&self) -> Option<NonZeroU64> {
+		NonZeroU64::new(self.ratelimit)
+	}
+}
+
+#[derive(Clone, Deserialize)]
+pub struct Keyspace {
+	nkeys: usize,
+	length: usize,
+	commands: Vec<Command>,
+}
+
+#[derive(Clone, Deserialize)]
+pub struct Command {
+	verb: Verb,
+}
+
+
+// #[derive(Deserialize, Clone, Copy, Eq, PartialEq)]
+// #[serde(rename_all = "snake_case")]
+// #[serde(deny_unknown_fields)]
+#[derive(Clone, Deserialize)]
+pub enum Verb {
+    /// Sends a `PING` to the server and expects a `PONG`
+    /// * Ping: `PING`
+    /// * RESP: `PING`
+    Ping,
+    /// Read the value for a key.
+    /// * Memcache: `get`
+    /// * Momento: `get`
+    /// * RESP: `GET`
+    Get,
+    /// Set the value for a key.
+    /// * Memcache: `set`
+    /// * Momento: `set`
+    /// * RESP: `SET`
+    Set,
+    /// Remove a key.
+    /// * Memcache: `delete`
+    /// * Momento: `delete`
+    /// * RESP: `DEL`
+    Delete,
+    /// Delete one or more fields in a hash.
+    /// * Momento: `dictionary_delete`
+    /// * RESP: `HDEL`
+    HashDelete,
+    /// Check if a field exists in a hash.
+    /// * Momento: `dictionary_get`
+    /// * RESP: `HEXISTS`
+    HashExists,
+    /// Reads the value for one field in a hash.
+    /// * Momento: `dictionary_get`
+    /// * RESP: `HGET`
+    HashGet,
+    /// Reads the value for multiple fields in a hash.
+    /// * Momento: `dictionary_get`
+    /// * RESP: `HMGET`
+    HashMultiGet,
+    /// Set the value for a field in a hash.
+    /// * Momento: `dictionary_set`
+    /// * RESP: `HSET`
+    HashSet,
+    /// Get multiple keys.
+    /// * Memcache: `get`
+    /// * RESP: `MGET`
+    MultiGet,
+    /// Adds one or more members to a sorted set.
+    /// * Momento: `sorted_set_put`
+    /// * RESP: `ZADD`
+    SortedSetAdd,
+    /// Increment the score for a member of a sorted set.
+    /// * Moemento: `sorted_set_increment`
+    /// * RESP: `ZINCRBY`
+    SortedSetIncrement,
+    /// Retrieve the score for a one or more members of a sorted set.
+    /// * Momento: `sorted_set_get_score`
+    /// * RESP: `ZMSCORE`
+    SortedSetMultiScore,
+    /// Retrieve members from a sorted set.
+    /// * Momento: `sorted_set_fetch`
+    /// * RESP: `ZRANGE`
+    SortedSetRange,
+    /// Retrieve the rank for a member of a sorted set.
+    /// * Momento: `sorted_set_get_rank`
+    /// * RESP: `ZRANK`
+    SortedSetRank,
+    /// Removes one or more members from a sorted set.
+    /// * Momento: `sorted_set_remove`
+    /// * RESP: `ZREM`
+    SortedSetRemove,
+    /// Retrieve the score for a member of a sorted set.
+    /// * Momento: `sorted_set_get_score`
+    /// * RESP: `ZSCORE`
+    SortedSetScore,
+    // TODO(bmartin): the commands below were previously supported
+    // /// Sends a payload with a CRC to an echo server and checks for corruption.
+    // Echo,
+    // /// Hash set non-existing, set the value for a field within the hash stored
+    // /// at the key only if the field does not exist.
+    // Hsetnx,
+    // /// Insert all the specified values at the tail of the list stored at a key.
+    // /// Creates a new key if the key does not exist. Returns an error if the key
+    // /// contains a value which is not a list.
+    // Rpush,
+    // /// Insert all the specified values at the tail of the list stored at a key,
+    // /// returns an error if the key does not exist or contains a value which is
+    // /// not a list.
+    // Rpushx,
+    // /// Count the number of items stored at a key
+    // Count,
+    // /// Returns the elements of the list stored at the key
+    // Lrange,
+    // /// Trims the elements of the list sotred at the key
+    // Ltrim,
 }

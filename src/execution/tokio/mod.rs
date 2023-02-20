@@ -12,7 +12,7 @@ use ::tokio::io::*;
 use ::tokio::runtime::Builder;
 use ::tokio::time::{sleep, Duration};
 use rand::SeedableRng;
-use rand_xoshiro::Xoshiro256Plus;
+// use rand_xoshiro::Xoshiro256Plus;
 use ringlog::Drain;
 
 use core::num::NonZeroU64;
@@ -39,7 +39,7 @@ pub fn run(config: Config, log: Box<dyn Drain>) -> Result<()> {
     // TODO: figure out what a reasonable size is here
     let (work_sender, work_receiver) = bounded(1_000_000);
 
-    info!("Protocol: {}", config.general().protocol());
+    info!("Protocol: {:?}", config.general().protocol());
 
     match config.general().protocol() {
         Protocol::Memcache => {
@@ -62,9 +62,9 @@ pub fn run(config: Config, log: Box<dyn Drain>) -> Result<()> {
         let _ = log.flush();
     });
 
-    let window = config.general().interval() as u64;
-    let mut interval = config.general().interval();
-    let mut duration = config.general().duration();
+    let window = config.general().interval().as_secs() as u64;
+    let mut interval = config.general().interval().as_secs();
+    let mut duration = config.general().duration().as_secs();
 
     let mut window_id = 0;
 
@@ -196,7 +196,7 @@ pub fn run(config: Config, log: Box<dyn Drain>) -> Result<()> {
                     .unwrap_or_else(|_| "ERR".to_string()),
             );
 
-            interval = config.general().interval();
+            interval = config.general().interval().as_secs();
             window_id += 1;
         }
     }

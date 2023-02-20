@@ -51,7 +51,7 @@ pub fn default_format(
 }
 
 fn main() {
-    let config = Config::new(Some("configs/redis.toml"));
+    let config = Config::new("configs/redis.toml");
 
     let debug_output: Box<dyn Output> = if let Some(file) = config.debug().log_file() {
         let backup = config
@@ -85,7 +85,7 @@ fn main() {
         .build()
         .start();
 
-    info!("{} {}", NAME, VERSION);
+    info!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
 
     info!("exection model: async with tokio executor");
     let _ = execution::tokio::run(config, log);

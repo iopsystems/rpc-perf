@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
+use std::net::ToSocketAddrs;
 use super::Error;
 use super::*;
 use protocol_memcache::*;
@@ -16,10 +17,17 @@ use std::net::SocketAddr;
 /// Launch tasks with one conncetion per task as memcache protocol is not mux-enabled.
 pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiver<WorkItem>) {
     debug!("launching memcache protocol tasks");
+
+    let endpoints: Vec<SocketAddr> = config
+        .endpoints()
+        .iter()
+        .map(|e| e.to_socket_addrs().expect("bad endpoint").next().expect("lookup failed"))
+        .collect();
+
     // create one task per connection
     for _ in 0..config.connection().poolsize() {
-        for endpoint in config.endpoints() {
-            runtime.spawn(task(work_receiver.clone(), endpoint, config.clone()));
+        for endpoint in &endpoints {
+            runtime.spawn(task(work_receiver.clone(), *endpoint, config.clone()));
         }
     }
 }
