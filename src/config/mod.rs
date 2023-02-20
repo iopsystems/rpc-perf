@@ -16,7 +16,7 @@ pub struct Config {
 	debug: Debug,
 	#[serde(default)]
 	keyspaces: Vec<Keyspace>,
-	endpoints: Vec<String>,
+	target: Target,
 	request: Request,
 }
 
@@ -55,8 +55,8 @@ impl Config {
 		&self.connection
 	}
 
-	pub fn endpoints(&self) -> &[String] {
-		&self.endpoints
+	pub fn target(&self) -> &Target {
+		&self.target
 	}
 
 	pub fn request(&self) -> &Request {
@@ -130,8 +130,14 @@ impl Connection {
 }
 
 #[derive(Clone, Deserialize)]
-pub struct Endpoints {
+pub struct Target {
 	endpoints: Vec<String>,
+}
+
+impl Target {
+	pub fn endpoints(&self) -> &[String] {
+		&self.endpoints
+	}
 }
 
 #[derive(Clone, Deserialize)]
