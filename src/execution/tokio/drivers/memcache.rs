@@ -19,6 +19,7 @@ pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiv
     debug!("launching memcache protocol tasks");
 
     let endpoints: Vec<SocketAddr> = config
+        .target()
         .endpoints()
         .iter()
         .map(|e| e.to_socket_addrs().expect("bad endpoint").next().expect("lookup failed"))
