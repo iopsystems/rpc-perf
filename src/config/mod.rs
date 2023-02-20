@@ -98,6 +98,7 @@ impl General {
 }
 
 #[derive(Clone, Copy, Deserialize, Debug)]
+#[serde(rename_all = "snake_case")]
 pub enum Protocol {
 	Memcache,
 	Momento,
@@ -167,6 +168,7 @@ pub struct Command {
 // #[serde(rename_all = "snake_case")]
 // #[serde(deny_unknown_fields)]
 #[derive(Clone, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Verb {
     /// Sends a `PING` to the server and expects a `PONG`
     /// * Ping: `PING`
