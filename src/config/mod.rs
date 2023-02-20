@@ -14,6 +14,7 @@ pub struct Config {
 	general: General,
 	connection: Connection,
 	debug: Debug,
+	#[serde(default)]
 	keyspaces: Vec<Keyspace>,
 	endpoints: Vec<String>,
 	request: Request,
