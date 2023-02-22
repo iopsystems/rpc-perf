@@ -67,7 +67,7 @@ pub fn requests(work_sender: Sender<WorkItem>, config: Config) -> Result<()> {
     let ratelimiter = config.request().ratelimit().map(|r| Ratelimiter::new(1_000_000, 1, r.into()));
 
     while RUNNING.load(Ordering::Relaxed) {
-        if let Some(ratelimiter) = ratelimiter {
+        if let Some(ref ratelimiter) = ratelimiter {
             ratelimiter.wait();
         }
 
