@@ -50,7 +50,7 @@ timeout = 10000
 
 [request]
 # set a global ratelimit for requests
-ratelimit = 50000
+#ratelimit = 50000
 # set the timeout in milliseconds
 timeout = 1000
 
