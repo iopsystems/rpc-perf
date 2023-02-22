@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
+use ratelimit::Ratelimiter;
 use rand_distr::WeightedAliasIndex;
 use rand_distr::Distribution;
 use std::sync::Arc;
@@ -58,61 +59,59 @@ impl Keyspace {
     }
 }
 
-pub async fn requests(work_sender: Sender<WorkItem>, config: Config) -> Result<()> {
+pub fn requests(work_sender: Sender<WorkItem>, config: Config) -> Result<()> {
     let mut rng = Xoshiro512PlusPlus::seed_from_u64(0);
 
     let mut keyspace = Keyspace::new(10_000_000, 64);
 
-    let rate = config.request().ratelimit();
-
-    let mut ratelimit_params = if rate.is_some() {
-        Some(convert_ratelimit(rate.unwrap()))
-    } else {
-        None
-    };
+    let ratelimiter = config.request().ratelimit().map(|r| Ratelimiter::new(1_000_000, 1, r.into()));
 
     while RUNNING.load(Ordering::Relaxed) {
-        let quanta = if let Some((quanta, ref mut interval)) = ratelimit_params {
-            interval.tick().await;
-            quanta
-        } else {
-            1
-        };
-
-
-        for _ in 0..quanta {
-            let verb = &keyspace.verb[keyspace.verb_dist.sample(&mut rng)];
-
-            let work_item = match verb {
-                Verb::Get => WorkItem::Get {
-                    key: keyspace.sample(),
-                },
-                Verb::Set => WorkItem::Set {
-                    key: keyspace.sample(),
-                    value: (&mut rng)
-                        .sample_iter(&Alphanumeric)
-                        .take(128)
-                        .collect::<Vec<u8>>().into(),
-                },
-                _ => {
-                    continue;
-                }
-            };
-            // let work_item = if distr.sample(&mut rng) < 80 {
-            //     WorkItem::Get {
-            //         key: keyspace.sample(),
-            //     }
-            // } else {
-            //     WorkItem::Set {
-            //         key: keyspace.sample(),
-            //         value: (&mut rng)
-            //             .sample_iter(&Alphanumeric)
-            //             .take(128)
-            //             .collect::<Vec<u8>>().into(),
-            //     }
-            // };
-            let _ = work_sender.send(work_item).await;
+        if let Some(ratelimiter) = ratelimiter {
+            ratelimiter.wait();
         }
+
+        // let quanta = if let Some((quanta, ref mut interval)) = ratelimit_params {
+        //     interval.tick().await;
+        //     quanta
+        // } else {
+        //     1
+        // };
+
+
+        // for _ in 0..quanta {
+        let verb = &keyspace.verb[keyspace.verb_dist.sample(&mut rng)];
+
+        let work_item = match verb {
+            Verb::Get => WorkItem::Get {
+                key: keyspace.sample(),
+            },
+            Verb::Set => WorkItem::Set {
+                key: keyspace.sample(),
+                value: (&mut rng)
+                    .sample_iter(&Alphanumeric)
+                    .take(128)
+                    .collect::<Vec<u8>>().into(),
+            },
+            _ => {
+                continue;
+            }
+        };
+        // let work_item = if distr.sample(&mut rng) < 80 {
+        //     WorkItem::Get {
+        //         key: keyspace.sample(),
+        //     }
+        // } else {
+        //     WorkItem::Set {
+        //         key: keyspace.sample(),
+        //         value: (&mut rng)
+        //             .sample_iter(&Alphanumeric)
+        //             .take(128)
+        //             .collect::<Vec<u8>>().into(),
+        //     }
+        // };
+        let _ = work_sender.send_blocking(work_item);
+        // }
 
         // for _ in 0..quanta {
         //     let keyspace = config.choose_keyspace(&mut rng);

@@ -50,7 +50,12 @@ pub fn run(config: Config, log: Box<dyn Drain>) -> Result<()> {
         Protocol::Resp => drivers::resp::launch_tasks(&mut rt, config.clone(), work_receiver),
     }
 
-    rt.spawn(requests(work_sender.clone(), config.clone()));
+    // spawn the request generator on a blocking thread
+    {
+        let work_sender = work_sender.clone();
+        let config = config.clone();
+        rt.spawn_blocking(move || { requests(work_sender, config) });
+    }
 
     rt.spawn(reconnect(work_sender, config.clone()));
 
