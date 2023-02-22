@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
+use rand_distr::WeightedAliasIndex;
 use rand_distr::Distribution;
 use std::sync::Arc;
 use std::collections::HashSet;
@@ -15,10 +16,14 @@ use super::*;
 use tokio::time::Interval;
 use workload::WorkItem;
 
+use config::Verb;
+
 struct Keyspace {
     keys: Vec<Arc<[u8]>>,
     distribution: KeyDistribution,
     rng: Xoshiro512PlusPlus,
+    verb: Vec<Verb>,
+    verb_dist: WeightedAliasIndex<usize>,
 }
 
 pub struct KeyDistribution {
@@ -42,6 +47,8 @@ impl Keyspace {
             keys,
             distribution,
             rng: Xoshiro512PlusPlus::seed_from_u64(0),
+            verb: vec![Verb::Get, Verb::Set],
+            verb_dist: WeightedAliasIndex::new(vec![80, 20]).unwrap(),
         }
     }
 
@@ -56,11 +63,7 @@ pub async fn requests(work_sender: Sender<WorkItem>, config: Config) -> Result<(
 
     let mut keyspace = Keyspace::new(10_000_000, 64);
 
-    let distr = Uniform::new(0, 100);
-
     let rate = config.request().ratelimit();
-
-    info!("request ratelimit: {:?}", rate);
 
     let mut ratelimit_params = if rate.is_some() {
         Some(convert_ratelimit(rate.unwrap()))
@@ -78,19 +81,36 @@ pub async fn requests(work_sender: Sender<WorkItem>, config: Config) -> Result<(
 
 
         for _ in 0..quanta {
-            let work_item = if distr.sample(&mut rng) < 80 {
-                WorkItem::Get {
+            let verb = &keyspace.verb[keyspace.verb_dist.sample(&mut rng)];
+
+            let work_item = match verb {
+                Verb::Get => WorkItem::Get {
                     key: keyspace.sample(),
-                }
-            } else {
-                WorkItem::Set {
+                },
+                Verb::Set => WorkItem::Set {
                     key: keyspace.sample(),
                     value: (&mut rng)
                         .sample_iter(&Alphanumeric)
                         .take(128)
                         .collect::<Vec<u8>>().into(),
+                },
+                _ => {
+                    continue;
                 }
             };
+            // let work_item = if distr.sample(&mut rng) < 80 {
+            //     WorkItem::Get {
+            //         key: keyspace.sample(),
+            //     }
+            // } else {
+            //     WorkItem::Set {
+            //         key: keyspace.sample(),
+            //         value: (&mut rng)
+            //             .sample_iter(&Alphanumeric)
+            //             .take(128)
+            //             .collect::<Vec<u8>>().into(),
+            //     }
+            // };
             let _ = work_sender.send(work_item).await;
         }
 

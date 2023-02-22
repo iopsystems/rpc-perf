@@ -44,13 +44,15 @@ endpoints = [
 # of connections to each endpoint is: poolsize * threads
 poolsize = 20
 # the connect timeout in milliseconds
-timeout = 200
+timeout = 10000
 # the number of requests to pipeline together into a single transmission
 # pipeline = 1
 
 [request]
 # set a global ratelimit for requests
 ratelimit = 50000
+# set the timeout in milliseconds
+timeout = 1000
 
 [[keyspace]]
 # controls what commands will be used in this keyspace

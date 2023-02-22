@@ -111,7 +111,9 @@ pub enum Protocol {
 pub struct Connection {
 	poolsize: usize,
 	timeout: u64,
+	#[serde(default)]
 	ratelimit: u64,
+	#[serde(default)]
 	reconnect_rate: u64,
 }
 
@@ -145,6 +147,7 @@ pub struct Request {
 	// milliseconds
 	timeout: u64,
 	// zero is treated as unlimited
+	#[serde(default)]
 	ratelimit: u64,
 }
 
