@@ -5,6 +5,8 @@
 #[macro_use]
 extern crate ringlog;
 
+use backtrace::Backtrace;
+use clap::{Command, Arg};
 use crate::config::*;
 use clocksource::{DateTime, SecondsFormat};
 use core::sync::atomic::{AtomicBool, Ordering};
@@ -51,7 +53,35 @@ pub fn default_format(
 }
 
 fn main() {
-    let config = Config::new("configs/redis.toml");
+    // custom panic hook to terminate whole process after unwinding
+    std::panic::set_hook(Box::new(|s| {
+        eprintln!("{s}");
+        eprintln!("{:?}", Backtrace::new());
+        std::process::exit(101);
+    }));
+
+    // parse command line options
+    let matches = Command::new(env!("CARGO_BIN_NAME"))
+        .version(env!("CARGO_PKG_VERSION"))
+        .long_about(
+            "A load generation and benchmarking tool for RPC services",
+        )
+        .arg(
+            Arg::new("CONFIG")
+                .help("Server configuration file")
+                .action(clap::ArgAction::Set)
+                .index(1),
+        )
+        .get_matches();
+
+    // load config from file
+    let config = if let Some(file) = matches.get_one::<String>("CONFIG") {
+        debug!("loading config: {}", file);
+        Config::new(file)
+    } else {
+        eprintln!("configuration file not provided");
+        std::process::exit(1);
+    };
 
     let debug_output: Box<dyn Output> = if let Some(file) = config.debug().log_file() {
         let backup = config
