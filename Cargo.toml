@@ -20,8 +20,8 @@ bytes = "1.2.1"
 clap = "4.1.6"
 clocksource = "0.6.0"
 memcache-async = "*"
-# momento = "0.21.0"
-momento = { path = "../client-sdk-rust" }
+momento = "0.24.0"
+# momento = { path = "../client-sdk-rust" }
 metriken = "0.1.1"
 mio = "0.8.5"
 net = { git = "https://github.com/pelikan-io/pelikan" }
