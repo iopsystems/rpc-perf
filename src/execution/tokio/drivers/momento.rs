@@ -41,7 +41,7 @@ pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiv
     CONNECT_CURR.add(1);
 
     // create one task per channel
-    for _ in 0..config.connection().poolsize() {
+    for _ in 0..(config.connection().poolsize() * config.general().threads()) {
         runtime.spawn(task(client.clone(), work_receiver.clone()));
     }
 }

@@ -26,7 +26,7 @@ pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiv
         .collect();
 
     // create one task per connection
-    for _ in 0..config.connection().poolsize() {
+    for _ in 0..(config.connection().poolsize() * config.general().threads()) {
         for endpoint in &endpoints {
             runtime.spawn(task(work_receiver.clone(), *endpoint, config.clone()));
         }

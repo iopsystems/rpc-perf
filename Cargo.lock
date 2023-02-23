@@ -1118,6 +1118,7 @@ dependencies = [
 [[package]]
 name = "momento"
 version = "0.1.0"
+source = "git+https://github.com/momentohq/client-sdk-rust#34b5d937219f5d425c93e397cf7f1961a0949273"
 dependencies = [
  "h2",
  "hyper",
