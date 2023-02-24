@@ -2,13 +2,13 @@ use super::*;
 
 #[derive(Clone, Deserialize)]
 pub struct Workload {
-    keyspaces: Vec<Keyspace>,
+    keyspace: Vec<Keyspace>,
     threads: usize,
 }
 
 impl Workload {
     pub fn keyspaces(&self) -> &[Keyspace] {
-        &self.keyspaces
+        &self.keyspace
     }
 
     pub fn threads(&self) -> usize {
