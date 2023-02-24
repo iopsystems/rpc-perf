@@ -12,6 +12,7 @@ use rand_distr::Distribution;
 use rand_distr::WeightedAliasIndex;
 use rand_xoshiro::Xoshiro512PlusPlus;
 use ratelimit::Ratelimiter;
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::sync::Arc;
 use tokio::time::Interval;
@@ -29,7 +30,7 @@ impl TrafficGenerator {
         let ratelimiter = config
             .request()
             .ratelimit()
-            .map(|r| Arc::new(Ratelimiter::new(1_000_000, 1, r.into())));
+            .map(|r| Arc::new(Ratelimiter::new(1000, 1, r.into())));
 
         let mut keyspaces = Vec::new();
         let mut keyspace_weights = Vec::new();
@@ -51,28 +52,76 @@ impl TrafficGenerator {
             ratelimiter.wait();
         }
 
-        loop {
-            let keyspace = &self.keyspaces[self.keyspace_dist.sample(rng)];
-            let verb = &keyspace.verbs[keyspace.verb_dist.sample(rng)];
+        let keyspace = &self.keyspaces[self.keyspace_dist.sample(rng)];
+        let verb = &keyspace.verbs[keyspace.verb_dist.sample(rng)];
 
-            let work_item = match verb {
-                Verb::Get => WorkItem::Get {
-                    key: keyspace.sample(rng),
-                },
-                Verb::Set => WorkItem::Set {
-                    key: keyspace.sample(rng),
-                    value: rng
-                        .sample_iter(&Alphanumeric)
-                        .take(128)
+        match verb {
+            Verb::Get => WorkItem::Get {
+                key: keyspace.sample(rng),
+            },
+            Verb::Set => WorkItem::Set {
+                key: keyspace.sample(rng),
+                value: rng
+                    .sample_iter(&Alphanumeric)
+                    .take(keyspace.vlen())
+                    .collect::<Vec<u8>>()
+                    .into(),
+            },
+            Verb::Delete => WorkItem::Delete {
+                key: keyspace.sample(rng),
+            },
+            Verb::HashGet => WorkItem::HashGet {
+                key: keyspace.sample(rng),
+                field: keyspace.sample_inner(rng),
+            },
+            Verb::HashDelete => WorkItem::HashDelete {
+                key: keyspace.sample(rng),
+                fields: vec![keyspace.sample_inner(rng)],
+            },
+            Verb::HashExists => WorkItem::HashExists {
+                key: keyspace.sample(rng),
+                field: keyspace.sample_inner(rng),
+            },
+            Verb::HashSet => {
+                let mut data = HashMap::new();
+                data.insert(
+                    keyspace.sample_inner(rng),
+                    rng.sample_iter(&Alphanumeric)
+                        .take(keyspace.vlen())
                         .collect::<Vec<u8>>()
                         .into(),
-                },
-                _ => {
-                    continue;
+                );
+                WorkItem::HashSet {
+                    key: keyspace.sample(rng),
+                    data,
                 }
-            };
-
-            return work_item;
+            }
+            Verb::Ping => WorkItem::Ping {},
+            Verb::SortedSetAdd => WorkItem::SortedSetAdd {
+                key: keyspace.sample(rng),
+                members: vec![(keyspace.sample_inner(rng), rng.gen())],
+            },
+            Verb::SortedSetRemove => WorkItem::SortedSetRemove {
+                key: keyspace.sample(rng),
+                members: vec![keyspace.sample_inner(rng)],
+            },
+            Verb::SortedSetIncrement => WorkItem::SortedSetIncrement {
+                key: keyspace.sample(rng),
+                member: keyspace.sample_inner(rng),
+                amount: rng.gen(),
+            },
+            Verb::SortedSetScore => WorkItem::SortedSetScore {
+                key: keyspace.sample(rng),
+                member: keyspace.sample_inner(rng),
+            },
+            Verb::SortedSetMultiScore => WorkItem::SortedSetMultiScore {
+                key: keyspace.sample(rng),
+                members: vec![keyspace.sample_inner(rng)],
+            },
+            Verb::SortedSetRank => WorkItem::SortedSetRank {
+                key: keyspace.sample(rng),
+                member: keyspace.sample_inner(rng),
+            },
         }
     }
 }
@@ -80,9 +129,12 @@ impl TrafficGenerator {
 #[derive(Clone)]
 struct Keyspace {
     keys: Vec<Arc<[u8]>>,
-    distribution: KeyDistribution,
+    key_dist: KeyDistribution,
     verbs: Vec<Verb>,
     verb_dist: WeightedAliasIndex<usize>,
+    inner_keys: Vec<Arc<[u8]>>,
+    inner_key_dist: KeyDistribution,
+    vlen: usize,
 }
 
 #[derive(Clone)]
@@ -93,7 +145,7 @@ pub struct KeyDistribution {
 impl Keyspace {
     pub fn new(keyspace: &config::Keyspace) -> Self {
         let nkeys = keyspace.nkeys();
-        let length = keyspace.length();
+        let klen = keyspace.klen();
 
         // we use a predictable seed to generate the keys in the keyspace
         let mut rng = Xoshiro512PlusPlus::seed_from_u64(0);
@@ -101,169 +153,79 @@ impl Keyspace {
         while keys.len() < nkeys {
             let key = (&mut rng)
                 .sample_iter(&Alphanumeric)
-                .take(length)
+                .take(klen)
                 .collect::<Vec<u8>>();
             let _ = keys.insert(key);
         }
         let keys = keys.drain().map(|k| k.into()).collect();
-        let distribution = KeyDistribution {
+        let key_dist = KeyDistribution {
             inner: Uniform::new(0, nkeys),
         };
+
+        let nkeys = keyspace.inner_keys_nkeys();
+        let klen = keyspace.inner_keys_klen();
+
+        // we use a predictable seed to generate the keys in the keyspace
+        let mut rng = Xoshiro512PlusPlus::seed_from_u64(0);
+        let mut inner_keys = HashSet::with_capacity(nkeys);
+        while inner_keys.len() < nkeys {
+            let key = (&mut rng)
+                .sample_iter(&Alphanumeric)
+                .take(klen)
+                .collect::<Vec<u8>>();
+            let _ = inner_keys.insert(key);
+        }
+        let inner_keys = inner_keys.drain().map(|k| k.into()).collect();
+        let inner_key_dist = KeyDistribution {
+            inner: Uniform::new(0, nkeys),
+        };
+
+        let mut verbs = Vec::new();
+        let mut verb_weights = Vec::new();
+
+        for command in keyspace.commands() {
+            verbs.push(command.verb());
+            verb_weights.push(command.weight());
+        }
+
+        let verb_dist = WeightedAliasIndex::new(verb_weights).unwrap();
+
         Self {
             keys,
-            distribution,
-            verbs: vec![Verb::Get, Verb::Set],
-            verb_dist: WeightedAliasIndex::new(vec![80, 20]).unwrap(),
+            key_dist,
+            verbs,
+            verb_dist,
+            inner_keys,
+            inner_key_dist,
+            vlen: keyspace.vlen(),
         }
     }
 
     pub fn sample(&self, rng: &mut dyn RngCore) -> Arc<[u8]> {
-        let index = self.distribution.inner.sample(rng);
+        let index = self.key_dist.inner.sample(rng);
         self.keys[index].clone()
+    }
+
+    pub fn sample_inner(&self, rng: &mut dyn RngCore) -> Arc<[u8]> {
+        let index = self.inner_key_dist.inner.sample(rng);
+        self.inner_keys[index].clone()
+    }
+
+    pub fn vlen(&self) -> usize {
+        self.vlen
     }
 }
 
 pub fn requests(work_sender: Sender<WorkItem>, generator: TrafficGenerator) -> Result<()> {
     // use a prng seeded from the entropy pool so that request generation is
-    // unpredictable within the space
+    // unpredictable within the space and each individual request generation
+    // task will generate a unique sequence
     let mut rng = Xoshiro512PlusPlus::from_entropy();
 
     while RUNNING.load(Ordering::Relaxed) {
         let work_item = generator.generate(&mut rng);
         let _ = work_sender.send_blocking(work_item);
     }
-
-    //     if let Some(ref ratelimiter) = ratelimiter {
-    //         ratelimiter.wait();
-    //     }
-
-    //     // let quanta = if let Some((quanta, ref mut interval)) = ratelimit_params {
-    //     //     interval.tick().await;
-    //     //     quanta
-    //     // } else {
-    //     //     1
-    //     // };
-
-    //     // for _ in 0..quanta {
-    //     let verb = &keyspace.verb[keyspace.verb_dist.sample(&mut rng)];
-
-    //     let work_item = match verb {
-    //         Verb::Get => WorkItem::Get {
-    //             key: keyspace.sample(),
-    //         },
-    //         Verb::Set => WorkItem::Set {
-    //             key: keyspace.sample(),
-    //             value: (&mut rng)
-    //                 .sample_iter(&Alphanumeric)
-    //                 .take(128)
-    //                 .collect::<Vec<u8>>().into(),
-    //         },
-    //         _ => {
-    //             continue;
-    //         }
-    //     };
-    //     // let work_item = if distr.sample(&mut rng) < 80 {
-    //     //     WorkItem::Get {
-    //     //         key: keyspace.sample(),
-    //     //     }
-    //     // } else {
-    //     //     WorkItem::Set {
-    //     //         key: keyspace.sample(),
-    //     //         value: (&mut rng)
-    //     //             .sample_iter(&Alphanumeric)
-    //     //             .take(128)
-    //     //             .collect::<Vec<u8>>().into(),
-    //     //     }
-    //     // };
-    //     let _ = work_sender.send_blocking(work_item);
-    //     // }
-
-    //     // for _ in 0..quanta {
-    //     //     let keyspace = config.choose_keyspace(&mut rng);
-    //     //     let command = keyspace.choose_command(&mut rng);
-    //     //     let work_item = match command.verb() {
-    //     //         Verb::Get => WorkItem::Get {
-    //     //             key: keyspace.generate_key(&mut rng).into(),
-    //     //         },
-    //     //         Verb::Set => WorkItem::Set {
-    //     //             key: keyspace.generate_key(&mut rng).into(),
-    //     //             value: keyspace.generate_value(&mut rng).into(),
-    //     //         },
-    //     //         Verb::Delete => WorkItem::Delete {
-    //     //             key: keyspace.generate_key(&mut rng).into(),
-    //     //         },
-    //     //         Verb::HashGet => WorkItem::HashGet {
-    //     //             key: keyspace.generate_key(&mut rng).into(),
-    //     //             field: keyspace.generate_inner_key(&mut rng).unwrap().into(),
-    //     //         },
-    //     //         Verb::HashDelete => WorkItem::HashDelete {
-    //     //             key: keyspace.generate_key(&mut rng).into(),
-    //     //             fields: vec![keyspace.generate_inner_key(&mut rng).unwrap().into()],
-    //     //         },
-    //     //         Verb::HashExists => WorkItem::HashExists {
-    //     //             key: keyspace.generate_key(&mut rng).into(),
-    //     //             field: keyspace.generate_inner_key(&mut rng).unwrap().into(),
-    //     //         },
-    //     //         Verb::HashMultiGet => WorkItem::HashDelete {
-    //     //             key: keyspace.generate_key(&mut rng).into(),
-    //     //             fields: vec![keyspace.generate_inner_key(&mut rng).unwrap().into()],
-    //     //         },
-    //     //         Verb::HashSet => {
-    //     //             let mut data = HashMap::new();
-    //     //             data.insert(
-    //     //                 keyspace.generate_inner_key(&mut rng).unwrap().into(),
-    //     //                 keyspace.generate_value(&mut rng).into(),
-    //     //             );
-    //     //             WorkItem::HashSet {
-    //     //                 key: keyspace.generate_key(&mut rng).into(),
-    //     //                 data,
-    //     //             }
-    //     //         }
-    //     //         Verb::MultiGet => WorkItem::MultiGet {
-    //     //             keys: vec![keyspace.generate_key(&mut rng).into()],
-    //     //         },
-    //     //         Verb::Ping => WorkItem::Ping {},
-    //     //         Verb::SortedSetAdd => WorkItem::SortedSetAdd {
-    //     //             key: keyspace.generate_key(&mut rng).into(),
-    //     //             members: vec![(
-    //     //                 keyspace.generate_inner_key(&mut rng).unwrap().into(),
-    //     //                 rng.gen(),
-    //     //             )],
-    //     //         },
-    //     //         Verb::SortedSetRemove => WorkItem::SortedSetRemove {
-    //     //             key: keyspace.generate_key(&mut rng).into(),
-    //     //             members: vec![keyspace.generate_inner_key(&mut rng).unwrap().into()],
-    //     //         },
-    //     //         Verb::SortedSetIncrement => WorkItem::SortedSetIncrement {
-    //     //             key: keyspace.generate_key(&mut rng).into(),
-    //     //             member: keyspace.generate_inner_key(&mut rng).unwrap().into(),
-    //     //             amount: rng.gen(),
-    //     //         },
-    //     //         Verb::SortedSetScore => WorkItem::SortedSetScore {
-    //     //             key: keyspace.generate_key(&mut rng).into(),
-    //     //             member: keyspace.generate_inner_key(&mut rng).unwrap().into(),
-    //     //         },
-    //     //         Verb::SortedSetMultiScore => WorkItem::SortedSetMultiScore {
-    //     //             key: keyspace.generate_key(&mut rng).into(),
-    //     //             members: vec![keyspace.generate_inner_key(&mut rng).unwrap().into()],
-    //     //         },
-    //     //         Verb::SortedSetRank => WorkItem::SortedSetRank {
-    //     //             key: keyspace.generate_key(&mut rng).into(),
-    //     //             member: keyspace.generate_inner_key(&mut rng).unwrap().into(),
-    //     //         },
-    //     //         Verb::SortedSetRange => {
-    //     //             todo!()
-    //     //             // WorkItem::SortedSetRange {
-    //     //             //     key: keyspace.generate_key(&mut rng).into(),
-    //     //             //     start: 0,
-    //     //             //     stop: -1,
-    //     //             // }
-    //     //         }
-    //     //     };
-
-    //     //     let _ = work_sender.send(work_item).await;
-    //     // }
-    // }
 
     Ok(())
 }
@@ -274,8 +236,9 @@ pub async fn reconnect(work_sender: Sender<WorkItem>, config: Config) -> Result<
     let mut ratelimit_params = if rate.is_some() {
         Some(convert_ratelimit(rate.unwrap()))
     } else {
-        // NOTE: we treat reconnect differently and don't generate any reconnects
-        // if there is no ratelimit specified.
+        // NOTE: we treat reconnect differently and don't generate any
+        // reconnects if there is no ratelimit specified. (In contrast to
+        // request generation where no ratelimit means unlimited).
         return Ok(());
     };
 

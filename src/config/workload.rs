@@ -19,9 +19,12 @@ impl Workload {
 #[derive(Clone, Deserialize)]
 pub struct Keyspace {
     nkeys: usize,
-    length: usize,
+    klen: usize,
     weight: usize,
+    inner_keys_nkeys: usize,
+    inner_keys_klen: usize,
     commands: Vec<Command>,
+    vlen: usize,
 }
 
 impl Keyspace {
@@ -29,8 +32,40 @@ impl Keyspace {
         self.nkeys
     }
 
-    pub fn length(&self) -> usize {
-        self.length
+    pub fn klen(&self) -> usize {
+        self.klen
+    }
+
+    pub fn weight(&self) -> usize {
+        self.weight
+    }
+
+    pub fn inner_keys_nkeys(&self) -> usize {
+        self.inner_keys_nkeys
+    }
+
+    pub fn inner_keys_klen(&self) -> usize {
+        self.inner_keys_klen
+    }
+
+    pub fn commands(&self) -> &[Command] {
+        &self.commands
+    }
+
+    pub fn vlen(&self) -> usize {
+        self.vlen
+    }
+}
+
+#[derive(Clone, Deserialize)]
+pub struct Command {
+    verb: Verb,
+    weight: usize,
+}
+
+impl Command {
+    pub fn verb(&self) -> Verb {
+        self.verb
     }
 
     pub fn weight(&self) -> usize {
@@ -38,15 +73,10 @@ impl Keyspace {
     }
 }
 
-#[derive(Clone, Deserialize)]
-pub struct Command {
-    verb: Verb,
-}
-
 // #[derive(Deserialize, Clone, Copy, Eq, PartialEq)]
 // #[serde(rename_all = "snake_case")]
 // #[serde(deny_unknown_fields)]
-#[derive(Clone, Deserialize)]
+#[derive(Clone, Deserialize, Copy)]
 #[serde(rename_all = "snake_case")]
 pub enum Verb {
     /// Sends a `PING` to the server and expects a `PONG`
@@ -83,7 +113,7 @@ pub enum Verb {
     /// Reads the value for multiple fields in a hash.
     /// * Momento: `dictionary_get`
     /// * RESP: `HMGET`
-    HashMultiGet,
+    // HashMultiGet,
     /// Set the value for a field in a hash.
     /// * Momento: `dictionary_set`
     /// * RESP: `HSET`
@@ -91,7 +121,7 @@ pub enum Verb {
     /// Get multiple keys.
     /// * Memcache: `get`
     /// * RESP: `MGET`
-    MultiGet,
+    // MultiGet,
     /// Adds one or more members to a sorted set.
     /// * Momento: `sorted_set_put`
     /// * RESP: `ZADD`
@@ -107,7 +137,7 @@ pub enum Verb {
     /// Retrieve members from a sorted set.
     /// * Momento: `sorted_set_fetch`
     /// * RESP: `ZRANGE`
-    SortedSetRange,
+    // SortedSetRange,
     /// Retrieve the rank for a member of a sorted set.
     /// * Momento: `sorted_set_get_rank`
     /// * RESP: `ZRANK`
