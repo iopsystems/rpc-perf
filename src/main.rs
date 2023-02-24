@@ -6,22 +6,16 @@
 extern crate ringlog;
 
 use backtrace::Backtrace;
-use clap::{Command, Arg};
-use crate::config::*;
+use clap::{Arg, Command};
 use clocksource::{DateTime, SecondsFormat};
 use core::sync::atomic::{AtomicBool, Ordering};
-use ringlog::File;
-use ringlog::Level;
-use ringlog::LogBuilder;
-use ringlog::MultiLogBuilder;
-use ringlog::Output;
-use ringlog::Record;
-use ringlog::Stdout;
+use ringlog::{File, Level, LogBuilder, MultiLogBuilder, Output, Record, Stdout};
 
 mod config;
 mod execution;
 mod workload;
 
+use config::*;
 use workload::stats::*;
 
 type Instant = clocksource::Instant<clocksource::Nanoseconds<u64>>;
@@ -64,7 +58,8 @@ fn main() {
     let matches = Command::new(env!("CARGO_BIN_NAME"))
         .version(env!("CARGO_PKG_VERSION"))
         .long_about(
-            "A load generation and benchmarking tool for RPC services",
+            "A benchmarking, load generation, and traffic replay tool for RPC \
+            services.",
         )
         .arg(
             Arg::new("CONFIG")

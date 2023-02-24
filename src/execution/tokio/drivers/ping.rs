@@ -2,7 +2,6 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
-use std::net::ToSocketAddrs;
 use super::*;
 use protocol_ping::Compose;
 use protocol_ping::{Parse, Request, Response};
@@ -12,6 +11,7 @@ use session::Buffer;
 use std::borrow::Borrow;
 use std::borrow::BorrowMut;
 use std::net::SocketAddr;
+use std::net::ToSocketAddrs;
 
 /// Launch tasks with one conncetion per task as ping protocol is not mux-enabled.
 pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiver<WorkItem>) {
@@ -21,7 +21,12 @@ pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiv
         .target()
         .endpoints()
         .iter()
-        .map(|e| e.to_socket_addrs().expect("bad endpoint").next().expect("lookup failed"))
+        .map(|e| {
+            e.to_socket_addrs()
+                .expect("bad endpoint")
+                .next()
+                .expect("lookup failed")
+        })
         .collect();
     // create one task per "connection"
     // note: these may be channels instead of connections for multiplexed protocols

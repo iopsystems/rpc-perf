@@ -3,16 +3,12 @@
 // http://www.apache.org/licenses/LICENSE-2.0
 
 use crate::*;
-// use crate::workload::*;
-// use crate::workload::Keyspace;
 
-use async_channel::{bounded, Sender};
-// use rand::distributions::{Alphanumeric, Uniform};
 use ::tokio::io::*;
 use ::tokio::runtime::Builder;
 use ::tokio::time::{sleep, Duration};
+use async_channel::{bounded, Sender};
 use rand::SeedableRng;
-// use rand_xoshiro::Xoshiro256Plus;
 use ringlog::Drain;
 
 use core::num::NonZeroU64;
@@ -21,10 +17,6 @@ mod drivers;
 mod generators;
 
 use self::generators::*;
-
-// const CONNECTIONS: usize = 16;
-
-// const PROTOCOL: Protocol = Protocol::Memcache;
 
 // this should take some sort of configuration
 pub fn run(config: Config, log: Box<dyn Drain>) -> Result<()> {
@@ -36,11 +28,35 @@ pub fn run(config: Config, log: Box<dyn Drain>) -> Result<()> {
         .worker_threads(config.general().threads())
         .build()?;
 
+    // Spawn logging thread
+    rt.spawn(async move {
+        while RUNNING.load(Ordering::Relaxed) {
+            sleep(Duration::from_millis(50)).await;
+            let _ = log.flush();
+        }
+        let _ = log.flush();
+    });
+
     // TODO: figure out what a reasonable size is here
     let (work_sender, work_receiver) = bounded(1_000_000);
 
     info!("Protocol: {:?}", config.general().protocol());
 
+    info!("Initializing traffic generator");
+    let traffic_generator = TrafficGenerator::new(&config);
+
+    info!("Launching workload generation");
+    // spawn the request generators on a blocking threads
+    for _ in 0..config.workload().threads() {
+        let work_sender = work_sender.clone();
+        let traffic_generator = traffic_generator.clone();
+        rt.spawn_blocking(move || requests(work_sender, traffic_generator));
+    }
+
+    rt.spawn(reconnect(work_sender, config.clone()));
+
+    info!("Launching workload drivers");
+    // spawn the workload drivers on the task pool
     match config.general().protocol() {
         Protocol::Memcache => {
             drivers::memcache::launch_tasks(&mut rt, config.clone(), work_receiver)
@@ -49,23 +65,6 @@ pub fn run(config: Config, log: Box<dyn Drain>) -> Result<()> {
         Protocol::Ping => drivers::ping::launch_tasks(&mut rt, config.clone(), work_receiver),
         Protocol::Resp => drivers::resp::launch_tasks(&mut rt, config.clone(), work_receiver),
     }
-
-    // spawn the request generator on a blocking thread
-    {
-        let work_sender = work_sender.clone();
-        let config = config.clone();
-        rt.spawn_blocking(move || { requests(work_sender, config) });
-    }
-
-    rt.spawn(reconnect(work_sender, config.clone()));
-
-    rt.spawn(async move {
-        while RUNNING.load(Ordering::Relaxed) {
-            sleep(Duration::from_millis(50)).await;
-            let _ = log.flush();
-        }
-        let _ = log.flush();
-    });
 
     let window = config.general().interval().as_secs() as u64;
     let mut interval = config.general().interval().as_secs();
@@ -114,8 +113,7 @@ pub fn run(config: Config, log: Box<dyn Drain>) -> Result<()> {
 
             info!(
                 "Request: Success: {:.2} % Unsupported: {:.2} %",
-                request_sr,
-                request_ur,
+                request_sr, request_ur,
             );
             info!(
                 "Request Rate (/s): Ok: {:.2} Unsupported: {:.2}",

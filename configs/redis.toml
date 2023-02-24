@@ -62,7 +62,7 @@ commands = [
 	# { verb = "delete", weight = 1 },
 ]
 # sets the length of the key, in bytes
-length = 32
+length = 4
 # sets the number of keys that will be generated
 cardinality = 1_000_000
 # sets the distribution across the keyspace: uniform, zipf
