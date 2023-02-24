@@ -143,6 +143,23 @@ pub enum Protocol {
     ThriftCache,
 }
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Deserialize)]
+#[serde(rename_all = "snake_case")]
+#[serde(deny_unknown_fields)]
+pub enum OutputFormat {
+    /// Output resulting statistics via log messages. This is the default.
+    Log,
+
+    /// Output statistics as JSON messages on stdout.
+    Json,
+}
+
+impl Default for OutputFormat {
+    fn default() -> Self {
+        Self::Log
+    }
+}
+
 #[derive(Deserialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct General {
@@ -156,6 +173,9 @@ pub struct General {
     #[serde(default)]
     service: bool,
     admin: Option<String>,
+
+    #[serde(default)]
+    output_format: OutputFormat
 }
 
 impl General {
@@ -181,6 +201,10 @@ impl General {
 
     pub fn admin(&self) -> Option<String> {
         self.admin.clone()
+    }
+
+    pub fn output_format(&self) -> OutputFormat {
+        self.output_format
     }
 }
 
