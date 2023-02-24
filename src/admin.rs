@@ -9,6 +9,7 @@ use crate::Config;
 use heatmap::Heatmap;
 use ratelimit::Ratelimiter;
 use ringlog::Drain;
+use serde_derive::Serialize;
 use std::collections::HashMap;
 use std::time::Instant;
 use waterfall::WaterfallBuilder;
@@ -196,7 +197,7 @@ impl Admin {
 
             match output_format {
                 OutputFormat::Log => self.emit_log(window, &snapshot),
-                OutputFormat::Json => todo!(),
+                OutputFormat::Json => self.emit_json(window, &snapshot),
             }
 
             WINDOW.increment();
@@ -298,6 +299,93 @@ impl Admin {
                 p25, p50, p75, p90, p99, p999, p9999
             );
         }
+    }
+
+    fn emit_json(&self, window: u64, snapshot: &Snapshot) {
+        #[derive(Serialize)]
+        struct Bucket {
+            value: u64,
+            count: u32,
+        }
+
+        #[derive(Serialize)]
+        struct Connections {
+            attempts: u64,
+            opened: u64,
+            errors: u64,
+            timeouts: u64,
+            open: i64,
+        }
+
+        #[derive(Serialize)]
+        struct JsonSnapshot {
+            connections: Connections,
+            window: u64,
+            request_count: u64,
+            request_errors: u64,
+            response_count: u64,
+            response_errors: u64,
+            connect_count: u64,
+            connect_errors: u64,
+            get_count: u64,
+            hit_count: u64,
+
+            connect: Vec<Bucket>,
+            request: Vec<Bucket>,
+        }
+
+        let json = JsonSnapshot {
+            connections: Connections {
+                attempts: snapshot.delta_count(&self.snapshot, CONNECT.name()),
+                opened: snapshot.delta_count(&self.snapshot, SESSION.name()),
+                errors: snapshot.delta_count(&self.snapshot, CONNECT_EX.name()),
+                timeouts: snapshot.delta_count(&self.snapshot, CONNECT_TIMEOUT.name()),
+                open: OPEN.value(),
+            },
+            window,
+            request_count: snapshot.delta_count(&self.snapshot, REQUEST.name()),
+            request_errors: snapshot.delta_count(&self.snapshot, REQUEST_EX.name()),
+            response_count: snapshot.delta_count(&self.snapshot, RESPONSE.name()),
+            response_errors: snapshot.delta_count(&self.snapshot, RESPONSE_EX.name()),
+            connect_count: snapshot.delta_count(&self.snapshot, CONNECT.name()),
+            connect_errors: snapshot.delta_count(&self.snapshot, CONNECT_EX.name()),
+            get_count: snapshot.delta_count(&self.snapshot, REQUEST_GET.name()),
+            hit_count: snapshot.delta_count(&self.snapshot, REQUEST_GET.name()),
+
+            connect: self
+                .connect_heatmap
+                .as_deref()
+                .map(|heatmap| heatmap.summary())
+                .map(|histogram| {
+                    histogram
+                        .into_iter()
+                        .map(|bucket| Bucket {
+                            value: bucket.high(),
+                            count: bucket.count(),
+                        })
+                        .collect()
+                })
+                .unwrap_or_default(),
+            request: self
+                .request_heatmap
+                .as_deref()
+                .map(|heatmap| heatmap.summary())
+                .map(|histogram| {
+                    histogram
+                        .into_iter()
+                        .map(|bucket| Bucket {
+                            value: bucket.high(),
+                            count: bucket.count(),
+                        })
+                        .collect()
+                })
+                .unwrap_or_default(),
+        };
+
+        println!(
+            "{}",
+            serde_json::to_string(&json).expect("Failed to output to stdout")
+        );
     }
 }
 

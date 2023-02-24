@@ -175,7 +175,7 @@ pub struct General {
     admin: Option<String>,
 
     #[serde(default)]
-    output_format: OutputFormat
+    output_format: OutputFormat,
 }
 
 impl General {
