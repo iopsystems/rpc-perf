@@ -319,8 +319,9 @@ impl Admin {
 
         #[derive(Serialize)]
         struct JsonSnapshot {
-            connections: Connections,
             window: u64,
+            interval: f64,
+            connections: Connections,
             request_count: u64,
             request_errors: u64,
             response_count: u64,
@@ -334,6 +335,19 @@ impl Admin {
             request: Vec<Bucket>,
         }
 
+        fn heatmap_to_buckets(heatmap: &Heatmap) -> Vec<Bucket> {
+            heatmap
+                .summary()
+                .into_iter()
+                // Only include buckets that actually contain values
+                .filter(|bucket| bucket.count() != 0)
+                .map(|bucket| Bucket {
+                    value: bucket.high(),
+                    count: bucket.count(),
+                })
+                .collect()
+        }
+
         let json = JsonSnapshot {
             connections: Connections {
                 attempts: snapshot.delta_count(&self.snapshot, CONNECT.name()),
@@ -343,6 +357,7 @@ impl Admin {
                 open: OPEN.value(),
             },
             window,
+            interval: (snapshot.timestamp - self.snapshot.timestamp).as_secs_f64(),
             request_count: snapshot.delta_count(&self.snapshot, REQUEST.name()),
             request_errors: snapshot.delta_count(&self.snapshot, REQUEST_EX.name()),
             response_count: snapshot.delta_count(&self.snapshot, RESPONSE.name()),
@@ -355,30 +370,12 @@ impl Admin {
             connect: self
                 .connect_heatmap
                 .as_deref()
-                .map(|heatmap| heatmap.summary())
-                .map(|histogram| {
-                    histogram
-                        .into_iter()
-                        .map(|bucket| Bucket {
-                            value: bucket.high(),
-                            count: bucket.count(),
-                        })
-                        .collect()
-                })
+                .map(|heatmap| heatmap_to_buckets(heatmap))
                 .unwrap_or_default(),
             request: self
                 .request_heatmap
                 .as_deref()
-                .map(|heatmap| heatmap.summary())
-                .map(|histogram| {
-                    histogram
-                        .into_iter()
-                        .map(|bucket| Bucket {
-                            value: bucket.high(),
-                            count: bucket.count(),
-                        })
-                        .collect()
-                })
+                .map(|heatmap| heatmap_to_buckets(heatmap))
                 .unwrap_or_default(),
         };
 
