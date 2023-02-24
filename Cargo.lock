@@ -540,12 +540,13 @@ checksum = "8a9ee70c43aaf417c914396645a0fa852624801b24ebb7ae78fe8272889ac888"
 
 [[package]]
 name = "heatmap"
-version = "0.7.0"
+version = "0.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "44a040d43defb8644617d52575557275232693a27c594d136b16c12283244683"
+checksum = "6bb2f529d678c39a68e7f4227b74f8a84f7013da7b0c56c50226038bab81b7ba"
 dependencies = [
  "clocksource",
  "histogram",
+ "parking_lot",
  "thiserror",
 ]
 
@@ -566,9 +567,9 @@ dependencies = [
 
 [[package]]
 name = "histogram"
-version = "0.7.0"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "913e066ae237bc8adb23b539f140ae81152af2dc3ff357ada35af13bcf48f016"
+checksum = "f2cddb1ee43e0813fb269066abae4e09550efca332cc2c639369b64c3b2ebd55"
 dependencies = [
  "thiserror",
 ]
