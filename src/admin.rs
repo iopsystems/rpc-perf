@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
+use crate::config_file::OutputFormat;
 use crate::metrics::*;
 use crate::Arc;
 use crate::Config;
@@ -187,68 +188,15 @@ impl Admin {
             };
 
             let window = WINDOW.value();
+            let output_format = self
+                .config
+                .as_deref()
+                .map(|config| config.general().output_format())
+                .unwrap_or_default();
 
-            info!("-----");
-            info!("Window: {}", window);
-            info!(
-                "Connections: Attempts: {} Opened: {} Errors: {} Timeouts: {} Open: {}",
-                snapshot.delta_count(&self.snapshot, CONNECT.name()),
-                snapshot.delta_count(&self.snapshot, SESSION.name()),
-                snapshot.delta_count(&self.snapshot, CONNECT_EX.name()),
-                snapshot.delta_count(&self.snapshot, CONNECT_TIMEOUT.name()),
-                OPEN.value()
-            );
-
-            let request_rate = snapshot.rate(&self.snapshot, REQUEST.name());
-            let response_rate = snapshot.rate(&self.snapshot, RESPONSE.name());
-            let connect_rate = snapshot.rate(&self.snapshot, CONNECT.name());
-
-            info!(
-                "Rate: Request: {:.2} rps Response: {:.2} rps Connect: {:.2} cps",
-                request_rate, response_rate, connect_rate
-            );
-
-            let request_success =
-                snapshot.success_rate(&self.snapshot, REQUEST.name(), REQUEST_EX.name());
-            let response_success =
-                snapshot.success_rate(&self.snapshot, RESPONSE.name(), RESPONSE_EX.name());
-            let connect_success =
-                snapshot.success_rate(&self.snapshot, CONNECT.name(), CONNECT_EX.name());
-
-            info!(
-                "Success: Request: {:.2} % Response: {:.2} % Connect: {:.2} %",
-                request_success, response_success, connect_success
-            );
-
-            let hit_rate =
-                snapshot.hitrate(&self.snapshot, REQUEST_GET.name(), RESPONSE_HIT.name());
-
-            info!("Hit-rate: {:.2} %", hit_rate);
-
-            if let Some(ref heatmap) = self.connect_heatmap {
-                let p25 = heatmap.percentile(25.0).map(|b| b.high()).unwrap_or(0);
-                let p50 = heatmap.percentile(50.0).map(|b| b.high()).unwrap_or(0);
-                let p75 = heatmap.percentile(75.0).map(|b| b.high()).unwrap_or(0);
-                let p90 = heatmap.percentile(90.0).map(|b| b.high()).unwrap_or(0);
-                let p99 = heatmap.percentile(99.0).map(|b| b.high()).unwrap_or(0);
-                let p999 = heatmap.percentile(99.9).map(|b| b.high()).unwrap_or(0);
-                let p9999 = heatmap.percentile(99.99).map(|b| b.high()).unwrap_or(0);
-                info!("Connect Latency (us): p25: {} p50: {} p75: {} p90: {} p99: {} p999: {} p9999: {}",
-                    p25, p50, p75, p90, p99, p999, p9999
-                );
-            }
-
-            if let Some(ref heatmap) = self.request_heatmap {
-                let p25 = heatmap.percentile(25.0).map(|b| b.high()).unwrap_or(0);
-                let p50 = heatmap.percentile(50.0).map(|b| b.high()).unwrap_or(0);
-                let p75 = heatmap.percentile(75.0).map(|b| b.high()).unwrap_or(0);
-                let p90 = heatmap.percentile(90.0).map(|b| b.high()).unwrap_or(0);
-                let p99 = heatmap.percentile(99.0).map(|b| b.high()).unwrap_or(0);
-                let p999 = heatmap.percentile(99.9).map(|b| b.high()).unwrap_or(0);
-                let p9999 = heatmap.percentile(99.99).map(|b| b.high()).unwrap_or(0);
-                info!("Response Latency (us): p25: {} p50: {} p75: {} p90: {} p99: {} p999: {} p9999: {}",
-                    p25, p50, p75, p90, p99, p999, p9999
-                );
+            match output_format {
+                OutputFormat::Log => self.emit_log(window, &snapshot),
+                OutputFormat::Json => todo!(),
             }
 
             WINDOW.increment();
@@ -283,6 +231,72 @@ impl Admin {
                     break;
                 }
             }
+        }
+    }
+
+    fn emit_log(&self, window: u64, snapshot: &Snapshot) {
+        info!("-----");
+        info!("Window: {}", window);
+        info!(
+            "Connections: Attempts: {} Opened: {} Errors: {} Timeouts: {} Open: {}",
+            snapshot.delta_count(&self.snapshot, CONNECT.name()),
+            snapshot.delta_count(&self.snapshot, SESSION.name()),
+            snapshot.delta_count(&self.snapshot, CONNECT_EX.name()),
+            snapshot.delta_count(&self.snapshot, CONNECT_TIMEOUT.name()),
+            OPEN.value()
+        );
+
+        let request_rate = snapshot.rate(&self.snapshot, REQUEST.name());
+        let response_rate = snapshot.rate(&self.snapshot, RESPONSE.name());
+        let connect_rate = snapshot.rate(&self.snapshot, CONNECT.name());
+
+        info!(
+            "Rate: Request: {:.2} rps Response: {:.2} rps Connect: {:.2} cps",
+            request_rate, response_rate, connect_rate
+        );
+
+        let request_success =
+            snapshot.success_rate(&self.snapshot, REQUEST.name(), REQUEST_EX.name());
+        let response_success =
+            snapshot.success_rate(&self.snapshot, RESPONSE.name(), RESPONSE_EX.name());
+        let connect_success =
+            snapshot.success_rate(&self.snapshot, CONNECT.name(), CONNECT_EX.name());
+
+        info!(
+            "Success: Request: {:.2} % Response: {:.2} % Connect: {:.2} %",
+            request_success, response_success, connect_success
+        );
+
+        let hit_rate = snapshot.hitrate(&self.snapshot, REQUEST_GET.name(), RESPONSE_HIT.name());
+
+        info!("Hit-rate: {:.2} %", hit_rate);
+
+        if let Some(ref heatmap) = self.connect_heatmap {
+            let p25 = heatmap.percentile(25.0).map(|b| b.high()).unwrap_or(0);
+            let p50 = heatmap.percentile(50.0).map(|b| b.high()).unwrap_or(0);
+            let p75 = heatmap.percentile(75.0).map(|b| b.high()).unwrap_or(0);
+            let p90 = heatmap.percentile(90.0).map(|b| b.high()).unwrap_or(0);
+            let p99 = heatmap.percentile(99.0).map(|b| b.high()).unwrap_or(0);
+            let p999 = heatmap.percentile(99.9).map(|b| b.high()).unwrap_or(0);
+            let p9999 = heatmap.percentile(99.99).map(|b| b.high()).unwrap_or(0);
+            info!(
+                "Connect Latency (us): p25: {} p50: {} p75: {} p90: {} p99: {} p999: {} p9999: {}",
+                p25, p50, p75, p90, p99, p999, p9999
+            );
+        }
+
+        if let Some(ref heatmap) = self.request_heatmap {
+            let p25 = heatmap.percentile(25.0).map(|b| b.high()).unwrap_or(0);
+            let p50 = heatmap.percentile(50.0).map(|b| b.high()).unwrap_or(0);
+            let p75 = heatmap.percentile(75.0).map(|b| b.high()).unwrap_or(0);
+            let p90 = heatmap.percentile(90.0).map(|b| b.high()).unwrap_or(0);
+            let p99 = heatmap.percentile(99.0).map(|b| b.high()).unwrap_or(0);
+            let p999 = heatmap.percentile(99.9).map(|b| b.high()).unwrap_or(0);
+            let p9999 = heatmap.percentile(99.99).map(|b| b.high()).unwrap_or(0);
+            info!(
+                "Response Latency (us): p25: {} p50: {} p75: {} p90: {} p99: {} p999: {} p9999: {}",
+                p25, p50, p75, p90, p99, p999, p9999
+            );
         }
     }
 }
