@@ -2,17 +2,15 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
-use super::Error;
+// use tokio::runtime::Runtime;
+// use super::Error;
 use super::*;
-use protocol_memcache::*;
+use protocol_memcache::Ttl;
+
 use protocol_memcache::{Compose, Parse, Request, Response};
-use session::Buf;
-use session::BufMut;
-use session::Buffer;
-use std::borrow::Borrow;
-use std::borrow::BorrowMut;
-use std::net::SocketAddr;
-use std::net::ToSocketAddrs;
+use session::{Buf, BufMut, Buffer};
+use std::borrow::{Borrow, BorrowMut};
+use std::net::{SocketAddr, ToSocketAddrs};
 
 /// Launch tasks with one conncetion per task as memcache protocol is not mux-enabled.
 pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiver<WorkItem>) {
@@ -80,7 +78,7 @@ async fn task(
             .map_err(|_| Error::new(ErrorKind::Other, "channel closed"))?;
 
         REQUEST.increment();
-        let start = Instant::now();
+
 
         // compose request into buffer
         let request = match &work_item {
@@ -131,18 +129,47 @@ async fn task(
                 continue;
             }
         };
+        
         REQUEST_OK.increment();
         request.compose(&mut write_buffer);
 
+        let mut start: Instant;
+
         // send request
-        s.write_all(write_buffer.borrow()).await?;
+        loop {
+            s.writable().await?;
+            start = Instant::now();
+
+            match s.try_write(write_buffer.borrow()) {
+                Ok(n) => {
+                    write_buffer.advance(n);
+                    if write_buffer.remaining() == 0 {
+                        break;
+                    } else {
+                        continue;
+                    }
+                }
+                Err(ref e) if e.kind() == ErrorKind::WouldBlock => {
+                    continue;
+                }
+                Err(e) => {
+                    return Err(e);
+                }
+            }
+        }
+        // s.write_all(write_buffer.borrow()).await?;
         write_buffer.clear();
+        read_buffer.clear();
 
         // read until response or timeout
-        let mut remaining_time = 200_000_000;
         let response = loop {
+            let remaining_time = 200_u64.saturating_sub(start.elapsed().as_millis());
+            if remaining_time == 0 {
+                break Err(ResponseError::Timeout);
+            }
+
             match timeout(
-                Duration::from_millis(remaining_time / 1000000),
+                Duration::from_millis(remaining_time),
                 s.read(read_buffer.borrow_mut()),
             )
             .await
@@ -161,13 +188,7 @@ async fn task(
                             break Ok(resp);
                         }
                         Err(e) => match e.kind() {
-                            ErrorKind::WouldBlock => {
-                                let elapsed = start.elapsed().as_nanos();
-                                remaining_time = remaining_time.saturating_sub(elapsed);
-                                if remaining_time == 0 {
-                                    break Err(ResponseError::Timeout);
-                                }
-                            }
+                            ErrorKind::WouldBlock => { }
                             _ => {
                                 break Err(ResponseError::Exception);
                             }
@@ -253,7 +274,8 @@ async fn task(
                 RESPONSE_EX.increment();
             }
             Err(ResponseError::Timeout) => {
-                error!("timeout");
+                // println!("timeout for: {:?}", work_item);
+                // error!("timeout");
                 RESPONSE_TIMEOUT.increment();
                 CONNECT_CURR.sub(1);
             }

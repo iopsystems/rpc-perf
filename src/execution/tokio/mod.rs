@@ -66,7 +66,7 @@ pub fn run(config: Config, log: Box<dyn Drain>) -> Result<()> {
         Protocol::Resp => drivers::resp::launch_tasks(&mut rt, config.clone(), work_receiver),
     }
 
-    let window = config.general().interval().as_secs() as u64;
+    let window = config.general().interval().as_secs();
     let mut interval = config.general().interval().as_secs();
     let mut duration = config.general().duration().as_secs();
 

@@ -66,10 +66,12 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
                 {
                     Ok(Ok(r)) => match r.result {
                         MomentoGetStatus::HIT => {
+                            GET_OK.increment();
                             GET_KEY_HIT.increment();
                             Ok(())
                         }
                         MomentoGetStatus::MISS => {
+                            GET_OK.increment();
                             GET_KEY_MISS.increment();
                             Ok(())
                         }
@@ -82,7 +84,10 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
                         GET_EX.increment();
                         Err(ResponseError::Exception)
                     }
-                    Err(_) => Err(ResponseError::Timeout),
+                    Err(_) => {
+                        GET_TIMEOUT.increment();
+                        Err(ResponseError::Timeout)
+                    }
                 }
             }
             WorkItem::Set { key, value } => {
@@ -106,11 +111,36 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
                         SET_EX.increment();
                         Err(ResponseError::Exception)
                     }
-                    Err(_) => Err(ResponseError::Timeout),
+                    Err(_) => {
+                        SET_TIMEOUT.increment();
+                        Err(ResponseError::Timeout)
+                    }
+                }
+            }
+            WorkItem::Delete { key } => {
+                DELETE.increment();
+                match timeout(
+                    Duration::from_millis(200),
+                    client.delete("preview-cache", (*key).to_owned()),
+                )
+                .await
+                {
+                    Ok(Ok(_)) => {
+                        DELETE_OK.increment();
+                        Ok(())
+                    }
+                    Ok(Err(_)) => {
+                        DELETE_EX.increment();
+                        Err(ResponseError::Exception)
+                    }
+                    Err(_) => {
+                        DELETE_TIMEOUT.increment();
+                        Err(ResponseError::Timeout)
+                    }
                 }
             }
             WorkItem::HashDelete { key, fields } => {
-                // HDEL.increment();
+                HASH_DELETE.increment();
                 match timeout(
                     Duration::from_millis(200),
                     client.dictionary_delete(
@@ -122,18 +152,21 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
                 .await
                 {
                     Ok(Ok(_)) => {
-                        // HDEL_DELETED.increment();
+                        HASH_DELETE_OK.increment();
                         Ok(())
                     }
                     Ok(Err(_)) => {
-                        // HDEL_EX.increment();
+                        HASH_DELETE_EX.increment();
                         Err(ResponseError::Exception)
                     }
-                    Err(_) => Err(ResponseError::Timeout),
+                    Err(_) => {
+                        HASH_DELETE_TIMEOUT.increment();
+                        Err(ResponseError::Timeout)
+                    }
                 }
             }
             WorkItem::HashGet { key, field } => {
-                // HGET.increment();
+                HASH_GET.increment();
                 match timeout(
                     Duration::from_millis(200),
                     client.dictionary_get("preview-cache", &*key, vec![&*field]),
@@ -142,27 +175,32 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
                 {
                     Ok(Ok(r)) => match r.result {
                         MomentoDictionaryGetStatus::FOUND => {
-                            // HGET_FIELD_HIT.increment();
+                            HASH_GET_OK.increment();
+                            HASH_GET_FIELD_HIT.increment();
                             Ok(())
                         }
                         MomentoDictionaryGetStatus::MISSING => {
-                            // HGET_FIELD_MISS.increment();
+                            HASH_GET_OK.increment();
+                            HASH_GET_FIELD_MISS.increment();
                             Ok(())
                         }
                         MomentoDictionaryGetStatus::ERROR => {
-                            // HGET_EX.increment();
+                            HASH_GET_EX.increment();
                             Err(ResponseError::Exception)
                         }
                     },
                     Ok(Err(_)) => {
-                        // HGET_EX.increment();
+                        HASH_GET_EX.increment();
                         Err(ResponseError::Exception)
                     }
-                    Err(_) => Err(ResponseError::Timeout),
+                    Err(_) => {
+                        HASH_GET_TIMEOUT.increment();
+                        Err(ResponseError::Timeout)
+                    }
                 }
             }
             WorkItem::HashIncrement { key, field, amount } => {
-                // HGET.increment();
+                HASH_INCR.increment();
                 match timeout(
                     Duration::from_millis(200),
                     client.dictionary_increment(
@@ -176,21 +214,23 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
                 .await
                 {
                     Ok(Ok(r)) => {
+                        HASH_INCR_OK.increment();
                         #[allow(clippy::if_same_then_else)]
                         if r.value == amount {
-                            // miss
-                            // HINCRBY_MISS.increment();
+                            HASH_INCR_MISS.increment();
                         } else {
-                            // hit
-                            // HINCRBY_HIT.increment();
+                            HASH_INCR_HIT.increment();
                         }
                         Ok(())
                     }
                     Ok(Err(_)) => {
-                        // HINCRBY_EX.increment();
+                        HASH_INCR_EX.increment();
                         Err(ResponseError::Exception)
                     }
-                    Err(_) => Err(ResponseError::Timeout),
+                    Err(_) => {
+                        HASH_INCR_TIMEOUT.increment();
+                        Err(ResponseError::Timeout)
+                    }
                 }
             }
             WorkItem::HashMultiGet { key, fields } => {
@@ -229,12 +269,15 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
                         HASH_GET_EX.increment();
                         Err(ResponseError::Exception)
                     }
-                    Err(_) => Err(ResponseError::Timeout),
+                    Err(_) => {
+                        HASH_GET_TIMEOUT.increment();
+                        Err(ResponseError::Timeout)
+                    }
                 }
             }
             WorkItem::HashSet { key, data } => {
-                let fields = data.len();
                 HASH_SET.increment();
+                let fields = data.len();
                 let data: HashMap<Vec<u8>, Vec<u8>> =
                     data.iter().map(|(k, v)| (k.to_vec(), v.to_vec())).collect();
                 match timeout(
@@ -253,13 +296,17 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
                         Ok(())
                     }
                     Ok(Err(_)) => {
-                        HASH_GET_EX.increment();
+                        HASH_SET_EX.increment();
                         Err(ResponseError::Exception)
                     }
-                    Err(_) => Err(ResponseError::Timeout),
+                    Err(_) => {
+                        HASH_SET_TIMEOUT.increment();
+                        Err(ResponseError::Timeout)
+                    }
                 }
             }
             WorkItem::SortedSetAdd { key, members } => {
+                SORTED_SET_ADD.increment();
                 let members: Vec<sorted_set::SortedSetElement> = members
                     .iter()
                     .map(|(name, score)| sorted_set::SortedSetElement {
@@ -279,22 +326,25 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
                 .await
                 {
                     Ok(Ok(_)) => {
-                        // SORTED_SET_SET_STORED.add(fields as _);
+                        SORTED_SET_ADD_OK.increment();
                         Ok(())
                     }
                     Ok(Err(_)) => {
-                        // SORTED_SET_SET_EX.increment();
+                        SORTED_SET_ADD_EX.increment();
                         Err(ResponseError::Exception)
                     }
-                    Err(_) => Err(ResponseError::Timeout),
+                    Err(_) => {
+                        SORTED_SET_ADD_TIMEOUT.increment();
+                        Err(ResponseError::Timeout)
+                    }
                 }
-                // Ok(())
             }
             WorkItem::SortedSetIncrement {
                 key,
                 member,
                 amount,
             } => {
+                SORTED_SET_INCR.increment();
                 match timeout(
                     Duration::from_millis(200),
                     client.sorted_set_increment(
@@ -308,18 +358,21 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
                 .await
                 {
                     Ok(Ok(_)) => {
-                        // SORTED_SET_SET_STORED.add(fields as _);
+                        SORTED_SET_INCR_OK.increment();
                         Ok(())
                     }
                     Ok(Err(_)) => {
-                        // SORTED_SET_SET_EX.increment();
+                        SORTED_SET_INCR_EX.increment();
                         Err(ResponseError::Exception)
                     }
-                    Err(_) => Err(ResponseError::Timeout),
+                    Err(_) => {
+                        SORTED_SET_INCR_TIMEOUT.increment();
+                        Err(ResponseError::Timeout)
+                    }
                 }
-                // Ok(())
             }
             WorkItem::SortedSetRemove { key, members } => {
+                SORTED_SET_REMOVE.increment();
                 let names: Vec<&[u8]> = members.iter().map(|v| v.borrow()).collect();
                 match timeout(
                     Duration::from_millis(200),
@@ -328,18 +381,46 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
                 .await
                 {
                     Ok(Ok(_)) => {
-                        // SORTED_SET_SET_STORED.add(fields as _);
+                        SORTED_SET_REMOVE_OK.increment();
                         Ok(())
                     }
                     Ok(Err(_)) => {
-                        // SORTED_SET_SET_EX.increment();
+                        SORTED_SET_REMOVE_EX.increment();
                         Err(ResponseError::Exception)
                     }
-                    Err(_) => Err(ResponseError::Timeout),
+                    Err(_) => {
+                        SORTED_SET_REMOVE_TIMEOUT.increment();
+                        Err(ResponseError::Timeout)
+                    }
                 }
-                // Ok(())
+            }
+            WorkItem::SortedSetRank { key, member } => {
+                SORTED_SET_RANK.increment();
+                match timeout(
+                    Duration::from_millis(200),
+                    client.sorted_set_get_rank("preview-cache", &*key, &*member),
+                )
+                .await
+                {
+                    Ok(Ok(_)) => {
+                        SORTED_SET_RANK_OK.increment();
+                        Ok(())
+                    }
+                    Ok(Err(_)) => {
+                        SORTED_SET_RANK_EX.increment();
+                        Err(ResponseError::Exception)
+                    }
+                    Err(_) => {
+                        SORTED_SET_RANK_TIMEOUT.increment();
+                        Err(ResponseError::Timeout)
+                    }
+                }
+            }
+            WorkItem::Reconnect => {
+                continue;
             }
             _ => {
+                REQUEST_UNSUPPORTED.increment();
                 continue;
             }
         };

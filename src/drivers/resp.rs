@@ -126,7 +126,7 @@ async fn task(
                 }
             }
             WorkItem::HashDelete { key, fields } => {
-                // HDEL.increment();
+                HASH_DELETE.increment();
                 let fields: Vec<&[u8]> = fields.iter().map(|v| v.borrow()).collect();
                 match timeout(
                     Duration::from_millis(200),
@@ -135,14 +135,17 @@ async fn task(
                 .await
                 {
                     Ok(Ok(_)) => {
-                        // DELETE_DELETED.increment();
+                        // TODO(bmartin): increment some stat here?
                         Ok(())
                     }
                     Ok(Err(_)) => {
-                        // DELETE_EX.increment();
+                        HASH_DELETE_EX.increment();
                         Err(ResponseError::Exception)
                     }
-                    Err(_) => Err(ResponseError::Timeout),
+                    Err(_) => {
+                        HASH_DELETE_TIMEOUT.increment();
+                        Err(ResponseError::Timeout)
+                    }
                 }
             }
             WorkItem::HashExists { key, field } => {
@@ -253,6 +256,7 @@ async fn task(
                 }
             }
             WorkItem::SortedSetAdd { key, members } => {
+                SORTED_SET_ADD.increment();
                 if members.is_empty() {
                     connection = Some(con);
                     continue;
@@ -264,9 +268,18 @@ async fn task(
                     )
                     .await
                     {
-                        Ok(Ok(_)) => Ok(()),
-                        Ok(Err(_)) => Err(ResponseError::Exception),
-                        Err(_) => Err(ResponseError::Timeout),
+                        Ok(Ok(_)) => {
+                            SORTED_SET_ADD_OK.increment();
+                            Ok(())
+                        }
+                        Ok(Err(_)) => {
+                            SORTED_SET_ADD_EX.increment();
+                            Err(ResponseError::Exception)
+                        }
+                        Err(_) => {
+                            SORTED_SET_ADD_TIMEOUT.increment();
+                            Err(ResponseError::Timeout)
+                        }
                     }
                 } else {
                     let d: Vec<(f64, &[u8])> =
@@ -277,9 +290,18 @@ async fn task(
                     )
                     .await
                     {
-                        Ok(Ok(_)) => Ok(()),
-                        Ok(Err(_)) => Err(ResponseError::Exception),
-                        Err(_) => Err(ResponseError::Timeout),
+                        Ok(Ok(_)) => {
+                            SORTED_SET_ADD_OK.increment();
+                            Ok(())
+                        }
+                        Ok(Err(_)) => {
+                            SORTED_SET_ADD_EX.increment();
+                            Err(ResponseError::Exception)
+                        }
+                        Err(_) => {
+                            SORTED_SET_ADD_TIMEOUT.increment();
+                            Err(ResponseError::Timeout)
+                        }
                     }
                 }
             }
@@ -288,6 +310,7 @@ async fn task(
                 member,
                 amount,
             } => {
+                SORTED_SET_INCR.increment();
                 match timeout(
                     Duration::from_millis(200),
                     con.zincr::<&[u8], &[u8], f64, f64>(&key, &member, amount),
@@ -295,17 +318,21 @@ async fn task(
                 .await
                 {
                     Ok(Ok(_)) => {
-                        // DELETE_DELETED.increment();
+                        SORTED_SET_INCR_OK.increment();
                         Ok(())
                     }
                     Ok(Err(_)) => {
-                        // DELETE_EX.increment();
+                        SORTED_SET_INCR_EX.increment();
                         Err(ResponseError::Exception)
                     }
-                    Err(_) => Err(ResponseError::Timeout),
+                    Err(_) => {
+                        SORTED_SET_INCR_TIMEOUT.increment();
+                        Err(ResponseError::Timeout)
+                    }
                 }
             }
             WorkItem::SortedSetRemove { key, members } => {
+                SORTED_SET_REMOVE.increment();
                 let members: Vec<&[u8]> = members.iter().map(|v| v.borrow()).collect();
                 match timeout(
                     Duration::from_millis(200),
@@ -314,47 +341,70 @@ async fn task(
                 .await
                 {
                     Ok(Ok(_)) => {
-                        // DELETE_DELETED.increment();
+                        SORTED_SET_REMOVE_OK.increment();
                         Ok(())
                     }
                     Ok(Err(_)) => {
-                        // DELETE_EX.increment();
+                        SORTED_SET_REMOVE_EX.increment();
                         Err(ResponseError::Exception)
                     }
-                    Err(_) => Err(ResponseError::Timeout),
+                    Err(_) => {
+                        SORTED_SET_REMOVE_TIMEOUT.increment();
+                        Err(ResponseError::Timeout)
+                    }
                 }
             }
             WorkItem::SortedSetScore { key, member } => {
+                SORTED_SET_SCORE.increment();
                 match timeout(
                     Duration::from_millis(200),
-                    con.zscore::<&[u8], &[u8], f64>(key.as_ref(), member.as_ref()),
+                    con.zscore::<&[u8], &[u8], Option<f64>>(key.as_ref(), member.as_ref()),
                 )
                 .await
                 {
-                    Ok(Ok(_)) => Ok(()),
-                    Ok(Err(_)) => Err(ResponseError::Exception),
-                    Err(_) => Err(ResponseError::Timeout),
+                    Ok(Ok(_)) => {
+                        SORTED_SET_SCORE_OK.increment();
+                        Ok(())
+                    }
+                    Ok(Err(e)) => {
+                        error!("{e}");
+                        SORTED_SET_SCORE_EX.increment();
+                        Err(ResponseError::Exception)
+                    }
+                    Err(_) => {
+                        SORTED_SET_SCORE_TIMEOUT.increment();
+                        Err(ResponseError::Timeout)
+                    }
                 }
             }
             WorkItem::SortedSetRank { key, member } => {
+                SORTED_SET_RANK.increment();
                 match timeout(
                     Duration::from_millis(200),
                     con.zscore::<&[u8], &[u8], Option<u64>>(key.as_ref(), member.as_ref()),
                 )
                 .await
                 {
-                    Ok(Ok(_)) => Ok(()),
-                    Ok(Err(_)) => Err(ResponseError::Exception),
-                    Err(_) => Err(ResponseError::Timeout),
+                    Ok(Ok(_)) => {
+                        SORTED_SET_RANK_OK.increment();
+                        Ok(())
+                    }
+                    Ok(Err(_)) => {
+                        SORTED_SET_RANK_EX.increment();
+                        Err(ResponseError::Exception)
+                    }
+                    Err(_) => {
+                        SORTED_SET_RANK_TIMEOUT.increment();
+                        Err(ResponseError::Timeout)
+                    }
                 }
             }
             WorkItem::Reconnect => {
                 CONNECT_CURR.sub(1);
                 continue;
             }
-            w => {
+            _ => {
                 REQUEST_UNSUPPORTED.increment();
-                info!("unsupported: {:?}", w);
                 connection = Some(con);
                 continue;
             }
@@ -364,16 +414,18 @@ async fn task(
 
         let stop = Instant::now();
 
+        let latency_ns = stop.duration_since(start).as_nanos();
+
         match result {
             Ok(_) => {
                 connection = Some(con);
                 RESPONSE_OK.increment();
-                RESPONSE_LATENCY.increment(stop, stop.duration_since(start).as_nanos(), 1);
+                RESPONSE_LATENCY.increment(stop, latency_ns, 1);
             }
             Err(ResponseError::Exception) => {
                 CONNECT_CURR.sub(1);
                 RESPONSE_EX.increment();
-                RESPONSE_LATENCY.increment(stop, stop.duration_since(start).as_nanos(), 1);
+                RESPONSE_LATENCY.increment(stop, latency_ns, 1);
             }
             Err(ResponseError::Timeout) => {
                 CONNECT_CURR.sub(1);

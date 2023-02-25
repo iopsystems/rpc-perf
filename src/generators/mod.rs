@@ -4,16 +4,19 @@
 
 use super::*;
 use config::Verb;
+use core::num::NonZeroU64;
 use rand::distributions::Alphanumeric;
 use rand::distributions::Uniform;
 use rand::Rng;
 use rand::RngCore;
+use rand::SeedableRng;
 use rand_distr::Distribution;
 use rand_distr::WeightedAliasIndex;
 use rand_xoshiro::Xoshiro512PlusPlus;
 use ratelimit::Ratelimiter;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::io::Result;
 use std::sync::Arc;
 use tokio::time::Interval;
 use workload::WorkItem;
@@ -184,6 +187,7 @@ impl Keyspace {
         let mut verb_weights = Vec::new();
 
         for command in keyspace.commands() {
+            info!("verb: {:?} weight: {}", command.verb(), command.weight());
             verbs.push(command.verb());
             verb_weights.push(command.weight());
         }

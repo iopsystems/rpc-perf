@@ -2,7 +2,7 @@
 # specify the protocol to be used
 protocol = "resp"
 # the interval for stats integration and reporting
-interval = 60
+interval = 10
 # the number of intervals to run the test for
 duration = 300
 # controls the number of worker threads to launch, each worker thread maintains
@@ -50,11 +50,15 @@ timeout = 10000
 
 [request]
 # set a global ratelimit for requests
-#ratelimit = 50000
+ratelimit = 100
 # set the timeout in milliseconds
 timeout = 1000
 
-[[keyspace]]
+[workload]
+# the number of threads that will be used to generate requests
+threads = 1
+
+[[workload.keyspace]]
 # controls what commands will be used in this keyspace
 commands = [
 	{ verb = "get", weight = 8 },
@@ -62,17 +66,51 @@ commands = [
 	# { verb = "delete", weight = 1 },
 ]
 # sets the length of the key, in bytes
-length = 4
+klen = 32
 # sets the number of keys that will be generated
-cardinality = 1_000_000
-# sets the distribution across the keyspace: uniform, zipf
-key_distribution = { "model" = "uniform" }
-# controls how values will be generated, multiple lengths with varying weights
-# can be specified here
-values = [ { length = 16 } ]
-# provide a time-to-live for items in this keyspace
-ttl = 0
-# controls the cardinality of commands which operate on more than one item in
-# a single request, eg: the number of keys in a `get` request
-batch_size = 1
+nkeys = 1_000_000
+# sets the relative weight of this keyspace
+weight = 1
+inner_keys_nkeys = 1_000
+inner_keys_klen = 4
+vlen = 128
+# # sets the distribution across the keyspace: uniform, zipf
+# key_distribution = { "model" = "uniform" }
+# # controls how values will be generated, multiple lengths with varying weights
+# # can be specified here
+# values = [ { length = 16 } ]
+# # provide a time-to-live for items in this keyspace
+# ttl = 0
+# # controls the cardinality of commands which operate on more than one item in
+# # a single request, eg: the number of keys in a `get` request
+# batch_size = 1
 
+[[workload.keyspace]]
+# controls what commands will be used in this keyspace
+commands = [
+	{ verb = "sorted_set_rank", weight = 3 },
+	{ verb = "sorted_set_score", weight = 1 },
+	{ verb = "sorted_set_increment", weight = 4 },
+	{ verb = "sorted_set_add", weight = 2 },
+	# { verb = "delete", weight = 1 },
+]
+# sets the length of the key, in bytes
+klen = 16
+# sets the number of keys that will be generated
+nkeys = 1_000_000
+# sets the relative weight of this keyspace
+weight = 1
+inner_keys_nkeys = 1_000
+inner_keys_klen = 4
+vlen = 128
+
+# # sets the distribution across the keyspace: uniform, zipf
+# key_distribution = { "model" = "uniform" }
+# # controls how values will be generated, multiple lengths with varying weights
+# # can be specified here
+# values = [ { length = 16 } ]
+# # provide a time-to-live for items in this keyspace
+# ttl = 0
+# # controls the cardinality of commands which operate on more than one item in
+# # a single request, eg: the number of keys in a `get` request
+# batch_size = 1
