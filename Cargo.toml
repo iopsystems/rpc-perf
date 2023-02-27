@@ -23,7 +23,7 @@ chrono = "0.4.22"
 clap = "3.2.20"
 clocksource = "0.6.0"
 crc = "3.0.0"
-heatmap = "0.7.0"
+heatmap = "0.7.2"
 json = "0.12.4"
 metriken = "0.1.0"
 mio = { version = "0.8.4", features = ["os-poll", "net"] }

@@ -2,12 +2,14 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
+use crate::config_file::OutputFormat;
 use crate::metrics::*;
 use crate::Arc;
 use crate::Config;
 use heatmap::Heatmap;
 use ratelimit::Ratelimiter;
 use ringlog::Drain;
+use serde_derive::Serialize;
 use std::collections::HashMap;
 use std::time::Instant;
 use waterfall::WaterfallBuilder;
@@ -187,68 +189,15 @@ impl Admin {
             };
 
             let window = WINDOW.value();
+            let output_format = self
+                .config
+                .as_deref()
+                .map(|config| config.general().output_format())
+                .unwrap_or_default();
 
-            info!("-----");
-            info!("Window: {}", window);
-            info!(
-                "Connections: Attempts: {} Opened: {} Errors: {} Timeouts: {} Open: {}",
-                snapshot.delta_count(&self.snapshot, CONNECT.name()),
-                snapshot.delta_count(&self.snapshot, SESSION.name()),
-                snapshot.delta_count(&self.snapshot, CONNECT_EX.name()),
-                snapshot.delta_count(&self.snapshot, CONNECT_TIMEOUT.name()),
-                OPEN.value()
-            );
-
-            let request_rate = snapshot.rate(&self.snapshot, REQUEST.name());
-            let response_rate = snapshot.rate(&self.snapshot, RESPONSE.name());
-            let connect_rate = snapshot.rate(&self.snapshot, CONNECT.name());
-
-            info!(
-                "Rate: Request: {:.2} rps Response: {:.2} rps Connect: {:.2} cps",
-                request_rate, response_rate, connect_rate
-            );
-
-            let request_success =
-                snapshot.success_rate(&self.snapshot, REQUEST.name(), REQUEST_EX.name());
-            let response_success =
-                snapshot.success_rate(&self.snapshot, RESPONSE.name(), RESPONSE_EX.name());
-            let connect_success =
-                snapshot.success_rate(&self.snapshot, CONNECT.name(), CONNECT_EX.name());
-
-            info!(
-                "Success: Request: {:.2} % Response: {:.2} % Connect: {:.2} %",
-                request_success, response_success, connect_success
-            );
-
-            let hit_rate =
-                snapshot.hitrate(&self.snapshot, REQUEST_GET.name(), RESPONSE_HIT.name());
-
-            info!("Hit-rate: {:.2} %", hit_rate);
-
-            if let Some(ref heatmap) = self.connect_heatmap {
-                let p25 = heatmap.percentile(25.0).map(|b| b.high()).unwrap_or(0);
-                let p50 = heatmap.percentile(50.0).map(|b| b.high()).unwrap_or(0);
-                let p75 = heatmap.percentile(75.0).map(|b| b.high()).unwrap_or(0);
-                let p90 = heatmap.percentile(90.0).map(|b| b.high()).unwrap_or(0);
-                let p99 = heatmap.percentile(99.0).map(|b| b.high()).unwrap_or(0);
-                let p999 = heatmap.percentile(99.9).map(|b| b.high()).unwrap_or(0);
-                let p9999 = heatmap.percentile(99.99).map(|b| b.high()).unwrap_or(0);
-                info!("Connect Latency (us): p25: {} p50: {} p75: {} p90: {} p99: {} p999: {} p9999: {}",
-                    p25, p50, p75, p90, p99, p999, p9999
-                );
-            }
-
-            if let Some(ref heatmap) = self.request_heatmap {
-                let p25 = heatmap.percentile(25.0).map(|b| b.high()).unwrap_or(0);
-                let p50 = heatmap.percentile(50.0).map(|b| b.high()).unwrap_or(0);
-                let p75 = heatmap.percentile(75.0).map(|b| b.high()).unwrap_or(0);
-                let p90 = heatmap.percentile(90.0).map(|b| b.high()).unwrap_or(0);
-                let p99 = heatmap.percentile(99.0).map(|b| b.high()).unwrap_or(0);
-                let p999 = heatmap.percentile(99.9).map(|b| b.high()).unwrap_or(0);
-                let p9999 = heatmap.percentile(99.99).map(|b| b.high()).unwrap_or(0);
-                info!("Response Latency (us): p25: {} p50: {} p75: {} p90: {} p99: {} p999: {} p9999: {}",
-                    p25, p50, p75, p90, p99, p999, p9999
-                );
+            match output_format {
+                OutputFormat::Log => self.emit_log(window, &snapshot),
+                OutputFormat::Json => self.emit_json(window, &snapshot),
             }
 
             WINDOW.increment();
@@ -284,6 +233,156 @@ impl Admin {
                 }
             }
         }
+    }
+
+    fn emit_log(&self, window: u64, snapshot: &Snapshot) {
+        info!("-----");
+        info!("Window: {}", window);
+        info!(
+            "Connections: Attempts: {} Opened: {} Errors: {} Timeouts: {} Open: {}",
+            snapshot.delta_count(&self.snapshot, CONNECT.name()),
+            snapshot.delta_count(&self.snapshot, SESSION.name()),
+            snapshot.delta_count(&self.snapshot, CONNECT_EX.name()),
+            snapshot.delta_count(&self.snapshot, CONNECT_TIMEOUT.name()),
+            OPEN.value()
+        );
+
+        let request_rate = snapshot.rate(&self.snapshot, REQUEST.name());
+        let response_rate = snapshot.rate(&self.snapshot, RESPONSE.name());
+        let connect_rate = snapshot.rate(&self.snapshot, CONNECT.name());
+
+        info!(
+            "Rate: Request: {:.2} rps Response: {:.2} rps Connect: {:.2} cps",
+            request_rate, response_rate, connect_rate
+        );
+
+        let request_success =
+            snapshot.success_rate(&self.snapshot, REQUEST.name(), REQUEST_EX.name());
+        let response_success =
+            snapshot.success_rate(&self.snapshot, RESPONSE.name(), RESPONSE_EX.name());
+        let connect_success =
+            snapshot.success_rate(&self.snapshot, CONNECT.name(), CONNECT_EX.name());
+
+        info!(
+            "Success: Request: {:.2} % Response: {:.2} % Connect: {:.2} %",
+            request_success, response_success, connect_success
+        );
+
+        let hit_rate = snapshot.hitrate(&self.snapshot, REQUEST_GET.name(), RESPONSE_HIT.name());
+
+        info!("Hit-rate: {:.2} %", hit_rate);
+
+        if let Some(ref heatmap) = self.connect_heatmap {
+            let p25 = heatmap.percentile(25.0).map(|b| b.high()).unwrap_or(0);
+            let p50 = heatmap.percentile(50.0).map(|b| b.high()).unwrap_or(0);
+            let p75 = heatmap.percentile(75.0).map(|b| b.high()).unwrap_or(0);
+            let p90 = heatmap.percentile(90.0).map(|b| b.high()).unwrap_or(0);
+            let p99 = heatmap.percentile(99.0).map(|b| b.high()).unwrap_or(0);
+            let p999 = heatmap.percentile(99.9).map(|b| b.high()).unwrap_or(0);
+            let p9999 = heatmap.percentile(99.99).map(|b| b.high()).unwrap_or(0);
+            info!(
+                "Connect Latency (us): p25: {} p50: {} p75: {} p90: {} p99: {} p999: {} p9999: {}",
+                p25, p50, p75, p90, p99, p999, p9999
+            );
+        }
+
+        if let Some(ref heatmap) = self.request_heatmap {
+            let p25 = heatmap.percentile(25.0).map(|b| b.high()).unwrap_or(0);
+            let p50 = heatmap.percentile(50.0).map(|b| b.high()).unwrap_or(0);
+            let p75 = heatmap.percentile(75.0).map(|b| b.high()).unwrap_or(0);
+            let p90 = heatmap.percentile(90.0).map(|b| b.high()).unwrap_or(0);
+            let p99 = heatmap.percentile(99.0).map(|b| b.high()).unwrap_or(0);
+            let p999 = heatmap.percentile(99.9).map(|b| b.high()).unwrap_or(0);
+            let p9999 = heatmap.percentile(99.99).map(|b| b.high()).unwrap_or(0);
+            info!(
+                "Response Latency (us): p25: {} p50: {} p75: {} p90: {} p99: {} p999: {} p9999: {}",
+                p25, p50, p75, p90, p99, p999, p9999
+            );
+        }
+    }
+
+    fn emit_json(&self, window: u64, snapshot: &Snapshot) {
+        #[derive(Serialize)]
+        struct Bucket {
+            value: u64,
+            count: u32,
+        }
+
+        #[derive(Serialize)]
+        struct Connections {
+            attempts: u64,
+            opened: u64,
+            errors: u64,
+            timeouts: u64,
+            open: i64,
+        }
+
+        #[derive(Serialize)]
+        struct JsonSnapshot {
+            window: u64,
+            interval: f64,
+            connections: Connections,
+            request_count: u64,
+            request_errors: u64,
+            response_count: u64,
+            response_errors: u64,
+            connect_count: u64,
+            connect_errors: u64,
+            get_count: u64,
+            hit_count: u64,
+
+            connect: Vec<Bucket>,
+            request: Vec<Bucket>,
+        }
+
+        fn heatmap_to_buckets(heatmap: &Heatmap) -> Vec<Bucket> {
+            heatmap
+                .summary()
+                .into_iter()
+                // Only include buckets that actually contain values
+                .filter(|bucket| bucket.count() != 0)
+                .map(|bucket| Bucket {
+                    value: bucket.high(),
+                    count: bucket.count(),
+                })
+                .collect()
+        }
+
+        let json = JsonSnapshot {
+            connections: Connections {
+                attempts: snapshot.delta_count(&self.snapshot, CONNECT.name()),
+                opened: snapshot.delta_count(&self.snapshot, SESSION.name()),
+                errors: snapshot.delta_count(&self.snapshot, CONNECT_EX.name()),
+                timeouts: snapshot.delta_count(&self.snapshot, CONNECT_TIMEOUT.name()),
+                open: OPEN.value(),
+            },
+            window,
+            interval: (snapshot.timestamp - self.snapshot.timestamp).as_secs_f64(),
+            request_count: snapshot.delta_count(&self.snapshot, REQUEST.name()),
+            request_errors: snapshot.delta_count(&self.snapshot, REQUEST_EX.name()),
+            response_count: snapshot.delta_count(&self.snapshot, RESPONSE.name()),
+            response_errors: snapshot.delta_count(&self.snapshot, RESPONSE_EX.name()),
+            connect_count: snapshot.delta_count(&self.snapshot, CONNECT.name()),
+            connect_errors: snapshot.delta_count(&self.snapshot, CONNECT_EX.name()),
+            get_count: snapshot.delta_count(&self.snapshot, REQUEST_GET.name()),
+            hit_count: snapshot.delta_count(&self.snapshot, REQUEST_GET.name()),
+
+            connect: self
+                .connect_heatmap
+                .as_deref()
+                .map(|heatmap| heatmap_to_buckets(heatmap))
+                .unwrap_or_default(),
+            request: self
+                .request_heatmap
+                .as_deref()
+                .map(|heatmap| heatmap_to_buckets(heatmap))
+                .unwrap_or_default(),
+        };
+
+        println!(
+            "{}",
+            serde_json::to_string(&json).expect("Failed to output to stdout")
+        );
     }
 }
 
