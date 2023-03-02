@@ -2,12 +2,9 @@
 // Licensed under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
-// use tokio::runtime::Runtime;
-// use super::Error;
 use super::*;
-use protocol_memcache::Ttl;
 
-use protocol_memcache::{Compose, Parse, Request, Response};
+use protocol_memcache::{Compose, Parse, Request, Response, Ttl};
 use session::{Buf, BufMut, Buffer};
 use std::borrow::{Borrow, BorrowMut};
 use std::net::{SocketAddr, ToSocketAddrs};
@@ -79,7 +76,6 @@ async fn task(
 
         REQUEST.increment();
 
-
         // compose request into buffer
         let request = match &work_item {
             WorkItem::Add { key, value } => {
@@ -129,7 +125,7 @@ async fn task(
                 continue;
             }
         };
-        
+
         REQUEST_OK.increment();
         request.compose(&mut write_buffer);
 
@@ -163,13 +159,17 @@ async fn task(
 
         // read until response or timeout
         let response = loop {
-            let remaining_time = 200_u64.saturating_sub(start.elapsed().as_millis());
+            let remaining_time = config
+                .request()
+                .timeout()
+                .as_millis()
+                .saturating_sub(start.elapsed().as_millis().into());
             if remaining_time == 0 {
                 break Err(ResponseError::Timeout);
             }
 
             match timeout(
-                Duration::from_millis(remaining_time),
+                Duration::from_millis(remaining_time as _),
                 s.read(read_buffer.borrow_mut()),
             )
             .await
@@ -188,7 +188,7 @@ async fn task(
                             break Ok(resp);
                         }
                         Err(e) => match e.kind() {
-                            ErrorKind::WouldBlock => { }
+                            ErrorKind::WouldBlock => {}
                             _ => {
                                 break Err(ResponseError::Exception);
                             }
@@ -208,6 +208,8 @@ async fn task(
 
         match response {
             Ok(response) => {
+                let latency_ns = stop.duration_since(start).as_nanos();
+
                 // validate response
                 match &work_item {
                     WorkItem::Get { .. } => match response {
@@ -256,7 +258,7 @@ async fn task(
                 stream = Some(s);
 
                 RESPONSE_OK.increment();
-                RESPONSE_LATENCY.increment(stop, stop.duration_since(start).as_nanos(), 1);
+                RESPONSE_LATENCY.increment(stop, latency_ns, 1);
             }
             Err(ResponseError::Exception) => {
                 // record execption
@@ -274,10 +276,16 @@ async fn task(
                 RESPONSE_EX.increment();
             }
             Err(ResponseError::Timeout) => {
-                // println!("timeout for: {:?}", work_item);
-                // error!("timeout");
                 RESPONSE_TIMEOUT.increment();
                 CONNECT_CURR.sub(1);
+            }
+            Err(ResponseError::Ratelimited) => {
+                RESPONSE_RATELIMITED.increment();
+                stream = Some(s);
+            }
+            Err(ResponseError::BackendTimeout) => {
+                RESPONSE_BACKEND_TIMEOUT.increment();
+                stream = Some(s);
             }
         }
     }

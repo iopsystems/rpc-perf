@@ -23,14 +23,36 @@ counter!(HASH_GET_FIELD_MISS);
 counter!(HASH_GET_OK);
 counter!(HASH_GET_TIMEOUT);
 
+counter!(HASH_GET_ALL, "requests to get all fields from a hash");
+counter!(
+    HASH_GET_ALL_EX,
+    "requests to get all fields from a hash that resulted in an exception"
+);
+counter!(
+    HASH_GET_ALL_HIT,
+    "requests to get all fields from a hash where the hash was found"
+);
+counter!(
+    HASH_GET_ALL_MISS,
+    "requests to get all fields from a hash where the hash was not found"
+);
+counter!(
+    HASH_GET_ALL_OK,
+    "requests to get all fields from a hash that were successful"
+);
+counter!(
+    HASH_GET_ALL_TIMEOUT,
+    "requests to get all fields from a hash that timed out"
+);
+
 counter!(HASH_SET);
 counter!(HASH_SET_EX);
-counter!(HASH_SET_STORED);
+counter!(HASH_SET_OK);
 counter!(HASH_SET_TIMEOUT);
 
 counter!(HASH_DELETE);
-counter!(HASH_DELETE_OK);
 counter!(HASH_DELETE_EX);
+counter!(HASH_DELETE_OK);
 counter!(HASH_DELETE_TIMEOUT);
 
 counter!(HASH_INCR);
@@ -43,6 +65,12 @@ counter!(HASH_INCR_TIMEOUT);
 counter!(HASH_EXISTS);
 counter!(HASH_EXISTS_EX);
 counter!(HASH_EXISTS_HIT);
+counter!(HASH_EXISTS_MISS);
+
+counter!(LIST_FETCH);
+counter!(LIST_FETCH_EX);
+counter!(LIST_FETCH_OK);
+counter!(LIST_FETCH_TIMEOUT);
 
 counter!(PING);
 counter!(PING_EX);
@@ -90,6 +118,14 @@ counter!(
 counter!(
     RESPONSE_EX,
     "responses which encountered some exception while processing"
+);
+counter!(
+    RESPONSE_RATELIMITED,
+    "backend indicated that we were ratelimited"
+);
+counter!(
+    RESPONSE_BACKEND_TIMEOUT,
+    "responses indicating the backend timedout"
 );
 counter!(RESPONSE_OK, "responses which were successful");
 counter!(RESPONSE_TIMEOUT, "responses not received due to timeout");

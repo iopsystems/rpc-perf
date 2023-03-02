@@ -42,11 +42,21 @@ pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiv
 
     // create one task per channel
     for _ in 0..(config.connection().poolsize() * config.general().threads()) {
-        runtime.spawn(task(client.clone(), work_receiver.clone()));
+        runtime.spawn(task(config.clone(), client.clone(), work_receiver.clone()));
     }
 }
 
-async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) -> Result<()> {
+async fn task(
+    config: Config,
+    // cache_name: String,
+    mut client: SimpleCacheClient,
+    work_receiver: Receiver<WorkItem>,
+) -> Result<()> {
+    let cache_name = config.target().cache_name().unwrap_or_else(|| {
+        eprintln!("cache name is not specified in the `target` section");
+        std::process::exit(1);
+    });
+
     while RUNNING.load(Ordering::Relaxed) {
         let work_item = work_receiver
             .recv()
@@ -58,12 +68,7 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
         let result = match work_item {
             WorkItem::Get { key } => {
                 GET.increment();
-                match timeout(
-                    Duration::from_millis(200),
-                    client.get("preview-cache", &*key),
-                )
-                .await
-                {
+                match timeout(config.request().timeout(), client.get(cache_name, &*key)).await {
                     Ok(Ok(r)) => match r.result {
                         MomentoGetStatus::HIT => {
                             GET_OK.increment();
@@ -80,9 +85,9 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
                             Err(ResponseError::Exception)
                         }
                     },
-                    Ok(Err(_)) => {
+                    Ok(Err(e)) => {
                         GET_EX.increment();
-                        Err(ResponseError::Exception)
+                        Err(e.into())
                     }
                     Err(_) => {
                         GET_TIMEOUT.increment();
@@ -93,13 +98,8 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
             WorkItem::Set { key, value } => {
                 SET.increment();
                 match timeout(
-                    Duration::from_millis(200),
-                    client.set(
-                        "preview-cache",
-                        (*key).to_owned(),
-                        (*value).to_owned(),
-                        None,
-                    ),
+                    config.request().timeout(),
+                    client.set(cache_name, (*key).to_owned(), (*value).to_owned(), None),
                 )
                 .await
                 {
@@ -107,9 +107,9 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
                         SET_STORED.increment();
                         Ok(())
                     }
-                    Ok(Err(_)) => {
+                    Ok(Err(e)) => {
                         SET_EX.increment();
-                        Err(ResponseError::Exception)
+                        Err(e.into())
                     }
                     Err(_) => {
                         SET_TIMEOUT.increment();
@@ -120,8 +120,8 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
             WorkItem::Delete { key } => {
                 DELETE.increment();
                 match timeout(
-                    Duration::from_millis(200),
-                    client.delete("preview-cache", (*key).to_owned()),
+                    config.request().timeout(),
+                    client.delete(cache_name, (*key).to_owned()),
                 )
                 .await
                 {
@@ -129,9 +129,9 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
                         DELETE_OK.increment();
                         Ok(())
                     }
-                    Ok(Err(_)) => {
+                    Ok(Err(e)) => {
                         DELETE_EX.increment();
-                        Err(ResponseError::Exception)
+                        Err(e.into())
                     }
                     Err(_) => {
                         DELETE_TIMEOUT.increment();
@@ -142,9 +142,9 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
             WorkItem::HashDelete { key, fields } => {
                 HASH_DELETE.increment();
                 match timeout(
-                    Duration::from_millis(200),
+                    config.request().timeout(),
                     client.dictionary_delete(
-                        "preview-cache",
+                        cache_name,
                         &*key,
                         Fields::Some(fields.iter().map(|f| &**f).collect()),
                     ),
@@ -155,9 +155,9 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
                         HASH_DELETE_OK.increment();
                         Ok(())
                     }
-                    Ok(Err(_)) => {
+                    Ok(Err(e)) => {
                         HASH_DELETE_EX.increment();
-                        Err(ResponseError::Exception)
+                        Err(e.into())
                     }
                     Err(_) => {
                         HASH_DELETE_TIMEOUT.increment();
@@ -165,46 +165,12 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
                     }
                 }
             }
-            WorkItem::HashGet { key, field } => {
-                HASH_GET.increment();
-                match timeout(
-                    Duration::from_millis(200),
-                    client.dictionary_get("preview-cache", &*key, vec![&*field]),
-                )
-                .await
-                {
-                    Ok(Ok(r)) => match r.result {
-                        MomentoDictionaryGetStatus::FOUND => {
-                            HASH_GET_OK.increment();
-                            HASH_GET_FIELD_HIT.increment();
-                            Ok(())
-                        }
-                        MomentoDictionaryGetStatus::MISSING => {
-                            HASH_GET_OK.increment();
-                            HASH_GET_FIELD_MISS.increment();
-                            Ok(())
-                        }
-                        MomentoDictionaryGetStatus::ERROR => {
-                            HASH_GET_EX.increment();
-                            Err(ResponseError::Exception)
-                        }
-                    },
-                    Ok(Err(_)) => {
-                        HASH_GET_EX.increment();
-                        Err(ResponseError::Exception)
-                    }
-                    Err(_) => {
-                        HASH_GET_TIMEOUT.increment();
-                        Err(ResponseError::Timeout)
-                    }
-                }
-            }
             WorkItem::HashIncrement { key, field, amount } => {
                 HASH_INCR.increment();
                 match timeout(
-                    Duration::from_millis(200),
+                    config.request().timeout(),
                     client.dictionary_increment(
-                        "preview-cache",
+                        cache_name,
                         &*key,
                         &*field,
                         amount,
@@ -223,9 +189,9 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
                         }
                         Ok(())
                     }
-                    Ok(Err(_)) => {
+                    Ok(Err(e)) => {
                         HASH_INCR_EX.increment();
-                        Err(ResponseError::Exception)
+                        Err(e.into())
                     }
                     Err(_) => {
                         HASH_INCR_TIMEOUT.increment();
@@ -233,15 +199,11 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
                     }
                 }
             }
-            WorkItem::HashMultiGet { key, fields } => {
+            WorkItem::HashGet { key, fields } => {
                 HASH_GET.increment();
                 match timeout(
-                    Duration::from_millis(200),
-                    client.dictionary_get(
-                        "preview-cache",
-                        &*key,
-                        fields.iter().map(|f| &**f).collect(),
-                    ),
+                    config.request().timeout(),
+                    client.dictionary_get(cache_name, &*key, fields.iter().map(|f| &**f).collect()),
                 )
                 .await
                 {
@@ -265,9 +227,9 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
                             Ok(())
                         }
                     },
-                    Ok(Err(_)) => {
+                    Ok(Err(e)) => {
                         HASH_GET_EX.increment();
-                        Err(ResponseError::Exception)
+                        Err(e.into())
                     }
                     Err(_) => {
                         HASH_GET_TIMEOUT.increment();
@@ -275,15 +237,42 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
                     }
                 }
             }
+            WorkItem::HashGetAll { key } => {
+                HASH_GET_ALL.increment();
+                match timeout(
+                    config.request().timeout(),
+                    client.dictionary_fetch(cache_name, &*key),
+                )
+                .await
+                {
+                    Ok(Ok(r)) => match r.dictionary {
+                        Some(_) => {
+                            HASH_GET_ALL_HIT.increment();
+                            Ok(())
+                        }
+                        None => {
+                            HASH_GET_ALL_MISS.increment();
+                            Ok(())
+                        }
+                    },
+                    Ok(Err(e)) => {
+                        HASH_GET_ALL_EX.increment();
+                        Err(e.into())
+                    }
+                    Err(_) => {
+                        HASH_GET_ALL_TIMEOUT.increment();
+                        Err(ResponseError::Timeout)
+                    }
+                }
+            }
             WorkItem::HashSet { key, data } => {
                 HASH_SET.increment();
-                let fields = data.len();
                 let data: HashMap<Vec<u8>, Vec<u8>> =
                     data.iter().map(|(k, v)| (k.to_vec(), v.to_vec())).collect();
                 match timeout(
-                    Duration::from_millis(200),
+                    config.request().timeout(),
                     client.dictionary_set(
-                        "preview-cache",
+                        cache_name,
                         Into::<Vec<u8>>::into(&*key),
                         data,
                         CollectionTtl::new(None, false),
@@ -292,12 +281,12 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
                 .await
                 {
                     Ok(Ok(_)) => {
-                        HASH_SET_STORED.add(fields as _);
+                        HASH_SET_OK.increment();
                         Ok(())
                     }
-                    Ok(Err(_)) => {
+                    Ok(Err(e)) => {
                         HASH_SET_EX.increment();
-                        Err(ResponseError::Exception)
+                        Err(e.into())
                     }
                     Err(_) => {
                         HASH_SET_TIMEOUT.increment();
@@ -315,9 +304,9 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
                     })
                     .collect();
                 match timeout(
-                    Duration::from_millis(200),
+                    config.request().timeout(),
                     client.sorted_set_put(
-                        "preview-cache",
+                        cache_name,
                         Into::<Vec<u8>>::into(&*key),
                         members,
                         CollectionTtl::new(None, false),
@@ -329,9 +318,9 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
                         SORTED_SET_ADD_OK.increment();
                         Ok(())
                     }
-                    Ok(Err(_)) => {
+                    Ok(Err(e)) => {
                         SORTED_SET_ADD_EX.increment();
-                        Err(ResponseError::Exception)
+                        Err(e.into())
                     }
                     Err(_) => {
                         SORTED_SET_ADD_TIMEOUT.increment();
@@ -346,9 +335,9 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
             } => {
                 SORTED_SET_INCR.increment();
                 match timeout(
-                    Duration::from_millis(200),
+                    config.request().timeout(),
                     client.sorted_set_increment(
-                        "preview-cache",
+                        cache_name,
                         &*key,
                         &*member,
                         amount,
@@ -361,9 +350,9 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
                         SORTED_SET_INCR_OK.increment();
                         Ok(())
                     }
-                    Ok(Err(_)) => {
+                    Ok(Err(e)) => {
                         SORTED_SET_INCR_EX.increment();
-                        Err(ResponseError::Exception)
+                        Err(e.into())
                     }
                     Err(_) => {
                         SORTED_SET_INCR_TIMEOUT.increment();
@@ -373,10 +362,10 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
             }
             WorkItem::SortedSetRemove { key, members } => {
                 SORTED_SET_REMOVE.increment();
-                let names: Vec<&[u8]> = members.iter().map(|v| v.borrow()).collect();
+                let members: Vec<&[u8]> = members.iter().map(|v| v.borrow()).collect();
                 match timeout(
-                    Duration::from_millis(200),
-                    client.sorted_set_remove("preview-cache", &*key, names),
+                    config.request().timeout(),
+                    client.sorted_set_remove(cache_name, &*key, members),
                 )
                 .await
                 {
@@ -384,9 +373,9 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
                         SORTED_SET_REMOVE_OK.increment();
                         Ok(())
                     }
-                    Ok(Err(_)) => {
+                    Ok(Err(e)) => {
                         SORTED_SET_REMOVE_EX.increment();
-                        Err(ResponseError::Exception)
+                        Err(e.into())
                     }
                     Err(_) => {
                         SORTED_SET_REMOVE_TIMEOUT.increment();
@@ -397,8 +386,8 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
             WorkItem::SortedSetRank { key, member } => {
                 SORTED_SET_RANK.increment();
                 match timeout(
-                    Duration::from_millis(200),
-                    client.sorted_set_get_rank("preview-cache", &*key, &*member),
+                    config.request().timeout(),
+                    client.sorted_set_get_rank(cache_name, &*key, &*member),
                 )
                 .await
                 {
@@ -406,12 +395,35 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
                         SORTED_SET_RANK_OK.increment();
                         Ok(())
                     }
-                    Ok(Err(_)) => {
+                    Ok(Err(e)) => {
                         SORTED_SET_RANK_EX.increment();
-                        Err(ResponseError::Exception)
+                        Err(e.into())
                     }
                     Err(_) => {
                         SORTED_SET_RANK_TIMEOUT.increment();
+                        Err(ResponseError::Timeout)
+                    }
+                }
+            }
+            WorkItem::SortedSetScore { key, members } => {
+                SORTED_SET_SCORE.increment();
+                let members: Vec<&[u8]> = members.iter().map(|v| v.borrow()).collect();
+                match timeout(
+                    config.request().timeout(),
+                    client.sorted_set_get_score(cache_name, &*key, members),
+                )
+                .await
+                {
+                    Ok(Ok(_)) => {
+                        SORTED_SET_SCORE_OK.increment();
+                        Ok(())
+                    }
+                    Ok(Err(e)) => {
+                        SORTED_SET_SCORE_EX.increment();
+                        Err(e.into())
+                    }
+                    Err(_) => {
+                        SORTED_SET_SCORE_TIMEOUT.increment();
                         Err(ResponseError::Timeout)
                     }
                 }
@@ -439,6 +451,12 @@ async fn task(mut client: SimpleCacheClient, work_receiver: Receiver<WorkItem>) 
             }
             Err(ResponseError::Timeout) => {
                 RESPONSE_TIMEOUT.increment();
+            }
+            Err(ResponseError::Ratelimited) => {
+                RESPONSE_RATELIMITED.increment();
+            }
+            Err(ResponseError::BackendTimeout) => {
+                RESPONSE_BACKEND_TIMEOUT.increment();
             }
         }
     }

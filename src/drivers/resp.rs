@@ -86,7 +86,7 @@ async fn task(
             WorkItem::Get { key } => {
                 GET.increment();
                 match timeout(
-                    Duration::from_millis(200),
+                    config.request().timeout(),
                     con.get::<&[u8], Option<Vec<u8>>>(&key),
                 )
                 .await
@@ -103,13 +103,16 @@ async fn task(
                         GET_EX.increment();
                         Err(ResponseError::Exception)
                     }
-                    Err(_) => Err(ResponseError::Timeout),
+                    Err(_) => {
+                        GET_TIMEOUT.increment();
+                        Err(ResponseError::Timeout)
+                    }
                 }
             }
             WorkItem::Set { key, value } => {
                 SET.increment();
                 match timeout(
-                    Duration::from_millis(200),
+                    config.request().timeout(),
                     con.set::<&[u8], &[u8], ()>(&key, &value),
                 )
                 .await
@@ -122,20 +125,40 @@ async fn task(
                         SET_EX.increment();
                         Err(ResponseError::Exception)
                     }
-                    Err(_) => Err(ResponseError::Timeout),
+                    Err(_) => {
+                        SET_TIMEOUT.increment();
+                        Err(ResponseError::Timeout)
+                    }
+                }
+            }
+            WorkItem::Delete { key } => {
+                DELETE.increment();
+                match timeout(config.request().timeout(), con.del::<&[u8], ()>(&key)).await {
+                    Ok(Ok(_)) => {
+                        DELETE_OK.increment();
+                        Ok(())
+                    }
+                    Ok(Err(_)) => {
+                        DELETE_EX.increment();
+                        Err(ResponseError::Exception)
+                    }
+                    Err(_) => {
+                        DELETE_TIMEOUT.increment();
+                        Err(ResponseError::Timeout)
+                    }
                 }
             }
             WorkItem::HashDelete { key, fields } => {
                 HASH_DELETE.increment();
                 let fields: Vec<&[u8]> = fields.iter().map(|v| v.borrow()).collect();
                 match timeout(
-                    Duration::from_millis(200),
+                    config.request().timeout(),
                     con.hdel::<&[u8], Vec<&[u8]>, Vec<u8>>(&key, fields),
                 )
                 .await
                 {
                     Ok(Ok(_)) => {
-                        // TODO(bmartin): increment some stat here?
+                        HASH_DELETE_OK.increment();
                         Ok(())
                     }
                     Ok(Err(_)) => {
@@ -150,35 +173,26 @@ async fn task(
             }
             WorkItem::HashExists { key, field } => {
                 match timeout(
-                    Duration::from_millis(200),
+                    config.request().timeout(),
                     con.hexists::<&[u8], &[u8], bool>(&key, &field),
                 )
                 .await
                 {
                     Ok(Ok(true)) => {
-                        // HASH_EXISTS_HIT.increment();
+                        HASH_EXISTS_HIT.increment();
                         Ok(())
                     }
-                    Ok(Ok(false)) => Ok(()),
-                    Ok(Err(_)) => Err(ResponseError::Exception),
-                    Err(_) => Err(ResponseError::Timeout),
-                }
-            }
-            WorkItem::HashGet { key, field } => {
-                match timeout(
-                    Duration::from_millis(200),
-                    con.hget::<&[u8], &[u8], Vec<u8>>(&key, &field),
-                )
-                .await
-                {
-                    Ok(Ok(_)) => Ok(()),
+                    Ok(Ok(false)) => {
+                        HASH_EXISTS_MISS.increment();
+                        Ok(())
+                    }
                     Ok(Err(_)) => Err(ResponseError::Exception),
                     Err(_) => Err(ResponseError::Timeout),
                 }
             }
             WorkItem::HashIncrement { key, field, amount } => {
                 match timeout(
-                    Duration::from_millis(200),
+                    config.request().timeout(),
                     con.hincr::<&[u8], &[u8], i64, i64>(&key, &field, amount),
                 )
                 .await
@@ -188,27 +202,112 @@ async fn task(
                     Err(_) => Err(ResponseError::Timeout),
                 }
             }
-            WorkItem::HashMultiGet { key, fields } => {
-                let fields: Vec<&[u8]> = fields.iter().map(|v| v.borrow()).collect();
+            // transparently issues either a `hget` or `hmget`
+            WorkItem::HashGet { key, fields } => {
+                HASH_GET.increment();
+
+                let result = if fields.len() == 1 {
+                    match timeout(
+                        config.request().timeout(),
+                        con.hget::<&[u8], &[u8], Option<Vec<u8>>>(&key, &fields[0]),
+                    )
+                    .await
+                    {
+                        Ok(Ok(Some(_))) => {
+                            HASH_GET_FIELD_HIT.increment();
+                            Ok(())
+                        }
+                        Ok(Ok(None)) => {
+                            HASH_GET_FIELD_MISS.increment();
+                            Ok(())
+                        }
+                        Ok(Err(_)) => Err(ResponseError::Exception),
+                        Err(_) => Err(ResponseError::Timeout),
+                    }
+                } else {
+                    let fields: Vec<&[u8]> = fields.iter().map(|f| &**f).collect();
+                    match timeout(
+                        config.request().timeout(),
+                        con.hget::<&[u8], &[&[u8]], Option<Vec<Option<Vec<u8>>>>>(&key, &fields),
+                    )
+                    .await
+                    {
+                        Ok(Ok(Some(values))) => {
+                            let mut hits = 0;
+                            let mut misses = 0;
+                            for value in values {
+                                if value.is_some() {
+                                    hits += 1;
+                                } else {
+                                    misses += 1;
+                                }
+                            }
+                            HASH_GET_FIELD_HIT.add(hits);
+                            HASH_GET_FIELD_MISS.add(misses);
+                            Ok(())
+                        }
+                        Ok(Ok(None)) => {
+                            HASH_GET_FIELD_MISS.add(fields.len() as _);
+                            Ok(())
+                        }
+                        Ok(Err(_)) => Err(ResponseError::Exception),
+                        Err(_) => Err(ResponseError::Timeout),
+                    }
+                };
+
+                match result {
+                    Ok(()) => {
+                        HASH_GET_OK.increment();
+                    }
+                    Err(ResponseError::Exception) => {
+                        HASH_GET_EX.increment();
+                    }
+                    Err(ResponseError::Timeout) => {
+                        HASH_GET_TIMEOUT.increment();
+                    }
+                    _ => {}
+                }
+
+                result
+            }
+            WorkItem::HashGetAll { key } => {
+                HASH_GET_ALL.increment();
                 match timeout(
-                    Duration::from_millis(200),
-                    con.hget::<&[u8], Vec<&[u8]>, Vec<u8>>(&key, fields),
+                    config.request().timeout(),
+                    con.hgetall::<&[u8], Option<HashMap<Vec<u8>, Vec<u8>>>>(key.as_ref()),
                 )
                 .await
                 {
-                    Ok(Ok(_)) => Ok(()),
-                    Ok(Err(_)) => Err(ResponseError::Exception),
-                    Err(_) => Err(ResponseError::Timeout),
+                    Ok(Ok(Some(_))) => {
+                        HASH_GET_ALL_OK.increment();
+                        HASH_GET_ALL_HIT.increment();
+                        Ok(())
+                    }
+                    Ok(Ok(None)) => {
+                        HASH_GET_ALL_OK.increment();
+                        HASH_GET_ALL_MISS.increment();
+                        Ok(())
+                    }
+                    Ok(Err(_)) => {
+                        HASH_GET_ALL_EX.increment();
+                        Err(ResponseError::Exception)
+                    }
+                    Err(_) => {
+                        HASH_GET_ALL_TIMEOUT.increment();
+                        Err(ResponseError::Timeout)
+                    }
                 }
             }
             WorkItem::HashSet { key, data } => {
                 if data.is_empty() {
-                    connection = Some(con);
-                    continue;
-                } else if data.len() == 1 {
+                    panic!("empty data for hash set");
+                }
+
+                HASH_SET.increment();
+                let result = if data.len() == 1 {
                     let (field, value) = data.iter().next().unwrap();
                     match timeout(
-                        Duration::from_millis(200),
+                        config.request().timeout(),
                         con.hset::<&[u8], &[u8], &[u8], Vec<u8>>(
                             key.as_ref(),
                             field.as_ref(),
@@ -225,7 +324,7 @@ async fn task(
                     let d: Vec<(&[u8], &[u8])> =
                         data.iter().map(|(k, v)| (k.as_ref(), v.as_ref())).collect();
                     match timeout(
-                        Duration::from_millis(200),
+                        config.request().timeout(),
                         con.hset_multiple::<&[u8], &[u8], &[u8], Vec<u8>>(&key, &d),
                     )
                     .await
@@ -234,12 +333,48 @@ async fn task(
                         Ok(Err(_)) => Err(ResponseError::Exception),
                         Err(_) => Err(ResponseError::Timeout),
                     }
+                };
+
+                match result {
+                    Ok(_) => {
+                        HASH_SET_OK.increment();
+                    }
+                    Err(ResponseError::Timeout) => {
+                        HASH_SET_TIMEOUT.increment();
+                    }
+                    Err(_) => {
+                        HASH_SET_EX.increment();
+                    }
+                }
+
+                result
+            }
+            WorkItem::ListFetch { key } => {
+                LIST_FETCH.increment();
+                match timeout(
+                    config.request().timeout(),
+                    con.lrange::<&[u8], Vec<Vec<u8>>>(key.as_ref(), 0, -1),
+                )
+                .await
+                {
+                    Ok(Ok(_)) => {
+                        LIST_FETCH_OK.increment();
+                        Ok(())
+                    }
+                    Ok(Err(_)) => {
+                        LIST_FETCH_EX.increment();
+                        Err(ResponseError::Exception)
+                    }
+                    Err(_) => {
+                        LIST_FETCH_TIMEOUT.increment();
+                        Err(ResponseError::Timeout)
+                    }
                 }
             }
             WorkItem::Ping { .. } => {
                 PING.increment();
                 match timeout(
-                    Duration::from_millis(200),
+                    config.request().timeout(),
                     redis::cmd("PING").query_async(&mut con),
                 )
                 .await
@@ -263,7 +398,7 @@ async fn task(
                 } else if members.len() == 1 {
                     let (member, score) = members.first().unwrap();
                     match timeout(
-                        Duration::from_millis(200),
+                        config.request().timeout(),
                         con.zadd::<&[u8], f64, &[u8], f64>(key.as_ref(), member.as_ref(), *score),
                     )
                     .await
@@ -285,7 +420,7 @@ async fn task(
                     let d: Vec<(f64, &[u8])> =
                         members.iter().map(|(m, s)| (*s, m.as_ref())).collect();
                     match timeout(
-                        Duration::from_millis(200),
+                        config.request().timeout(),
                         con.zadd_multiple::<&[u8], f64, &[u8], f64>(&key, &d),
                     )
                     .await
@@ -312,7 +447,7 @@ async fn task(
             } => {
                 SORTED_SET_INCR.increment();
                 match timeout(
-                    Duration::from_millis(200),
+                    config.request().timeout(),
                     con.zincr::<&[u8], &[u8], f64, f64>(&key, &member, amount),
                 )
                 .await
@@ -335,7 +470,7 @@ async fn task(
                 SORTED_SET_REMOVE.increment();
                 let members: Vec<&[u8]> = members.iter().map(|v| v.borrow()).collect();
                 match timeout(
-                    Duration::from_millis(200),
+                    config.request().timeout(),
                     con.zrem::<&[u8], Vec<&[u8]>, usize>(&key, members),
                 )
                 .await
@@ -354,33 +489,56 @@ async fn task(
                     }
                 }
             }
-            WorkItem::SortedSetScore { key, member } => {
+            WorkItem::SortedSetScore { key, members } => {
                 SORTED_SET_SCORE.increment();
-                match timeout(
-                    Duration::from_millis(200),
-                    con.zscore::<&[u8], &[u8], Option<f64>>(key.as_ref(), member.as_ref()),
-                )
-                .await
-                {
-                    Ok(Ok(_)) => {
+
+                let result = if members.len() == 1 {
+                    match timeout(
+                        config.request().timeout(),
+                        con.zscore::<&[u8], &[u8], Option<f64>>(key.as_ref(), members[0].as_ref()),
+                    )
+                    .await
+                    {
+                        Ok(Ok(_)) => Ok(()),
+                        Ok(Err(_)) => Err(ResponseError::Exception),
+                        Err(_) => Err(ResponseError::Timeout),
+                    }
+                } else {
+                    let members: Vec<&[u8]> = members.iter().map(|v| v.borrow()).collect();
+                    match timeout(
+                        config.request().timeout(),
+                        con.zscore_multiple::<&[u8], &[u8], Vec<Option<f64>>>(
+                            key.as_ref(),
+                            &members,
+                        ),
+                    )
+                    .await
+                    {
+                        Ok(Ok(_)) => Ok(()),
+                        Ok(Err(_)) => Err(ResponseError::Exception),
+                        Err(_) => Err(ResponseError::Timeout),
+                    }
+                };
+
+                match result {
+                    Ok(_) => {
                         SORTED_SET_SCORE_OK.increment();
-                        Ok(())
                     }
-                    Ok(Err(e)) => {
-                        error!("{e}");
+                    Err(ResponseError::Exception) => {
                         SORTED_SET_SCORE_EX.increment();
-                        Err(ResponseError::Exception)
                     }
-                    Err(_) => {
+                    Err(ResponseError::Timeout) => {
                         SORTED_SET_SCORE_TIMEOUT.increment();
-                        Err(ResponseError::Timeout)
                     }
+                    _ => {}
                 }
+
+                result
             }
             WorkItem::SortedSetRank { key, member } => {
                 SORTED_SET_RANK.increment();
                 match timeout(
-                    Duration::from_millis(200),
+                    config.request().timeout(),
                     con.zscore::<&[u8], &[u8], Option<u64>>(key.as_ref(), member.as_ref()),
                 )
                 .await
@@ -430,6 +588,14 @@ async fn task(
             Err(ResponseError::Timeout) => {
                 CONNECT_CURR.sub(1);
                 RESPONSE_TIMEOUT.increment();
+            }
+            Err(ResponseError::Ratelimited) => {
+                RESPONSE_RATELIMITED.increment();
+                connection = Some(con);
+            }
+            Err(ResponseError::BackendTimeout) => {
+                RESPONSE_BACKEND_TIMEOUT.increment();
+                connection = Some(con);
             }
         }
     }

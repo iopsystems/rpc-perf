@@ -17,7 +17,7 @@ pub use general::General;
 pub use protocol::Protocol;
 pub use request::Request;
 pub use target::Target;
-pub use workload::{Keyspace, Verb, Workload};
+pub use workload::{Command, Keyspace, ValueKind, Verb, Workload};
 
 #[derive(Clone, Deserialize)]
 pub struct Config {

@@ -104,7 +104,7 @@ async fn task(
         // println!("request sent");
 
         // read until response or timeout
-        let mut remaining_time = 200_000_000;
+        let mut remaining_time = config.request().timeout().as_nanos() as u64;
         let response = loop {
             match timeout(
                 Duration::from_millis(remaining_time / 1000000),
@@ -186,6 +186,14 @@ async fn task(
             Err(ResponseError::Timeout) => {
                 error!("timeout");
                 RESPONSE_TIMEOUT.increment();
+            }
+            Err(ResponseError::Ratelimited) => {
+                RESPONSE_RATELIMITED.increment();
+                stream = Some(s);
+            }
+            Err(ResponseError::BackendTimeout) => {
+                RESPONSE_BACKEND_TIMEOUT.increment();
+                stream = Some(s);
             }
         }
 

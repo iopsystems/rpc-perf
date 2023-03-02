@@ -3,7 +3,7 @@
 // http://www.apache.org/licenses/LICENSE-2.0
 
 use super::*;
-use config::Verb;
+use config::{Command, ValueKind, Verb};
 use core::num::NonZeroU64;
 use rand::distributions::Alphanumeric;
 use rand::distributions::Uniform;
@@ -56,71 +56,104 @@ impl TrafficGenerator {
         }
 
         let keyspace = &self.keyspaces[self.keyspace_dist.sample(rng)];
-        let verb = &keyspace.verbs[keyspace.verb_dist.sample(rng)];
+        let command = &keyspace.commands[keyspace.command_dist.sample(rng)];
 
-        match verb {
+        match command.verb() {
             Verb::Get => WorkItem::Get {
                 key: keyspace.sample(rng),
             },
             Verb::Set => WorkItem::Set {
                 key: keyspace.sample(rng),
-                value: rng
-                    .sample_iter(&Alphanumeric)
-                    .take(keyspace.vlen())
-                    .collect::<Vec<u8>>()
-                    .into(),
+                value: keyspace.gen_value(rng),
             },
             Verb::Delete => WorkItem::Delete {
                 key: keyspace.sample(rng),
             },
-            Verb::HashGet => WorkItem::HashGet {
+            Verb::HashGet => {
+                let cardinality = command.cardinality();
+                let mut fields = Vec::with_capacity(cardinality);
+                for _ in 0..cardinality {
+                    fields.push(keyspace.sample_inner(rng));
+                }
+
+                WorkItem::HashGet {
+                    key: keyspace.sample(rng),
+                    fields,
+                }
+            }
+            Verb::HashGetAll => WorkItem::HashGetAll {
                 key: keyspace.sample(rng),
-                field: keyspace.sample_inner(rng),
             },
-            Verb::HashDelete => WorkItem::HashDelete {
-                key: keyspace.sample(rng),
-                fields: vec![keyspace.sample_inner(rng)],
-            },
+            Verb::HashDelete => {
+                let cardinality = command.cardinality();
+                let mut fields = Vec::with_capacity(cardinality);
+                for _ in 0..cardinality {
+                    fields.push(keyspace.sample_inner(rng));
+                }
+
+                WorkItem::HashDelete {
+                    key: keyspace.sample(rng),
+                    fields,
+                }
+            }
             Verb::HashExists => WorkItem::HashExists {
                 key: keyspace.sample(rng),
                 field: keyspace.sample_inner(rng),
             },
+            Verb::HashIncrement => WorkItem::HashIncrement {
+                key: keyspace.sample(rng),
+                field: keyspace.sample_inner(rng),
+                amount: rng.gen(),
+            },
             Verb::HashSet => {
                 let mut data = HashMap::new();
-                data.insert(
-                    keyspace.sample_inner(rng),
-                    rng.sample_iter(&Alphanumeric)
-                        .take(keyspace.vlen())
-                        .collect::<Vec<u8>>()
-                        .into(),
-                );
+                while data.len() < command.cardinality() {
+                    data.insert(keyspace.sample_inner(rng), keyspace.gen_value(rng));
+                }
                 WorkItem::HashSet {
                     key: keyspace.sample(rng),
                     data,
                 }
             }
             Verb::Ping => WorkItem::Ping {},
-            Verb::SortedSetAdd => WorkItem::SortedSetAdd {
-                key: keyspace.sample(rng),
-                members: vec![(keyspace.sample_inner(rng), rng.gen())],
-            },
-            Verb::SortedSetRemove => WorkItem::SortedSetRemove {
-                key: keyspace.sample(rng),
-                members: vec![keyspace.sample_inner(rng)],
-            },
+            Verb::SortedSetAdd => {
+                let mut members = HashSet::new();
+                while members.len() < command.cardinality() {
+                    members.insert(keyspace.sample_inner(rng));
+                }
+                let members = members.drain().map(|m| (m, rng.gen())).collect();
+                WorkItem::SortedSetAdd {
+                    key: keyspace.sample(rng),
+                    members,
+                }
+            }
+            Verb::SortedSetRemove => {
+                let mut members = HashSet::new();
+                while members.len() < command.cardinality() {
+                    members.insert(keyspace.sample_inner(rng));
+                }
+                let members = members.drain().collect();
+                WorkItem::SortedSetRemove {
+                    key: keyspace.sample(rng),
+                    members,
+                }
+            }
             Verb::SortedSetIncrement => WorkItem::SortedSetIncrement {
                 key: keyspace.sample(rng),
                 member: keyspace.sample_inner(rng),
                 amount: rng.gen(),
             },
-            Verb::SortedSetScore => WorkItem::SortedSetScore {
-                key: keyspace.sample(rng),
-                member: keyspace.sample_inner(rng),
-            },
-            Verb::SortedSetMultiScore => WorkItem::SortedSetMultiScore {
-                key: keyspace.sample(rng),
-                members: vec![keyspace.sample_inner(rng)],
-            },
+            Verb::SortedSetScore => {
+                let mut members = HashSet::new();
+                while members.len() < command.cardinality() {
+                    members.insert(keyspace.sample_inner(rng));
+                }
+                let members = members.drain().collect();
+                WorkItem::SortedSetScore {
+                    key: keyspace.sample(rng),
+                    members,
+                }
+            }
             Verb::SortedSetRank => WorkItem::SortedSetRank {
                 key: keyspace.sample(rng),
                 member: keyspace.sample_inner(rng),
@@ -133,11 +166,12 @@ impl TrafficGenerator {
 struct Keyspace {
     keys: Vec<Arc<[u8]>>,
     key_dist: KeyDistribution,
-    verbs: Vec<Verb>,
-    verb_dist: WeightedAliasIndex<usize>,
+    commands: Vec<Command>,
+    command_dist: WeightedAliasIndex<usize>,
     inner_keys: Vec<Arc<[u8]>>,
     inner_key_dist: KeyDistribution,
     vlen: usize,
+    vkind: ValueKind,
 }
 
 #[derive(Clone)]
@@ -165,8 +199,8 @@ impl Keyspace {
             inner: Uniform::new(0, nkeys),
         };
 
-        let nkeys = keyspace.inner_keys_nkeys();
-        let klen = keyspace.inner_keys_klen();
+        let nkeys = keyspace.inner_keys_nkeys().unwrap_or(1);
+        let klen = keyspace.inner_keys_klen().unwrap_or(1);
 
         // we use a predictable seed to generate the keys in the keyspace
         let mut rng = Xoshiro512PlusPlus::seed_from_u64(0);
@@ -178,30 +212,70 @@ impl Keyspace {
                 .collect::<Vec<u8>>();
             let _ = inner_keys.insert(key);
         }
-        let inner_keys = inner_keys.drain().map(|k| k.into()).collect();
+        let inner_keys: Vec<Arc<[u8]>> = inner_keys.drain().map(|k| k.into()).collect();
         let inner_key_dist = KeyDistribution {
             inner: Uniform::new(0, nkeys),
         };
 
-        let mut verbs = Vec::new();
-        let mut verb_weights = Vec::new();
+        let mut commands = Vec::new();
+        let mut command_weights = Vec::new();
 
         for command in keyspace.commands() {
-            info!("verb: {:?} weight: {}", command.verb(), command.weight());
-            verbs.push(command.verb());
-            verb_weights.push(command.weight());
+            commands.push(*command);
+            command_weights.push(command.weight());
+
+            // validate that the keyspace is adaquately specified for the given
+            // verb
+
+            // commands that set generated values need a `vlen`
+            if keyspace.vlen().is_none()
+                && keyspace.vkind() == ValueKind::Bytes
+                && matches!(command.verb(), Verb::Set | Verb::HashSet)
+            {
+                eprintln!(
+                    "verb: {:?} requires that the keyspace has a `vlen` set when `vkind` is `bytes`",
+                    command.verb()
+                );
+                std::process::exit(2);
+            }
+
+            // cardinality must always be > 0
+            if command.cardinality() == 0 {
+                eprintln!("cardinality must not be zero",);
+                std::process::exit(2);
+            }
+
+            // not all commands support cardinality > 1
+            if command.cardinality() > 1 && !command.verb().supports_cardinality() {
+                eprintln!(
+                    "verb: {:?} requires that `cardinality` is set to `1`",
+                    command.verb()
+                );
+                std::process::exit(2);
+            }
+
+            if command.verb().needs_inner_key()
+                && (keyspace.inner_keys_nkeys().is_none() || keyspace.inner_keys_klen().is_none())
+            {
+                eprintln!(
+                    "verb: {:?} requires that `inner_key_klen` and `inner_key_nkeys` are set",
+                    command.verb()
+                );
+                std::process::exit(2);
+            }
         }
 
-        let verb_dist = WeightedAliasIndex::new(verb_weights).unwrap();
+        let command_dist = WeightedAliasIndex::new(command_weights).unwrap();
 
         Self {
             keys,
             key_dist,
-            verbs,
-            verb_dist,
+            commands,
+            command_dist,
             inner_keys,
             inner_key_dist,
-            vlen: keyspace.vlen(),
+            vlen: keyspace.vlen().unwrap_or(0),
+            vkind: keyspace.vkind(),
         }
     }
 
@@ -215,8 +289,15 @@ impl Keyspace {
         self.inner_keys[index].clone()
     }
 
-    pub fn vlen(&self) -> usize {
-        self.vlen
+    pub fn gen_value(&self, rng: &mut dyn RngCore) -> Vec<u8> {
+        match self.vkind {
+            ValueKind::I64 => format!("{}", rng.gen::<i64>()).into_bytes(),
+            ValueKind::Bytes => {
+                let mut buf = vec![0_u8; self.vlen];
+                rng.fill(&mut buf[0..self.vlen]);
+                buf
+            }
+        }
     }
 }
 
@@ -267,7 +348,7 @@ pub fn convert_ratelimit(rate: NonZeroU64) -> (u64, Interval) {
 
     // TODO: this gives approximate rates
     //
-    // timer granularity should be millisecond level on most platforms
+    // timer granulcardinality should be millisecond level on most platforms
     // for higher rates, we can insert multiple work items every interval
     let (quanta, interval) = if rate <= 1000 {
         (1, 1000 / rate)

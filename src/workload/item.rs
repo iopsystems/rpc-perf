@@ -26,22 +26,65 @@ pub enum WorkItem {
         key: Arc<[u8]>,
         fields: Vec<Arc<[u8]>>,
     },
+    /// Retrieve one or more fields from a hash.
     HashGet {
         key: Arc<[u8]>,
-        field: Arc<[u8]>,
+        fields: Vec<Arc<[u8]>>,
+    },
+    HashGetAll {
+        key: Arc<[u8]>,
     },
     HashIncrement {
         key: Arc<[u8]>,
         field: Arc<[u8]>,
         amount: i64,
     },
-    HashMultiGet {
-        key: Arc<[u8]>,
-        fields: Vec<Arc<[u8]>>,
-    },
     HashSet {
         key: Arc<[u8]>,
-        data: HashMap<Arc<[u8]>, Arc<[u8]>>,
+        data: HashMap<Arc<[u8]>, Vec<u8>>,
+    },
+    /// Fetch all elements in a list. Equivalent to:
+    /// `ListRange { key, start: 0, stop: -1 }`
+    ListFetch {
+        key: Arc<[u8]>,
+    },
+    /// Return the length of a list.
+    ListLength {
+        key: Arc<[u8]>,
+    },
+    /// Remove and return the element at the back of a list.
+    ListPopBack {
+        key: Arc<[u8]>,
+    },
+    /// Remove and return the element at the front of a list.
+    ListPopFront {
+        key: Arc<[u8]>,
+    },
+    /// Push an element to the back of a list.
+    ListPushBack {
+        key: Arc<[u8]>,
+        element: Arc<[u8]>,
+    },
+    /// Push an element to the front of a list.
+    ListPushFront {
+        key: Arc<[u8]>,
+        element: Arc<[u8]>,
+    },
+    /// Return the elements of a list between the given indices.
+    ListRange {
+        key: Arc<[u8]>,
+        start: i64,
+        stop: i64,
+    },
+    /// Remove all instances of an element from a list.
+    ListRemove {
+        key: Arc<[u8]>,
+        element: Arc<[u8]>,
+    },
+    /// Create or replace a list with a new list.
+    ListStore {
+        key: Arc<[u8]>,
+        elements: Vec<Arc<[u8]>>,
     },
     MultiGet {
         keys: Vec<Arc<[u8]>>,
@@ -53,7 +96,7 @@ pub enum WorkItem {
     },
     Set {
         key: Arc<[u8]>,
-        value: Arc<[u8]>,
+        value: Vec<u8>,
     },
     SortedSetAdd {
         key: Arc<[u8]>,
@@ -83,7 +126,7 @@ pub enum WorkItem {
     },
     SortedSetScore {
         key: Arc<[u8]>,
-        member: Arc<[u8]>,
+        members: Vec<Arc<[u8]>>,
     },
     Ping,
 }

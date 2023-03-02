@@ -1,11 +1,3 @@
-// Copyright 2020 Twitter, Inc.
-// Licensed under the Apache License, Version 2.0
-// http://www.apache.org/licenses/LICENSE-2.0
-
-// Copyright 2023 IOP Systems, Inc.
-// Licensed under the Apache License, Version 2.0
-// http://www.apache.org/licenses/LICENSE-2.0
-
 pub const B: usize = 1;
 pub const KB: usize = 1024 * B;
 pub const MB: usize = 1024 * KB;

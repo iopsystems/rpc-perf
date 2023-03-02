@@ -2,6 +2,8 @@ pub use super::*;
 
 #[derive(Clone, Deserialize)]
 pub struct Request {
+    // number of threads to drive requests
+    threads: usize,
     // milliseconds
     timeout: u64,
     // zero is treated as unlimited
@@ -10,6 +12,10 @@ pub struct Request {
 }
 
 impl Request {
+    pub fn threads(&self) -> usize {
+        self.threads
+    }
+
     pub fn timeout(&self) -> Duration {
         Duration::from_millis(self.timeout)
     }

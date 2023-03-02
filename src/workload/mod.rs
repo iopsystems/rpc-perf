@@ -4,6 +4,4 @@
 
 mod item;
 
-pub mod stats;
-
 pub use item::WorkItem;

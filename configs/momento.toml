@@ -1,6 +1,6 @@
 [general]
 # specify the protocol to be used
-protocol = "resp"
+protocol = "momento"
 # the interval for stats integration and reporting
 interval = 1
 # the number of intervals to run the test for
@@ -24,10 +24,10 @@ log_backup = "rpc-perf.log.old"
 log_max_size = 1073741824
 
 [target]
-# specify one or more endpoints as IP:PORT pairs
-endpoints = [
-	"127.0.0.1:6379"
-]
+# we don't need to specify any endpoints for momento
+endpoints = []
+# specify the name of the target cache
+cache_name = "preview-cache"
 
 [connection]
 # the number of connections to each endpoint from each thread, the total number
@@ -49,7 +49,7 @@ timeout = 1000
 threads = 1
 
 [[workload.keyspace]]
-# sets the relative weight of this keyspace
+# sets the relative weight of this keyspace: defaults to 1
 weight = 1
 # sets the length of the key, in bytes
 klen = 32
@@ -57,6 +57,8 @@ klen = 32
 nkeys = 1_000_000
 # sets the value length, in bytes
 vlen = 128
+# use random bytes for the values
+vkind = "bytes"
 # controls what commands will be used in this keyspace
 commands = [
 	# get
@@ -68,7 +70,44 @@ commands = [
 ]
 
 [[workload.keyspace]]
-# sets the relative weight of this keyspace
+# sets the relative weight of this keyspace: defaults to 1
+weight = 1
+# sets the length of the key, in bytes
+klen = 24
+# sets the number of keys that will be generated
+nkeys = 1_000_000
+# sets the length of the inner key, in bytesp
+inner_keys_klen = 4
+# sets the number of inner keys that will be generated
+inner_keys_nkeys = 1_000
+# sets the value types to integers so we can mix increment with set
+vkind = "i64"
+# controls what commands will be used in this keyspace
+commands = [
+	# request a field from a discrionary
+	{ verb = "dictionary_get", weight = 30 },
+	# set cardinality > 1 to get multiple fields
+	{ verb = "dictionary_get", weight = 10, cardinality = 5 },
+
+	# increment the values for a field in the dictionary
+	{ verb = "dictionary_increment", weight = 10 },
+
+	# retrieve an entire dictionary
+	{ verb = "dictionary_fetch", weight = 5 },
+
+	# delete a field from a dictionary
+	{ verb = "dictionary_delete", weight = 10 },
+	# set cardinality > 1 to remove multiple fields
+	{ verb = "dictionary_delete", weight = 5, cardinality = 5 },
+
+	# set a field in the dictionary
+	{ verb = "dictionary_set", weight = 20 },
+	# set cardinality > 1 to set multiple fields
+	{ verb = "dictionary_set", weight = 10, cardinality = 5 },
+]
+
+[[workload.keyspace]]
+# sets the relative weight of this keyspace: defaults to 1
 weight = 1
 # sets the length of the key, in bytes
 klen = 16
