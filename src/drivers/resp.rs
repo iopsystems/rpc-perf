@@ -148,12 +148,17 @@ async fn task(
                     }
                 }
             }
+
+            /*
+             * HASHES (DICTIONARIES)
+             */
+
             WorkItem::HashDelete { key, fields } => {
                 HASH_DELETE.increment();
                 let fields: Vec<&[u8]> = fields.iter().map(|v| v.borrow()).collect();
                 match timeout(
                     config.request().timeout(),
-                    con.hdel::<&[u8], Vec<&[u8]>, Vec<u8>>(&key, fields),
+                    con.hdel::<&[u8], Vec<&[u8]>, usize>(&key, fields),
                 )
                 .await
                 {
@@ -308,7 +313,7 @@ async fn task(
                     let (field, value) = data.iter().next().unwrap();
                     match timeout(
                         config.request().timeout(),
-                        con.hset::<&[u8], &[u8], &[u8], Vec<u8>>(
+                        con.hset::<&[u8], &[u8], &[u8], ()>(
                             key.as_ref(),
                             field.as_ref(),
                             value.as_ref(),
@@ -325,7 +330,7 @@ async fn task(
                         data.iter().map(|(k, v)| (k.as_ref(), v.as_ref())).collect();
                     match timeout(
                         config.request().timeout(),
-                        con.hset_multiple::<&[u8], &[u8], &[u8], Vec<u8>>(&key, &d),
+                        con.hset_multiple::<&[u8], &[u8], &[u8], ()>(&key, &d),
                     )
                     .await
                     {
@@ -349,6 +354,11 @@ async fn task(
 
                 result
             }
+
+            /*
+             * LISTS
+             */
+
             WorkItem::ListFetch { key } => {
                 LIST_FETCH.increment();
                 match timeout(
@@ -371,6 +381,8 @@ async fn task(
                     }
                 }
             }
+
+
             WorkItem::Ping { .. } => {
                 PING.increment();
                 match timeout(
@@ -390,6 +402,133 @@ async fn task(
                     Err(_) => Err(ResponseError::Timeout),
                 }
             }
+
+            /*
+             * SETS
+             */
+            WorkItem::SetAdd { key, members } => {
+                SET_ADD.increment();
+                if members.is_empty() {
+                    connection = Some(con);
+                    continue;
+                } else if members.len() == 1 {
+                    match timeout(
+                        config.request().timeout(),
+                        con.sadd::<&[u8], &[u8], u64>(key.as_ref(), &*members[0]),
+                    )
+                    .await
+                    {
+                        Ok(Ok(_)) => {
+                            SET_ADD_OK.increment();
+                            Ok(())
+                        }
+                        Ok(Err(_)) => {
+                            SET_ADD_EX.increment();
+                            Err(ResponseError::Exception)
+                        }
+                        Err(_) => {
+                            SET_ADD_TIMEOUT.increment();
+                            Err(ResponseError::Timeout)
+                        }
+                    }
+                } else {
+                    let members: Vec<&[u8]> = members.iter().map(|v| v.borrow()).collect();
+                    match timeout(
+                        config.request().timeout(),
+                        con.sadd::<&[u8], &Vec<&[u8]>, u64>(&key, &members),
+                    )
+                    .await
+                    {
+                        Ok(Ok(_)) => {
+                            SET_ADD_OK.increment();
+                            Ok(())
+                        }
+                        Ok(Err(_)) => {
+                            SET_ADD_EX.increment();
+                            Err(ResponseError::Exception)
+                        }
+                        Err(_) => {
+                            SET_ADD_TIMEOUT.increment();
+                            Err(ResponseError::Timeout)
+                        }
+                    }
+                }
+            }
+            WorkItem::SetMembers { key } => {
+                SET_MEMBERS.increment();
+                match timeout(
+                    config.request().timeout(),
+                    con.smembers::<&[u8], Option<Vec<Vec<u8>>>>(key.as_ref()),
+                )
+                .await
+                {
+                    Ok(Ok(_)) => {
+                        SET_MEMBERS_OK.increment();
+                        Ok(())
+                    }
+                    Ok(Err(_)) => {
+                        SET_MEMBERS_EX.increment();
+                        Err(ResponseError::Exception)
+                    }
+                    Err(_) => {
+                        SET_MEMBERS_TIMEOUT.increment();
+                        Err(ResponseError::Timeout)
+                    }
+                }
+            }
+            WorkItem::SetRemove { key, members } => {
+                SET_REMOVE.increment();
+                if members.is_empty() {
+                    connection = Some(con);
+                    continue;
+                } else if members.len() == 1 {
+                    match timeout(
+                        config.request().timeout(),
+                        con.srem::<&[u8], &[u8], u64>(key.as_ref(), &*members[0]),
+                    )
+                    .await
+                    {
+                        Ok(Ok(_)) => {
+                            SET_REMOVE_OK.increment();
+                            Ok(())
+                        }
+                        Ok(Err(_)) => {
+                            SET_REMOVE_EX.increment();
+                            Err(ResponseError::Exception)
+                        }
+                        Err(_) => {
+                            SET_REMOVE_TIMEOUT.increment();
+                            Err(ResponseError::Timeout)
+                        }
+                    }
+                } else {
+                    let members: Vec<&[u8]> = members.iter().map(|v| v.borrow()).collect();
+                    match timeout(
+                        config.request().timeout(),
+                        con.srem::<&[u8], &Vec<&[u8]>, u64>(&key, &members),
+                    )
+                    .await
+                    {
+                        Ok(Ok(_)) => {
+                            SET_REMOVE_OK.increment();
+                            Ok(())
+                        }
+                        Ok(Err(_)) => {
+                            SET_REMOVE_EX.increment();
+                            Err(ResponseError::Exception)
+                        }
+                        Err(_) => {
+                            SET_REMOVE_TIMEOUT.increment();
+                            Err(ResponseError::Timeout)
+                        }
+                    }
+                }
+            }
+
+            /*
+             * SORTED SETS
+             */
+
             WorkItem::SortedSetAdd { key, members } => {
                 SORTED_SET_ADD.increment();
                 if members.is_empty() {
@@ -440,6 +579,30 @@ async fn task(
                     }
                 }
             }
+            WorkItem::SortedSetMembers {
+                key,
+            } => {
+                SORTED_SET_INCR.increment();
+                match timeout(
+                    config.request().timeout(),
+                    redis::cmd("ZUNION").arg(1).arg(&*key).arg("WITHSCORES").query_async::<_, Vec<(Vec<u8>, f64)>>(&mut con),
+                )
+                .await
+                {
+                    Ok(Ok(_)) => {
+                        SORTED_SET_INCR_OK.increment();
+                        Ok(())
+                    }
+                    Ok(Err(_)) => {
+                        SORTED_SET_INCR_EX.increment();
+                        Err(ResponseError::Exception)
+                    }
+                    Err(_) => {
+                        SORTED_SET_INCR_TIMEOUT.increment();
+                        Err(ResponseError::Timeout)
+                    }
+                }
+            }
             WorkItem::SortedSetIncrement {
                 key,
                 member,
@@ -448,7 +611,7 @@ async fn task(
                 SORTED_SET_INCR.increment();
                 match timeout(
                     config.request().timeout(),
-                    con.zincr::<&[u8], &[u8], f64, f64>(&key, &member, amount),
+                    con.zincr::<&[u8], &[u8], f64, String>(&key, &member, amount),
                 )
                 .await
                 {
@@ -539,7 +702,7 @@ async fn task(
                 SORTED_SET_RANK.increment();
                 match timeout(
                     config.request().timeout(),
-                    con.zscore::<&[u8], &[u8], Option<u64>>(key.as_ref(), member.as_ref()),
+                    con.zrank::<&[u8], &[u8], Option<u64>>(key.as_ref(), member.as_ref()),
                 )
                 .await
                 {

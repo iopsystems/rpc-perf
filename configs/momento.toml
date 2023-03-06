@@ -61,11 +61,11 @@ vlen = 128
 vkind = "bytes"
 # controls what commands will be used in this keyspace
 commands = [
-	# get
+	# get a value
 	{ verb = "get", weight = 80 },
-	# set
+	# set a value
 	{ verb = "set", weight = 20 },
-	# delete
+	# delete a value
 	{ verb = "delete", weight = 0 },
 ]
 
@@ -84,12 +84,12 @@ inner_keys_nkeys = 1_000
 vkind = "i64"
 # controls what commands will be used in this keyspace
 commands = [
-	# request a field from a discrionary
+	# request a field from a dictionary
 	{ verb = "dictionary_get", weight = 30 },
 	# set cardinality > 1 to get multiple fields
 	{ verb = "dictionary_get", weight = 10, cardinality = 5 },
 
-	# increment the values for a field in the dictionary
+	# increment a value for a field in the dictionary
 	{ verb = "dictionary_increment", weight = 10 },
 
 	# retrieve an entire dictionary
@@ -103,7 +103,10 @@ commands = [
 	# set a field in the dictionary
 	{ verb = "dictionary_set", weight = 20 },
 	# set cardinality > 1 to set multiple fields
-	{ verb = "dictionary_set", weight = 10, cardinality = 5 },
+	{ verb = "dictionary_set", weight = 5, cardinality = 5 },
+
+	# delete an entire dictionary
+	{ verb = "delete", weight = 5 }
 ]
 
 [[workload.keyspace]]
@@ -119,14 +122,60 @@ inner_keys_klen = 4
 inner_keys_nkeys = 1_000
 # controls what commands will be used in this keyspace
 commands = [
-	# sorted_set_get_rank
-	{ verb = "sorted_set_rank", weight = 40 },
-	# sorted_set_get_score
-	{ verb = "sorted_set_score", weight = 10 },
-	# sorted_set_increment
-	{ verb = "sorted_set_increment", weight = 40 },
-	# sorted_set_put
-	{ verb = "sorted_set_add", weight = 5 },
-	# sorted_set_remove
-	{ verb = "sorted_set_remove", weight = 5},
+	# adds an element to a sorted set
+	{ verb = "sorted_set_put", weight = 5 },
+	# with cardinality > 1 to add multiple elements
+	{ verb = "sorted_set_put", weight = 5, cardinality = 5 },
+
+	# fetch all elements in a sorted set
+	{ verb = "sorted_set_fetch", weight = 5 },
+
+	# get the score for an element in a sorted set
+	{ verb = "sorted_set_get_score", weight = 5 },
+	# with cardinality > 1 to get scores for multiple elements
+	{ verb = "sorted_set_get_score", weight = 5, cardinality = 5 },
+
+	# remove an element from a sorted set
+	{ verb = "sorted_set_remove", weight = 2 },
+	# with cardinality > 1 to remove multiple elements
+	{ verb = "sorted_set_remove", weight = 2, cardinality = 5 },
+
+	# delete an entire sorted set
+	{ verb = "delete", weight = 1 },
+
+	# get the rank of an element in a sorted set
+	{ verb = "sorted_set_get_rank", weight = 40 },
+
+	# adds to the value of an element in a sorted set
+	{ verb = "sorted_set_increment", weight = 25 },
+]
+
+[[workload.keyspace]]
+# sets the relative weight of this keyspace: defaults to 1
+weight = 1
+# sets the length of the key, in bytes
+klen = 8
+# sets the number of keys that will be generated
+nkeys = 1_000_000
+# sets the length of the inner key, in bytesp
+inner_keys_klen = 4
+# sets the number of inner keys that will be generated
+inner_keys_nkeys = 1_000
+# controls what commands will be used in this keyspace
+commands = [
+	# adds an element to a set
+	{ verb = "set_add_element", weight = 60 },
+	# set the cardinality > 1 to add mutiple elements
+	{ verb = "set_add_element", weight = 5, cardinality = 5 },
+
+	# retrieve all elements in the set
+	{ verb = "set_fetch", weight = 20},
+
+	# remove an element from the set
+	{ verb = "set_remove_element", weight = 5},
+	# set the cardinality > 1 to remove multiple elements
+	{ verb = "set_remove_element", weight = 5, cardinality = 5 },
+
+	# remove an entire set with delete
+	{ verb = "delete", weight = 5 }
 ]

@@ -98,23 +98,28 @@ pub enum WorkItem {
         key: Arc<[u8]>,
         value: Vec<u8>,
     },
+    SetAdd {
+        key: Arc<[u8]>,
+        members: Vec<Arc<[u8]>>,
+    },
+    SetMembers {
+        key: Arc<[u8]>,
+    },
+    SetRemove {
+        key: Arc<[u8]>,
+        members: Vec<Arc<[u8]>>,
+    },
     SortedSetAdd {
         key: Arc<[u8]>,
         members: Vec<(Arc<[u8]>, f64)>,
+    },
+    SortedSetMembers {
+        key: Arc<[u8]>,
     },
     SortedSetIncrement {
         key: Arc<[u8]>,
         member: Arc<[u8]>,
         amount: f64,
-    },
-    SortedSetMultiScore {
-        key: Arc<[u8]>,
-        members: Vec<Arc<[u8]>>,
-    },
-    SortedSetRange {
-        key: Arc<[u8]>,
-        start: i64,
-        stop: i64,
     },
     SortedSetRank {
         key: Arc<[u8]>,

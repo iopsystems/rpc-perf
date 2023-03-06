@@ -116,6 +116,33 @@ impl TrafficGenerator {
                 }
             }
             Verb::Ping => WorkItem::Ping {},
+            Verb::SetAdd => {
+                let mut members = HashSet::new();
+                while members.len() < command.cardinality() {
+                    members.insert(keyspace.sample_inner(rng));
+                }
+                let members = members.drain().collect();
+                WorkItem::SetAdd {
+                    key: keyspace.sample(rng),
+                    members,
+                }
+            }
+            Verb::SetMembers => {
+                WorkItem::SetMembers {
+                    key: keyspace.sample(rng),
+                }
+            }
+            Verb::SetRemove => {
+                let mut members = HashSet::new();
+                while members.len() < command.cardinality() {
+                    members.insert(keyspace.sample_inner(rng));
+                }
+                let members = members.drain().collect();
+                WorkItem::SetRemove {
+                    key: keyspace.sample(rng),
+                    members,
+                }
+            }
             Verb::SortedSetAdd => {
                 let mut members = HashSet::new();
                 while members.len() < command.cardinality() {
@@ -125,6 +152,11 @@ impl TrafficGenerator {
                 WorkItem::SortedSetAdd {
                     key: keyspace.sample(rng),
                     members,
+                }
+            }
+            Verb::SortedSetMembers => {
+                WorkItem::SortedSetMembers {
+                    key: keyspace.sample(rng),
                 }
             }
             Verb::SortedSetRemove => {

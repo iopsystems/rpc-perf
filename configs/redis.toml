@@ -26,7 +26,7 @@ log_max_size = 1073741824
 [target]
 # specify one or more endpoints as IP:PORT pairs
 endpoints = [
-	"127.0.0.1:6379"
+	"127.0.0.1:6379",
 ]
 
 [connection]
@@ -40,7 +40,7 @@ timeout = 10000
 # number of threads used to drive requests
 threads = 4
 # set a global ratelimit for requests
-ratelimit = 100
+ratelimit = 10_000
 # set the timeout in milliseconds
 timeout = 1000
 
@@ -49,7 +49,7 @@ timeout = 1000
 threads = 1
 
 [[workload.keyspace]]
-# sets the relative weight of this keyspace
+# sets the relative weight of this keyspace: defaults to 1
 weight = 1
 # sets the length of the key, in bytes
 klen = 32
@@ -57,18 +57,60 @@ klen = 32
 nkeys = 1_000_000
 # sets the value length, in bytes
 vlen = 128
+# use random bytes for the values
+vkind = "bytes"
 # controls what commands will be used in this keyspace
 commands = [
-	# get
+	# get a value
 	{ verb = "get", weight = 80 },
-	# set
+	# set a value
 	{ verb = "set", weight = 20 },
-	# delete
+	# delete a value
 	{ verb = "delete", weight = 0 },
 ]
 
 [[workload.keyspace]]
-# sets the relative weight of this keyspace
+# sets the relative weight of this keyspace: defaults to 1
+weight = 1
+# sets the length of the key, in bytes
+klen = 24
+# sets the number of keys that will be generated
+nkeys = 1_000_000
+# sets the length of the inner key, in bytesp
+inner_keys_klen = 4
+# sets the number of inner keys that will be generated
+inner_keys_nkeys = 1_000
+# sets the value types to integers so we can mix increment with set
+vkind = "i64"
+# controls what commands will be used in this keyspace
+commands = [
+	# request a field from a discrionary
+	{ verb = "hget", weight = 30 },
+	# set cardinality > 1 to get multiple fields
+	{ verb = "hget", weight = 10, cardinality = 5 },
+
+	# increment a value for a field in the dictionary
+	{ verb = "hincrby", weight = 10 },
+
+	# retrieve an entire dictionary
+	{ verb = "hgetall", weight = 5 },
+
+	# delete a field from a dictionary
+	{ verb = "hdel", weight = 10 },
+	# set cardinality > 1 to remove multiple fields
+	{ verb = "hdel", weight = 5, cardinality = 5 },
+
+	# set a field in the dictionary
+	{ verb = "hset", weight = 20 },
+	# set cardinality > 1 to set multiple fields
+	{ verb = "hset", weight = 5, cardinality = 5 },
+
+	# delete an entire dictionary
+	{ verb = "delete", weight = 5 }
+]
+
+[[workload.keyspace]]
+# sets the relative weight of this keyspace: defaults to 1
 weight = 1
 # sets the length of the key, in bytes
 klen = 16
@@ -80,14 +122,61 @@ inner_keys_klen = 4
 inner_keys_nkeys = 1_000
 # controls what commands will be used in this keyspace
 commands = [
-	# sorted_set_get_rank
-	{ verb = "sorted_set_rank", weight = 40 },
-	# sorted_set_get_score
-	{ verb = "sorted_set_score", weight = 10 },
-	# sorted_set_increment
-	{ verb = "sorted_set_increment", weight = 40 },
-	# sorted_set_put
-	{ verb = "sorted_set_add", weight = 5 },
-	# sorted_set_remove
-	{ verb = "sorted_set_remove", weight = 5},
+	# adds a member to a sorted set
+	{ verb = "zadd", weight = 5 },
+	# with cardinality > 1 to add multiple members
+	{ verb = "sorted_set_put", weight = 5, cardinality = 5 },
+
+	# fetch all members in a sorted set
+	# NOTE: this is using `ZUNION 1 [key] WITHSCORES` to perform this
+	{ verb = "zmembers", weight = 5 },
+
+	# get the score for a member in a sorted set
+	{ verb = "zscore", weight = 5 },
+	# with cardinality > 1 to get scores for multiple members
+	{ verb = "zmscore", weight = 5, cardinality = 5 },
+
+	# remove a member from a sorted set
+	{ verb = "zrem", weight = 2 },
+	# with cardinality > 1 to remove multiple members
+	{ verb = "zrem", weight = 2, cardinality = 5 },
+
+	# delete an entire sorted set
+	{ verb = "delete", weight = 1 },
+
+	# get the rank of a member in a sorted set
+	{ verb = "zrank", weight = 40 },
+
+	# adds to the value of a member in a sorted set
+	{ verb = "zincrby", weight = 25 },
+]
+
+[[workload.keyspace]]
+# sets the relative weight of this keyspace: defaults to 1
+weight = 1
+# sets the length of the key, in bytes
+klen = 8
+# sets the number of keys that will be generated
+nkeys = 1_000_000
+# sets the length of the inner key, in bytesp
+inner_keys_klen = 4
+# sets the number of inner keys that will be generated
+inner_keys_nkeys = 1_000
+# controls what commands will be used in this keyspace
+commands = [
+	# adds a member to a set
+	{ verb = "sadd", weight = 60 },
+	# set the cardinality > 1 to add mutiple members
+	{ verb = "sadd", weight = 5, cardinality = 5 },
+
+	# retrieve all members in the set
+	{ verb = "smembers", weight = 20},
+
+	## remove a member from the set
+	{ verb = "srem", weight = 5},
+	# set the cardinality > 1 to remove multiple members
+	{ verb = "srem", weight = 5, cardinality = 5 },
+
+	# remove an entire set with delete
+	{ verb = "delete", weight = 5 }
 ]

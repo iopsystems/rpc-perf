@@ -139,6 +139,11 @@ async fn task(
                     }
                 }
             }
+
+            /*
+             * HASHES (DICTIONARIES)
+             */
+
             WorkItem::HashDelete { key, fields } => {
                 HASH_DELETE.increment();
                 match timeout(
@@ -161,40 +166,6 @@ async fn task(
                     }
                     Err(_) => {
                         HASH_DELETE_TIMEOUT.increment();
-                        Err(ResponseError::Timeout)
-                    }
-                }
-            }
-            WorkItem::HashIncrement { key, field, amount } => {
-                HASH_INCR.increment();
-                match timeout(
-                    config.request().timeout(),
-                    client.dictionary_increment(
-                        cache_name,
-                        &*key,
-                        &*field,
-                        amount,
-                        CollectionTtl::new(None, false),
-                    ),
-                )
-                .await
-                {
-                    Ok(Ok(r)) => {
-                        HASH_INCR_OK.increment();
-                        #[allow(clippy::if_same_then_else)]
-                        if r.value == amount {
-                            HASH_INCR_MISS.increment();
-                        } else {
-                            HASH_INCR_HIT.increment();
-                        }
-                        Ok(())
-                    }
-                    Ok(Err(e)) => {
-                        HASH_INCR_EX.increment();
-                        Err(e.into())
-                    }
-                    Err(_) => {
-                        HASH_INCR_TIMEOUT.increment();
                         Err(ResponseError::Timeout)
                     }
                 }
@@ -265,6 +236,40 @@ async fn task(
                     }
                 }
             }
+            WorkItem::HashIncrement { key, field, amount } => {
+                HASH_INCR.increment();
+                match timeout(
+                    config.request().timeout(),
+                    client.dictionary_increment(
+                        cache_name,
+                        &*key,
+                        &*field,
+                        amount,
+                        CollectionTtl::new(None, false),
+                    ),
+                )
+                .await
+                {
+                    Ok(Ok(r)) => {
+                        HASH_INCR_OK.increment();
+                        #[allow(clippy::if_same_then_else)]
+                        if r.value == amount {
+                            HASH_INCR_MISS.increment();
+                        } else {
+                            HASH_INCR_HIT.increment();
+                        }
+                        Ok(())
+                    }
+                    Ok(Err(e)) => {
+                        HASH_INCR_EX.increment();
+                        Err(e.into())
+                    }
+                    Err(_) => {
+                        HASH_INCR_TIMEOUT.increment();
+                        Err(ResponseError::Timeout)
+                    }
+                }
+            }
             WorkItem::HashSet { key, data } => {
                 HASH_SET.increment();
                 let data: HashMap<Vec<u8>, Vec<u8>> =
@@ -294,6 +299,92 @@ async fn task(
                     }
                 }
             }
+
+            /*
+             * SETS
+             */
+            WorkItem::SetAdd { key, members } => {
+                SET_ADD.increment();
+                let members: Vec<&[u8]> = members.iter().map(|v| v.borrow()).collect();
+                match timeout(
+                    config.request().timeout(),
+                    client.set_add_elements(
+                        cache_name,
+                        Into::<Vec<u8>>::into(&*key),
+                        members,
+                        CollectionTtl::new(None, false),
+                    ),
+                )
+                .await
+                {
+                    Ok(Ok(_)) => {
+                        SET_ADD_OK.increment();
+                        Ok(())
+                    }
+                    Ok(Err(e)) => {
+                        SET_ADD_EX.increment();
+                        Err(e.into())
+                    }
+                    Err(_) => {
+                        SET_ADD_TIMEOUT.increment();
+                        Err(ResponseError::Timeout)
+                    }
+                }
+            }
+            WorkItem::SetMembers { key } => {
+                SET_MEMBERS.increment();
+                match timeout(
+                    config.request().timeout(),
+                    client.set_fetch(
+                        cache_name,
+                        Into::<Vec<u8>>::into(&*key),
+                    ),
+                )
+                .await
+                {
+                    Ok(Ok(_)) => {
+                        SET_MEMBERS_OK.increment();
+                        Ok(())
+                    }
+                    Ok(Err(e)) => {
+                        SET_MEMBERS_EX.increment();
+                        Err(e.into())
+                    }
+                    Err(_) => {
+                        SET_MEMBERS_TIMEOUT.increment();
+                        Err(ResponseError::Timeout)
+                    }
+                }
+            }
+            WorkItem::SetRemove { key, members } => {
+                SET_REMOVE.increment();
+                let members: Vec<&[u8]> = members.iter().map(|v| v.borrow()).collect();
+                match timeout(
+                    config.request().timeout(),
+                    client.set_remove_elements(
+                        cache_name,
+                        Into::<Vec<u8>>::into(&*key),
+                        members,
+                    ),
+                )
+                .await
+                {
+                    Ok(Ok(_)) => {
+                        SET_REMOVE_OK.increment();
+                        Ok(())
+                    }
+                    Ok(Err(e)) => {
+                        SET_REMOVE_EX.increment();
+                        Err(e.into())
+                    }
+                    Err(_) => {
+                        SET_REMOVE_TIMEOUT.increment();
+                        Err(ResponseError::Timeout)
+                    }
+                }
+            }
+
+
             WorkItem::SortedSetAdd { key, members } => {
                 SORTED_SET_ADD.increment();
                 let members: Vec<sorted_set::SortedSetElement> = members
@@ -324,6 +415,34 @@ async fn task(
                     }
                     Err(_) => {
                         SORTED_SET_ADD_TIMEOUT.increment();
+                        Err(ResponseError::Timeout)
+                    }
+                }
+            }
+            WorkItem::SortedSetMembers { key } => {
+                SORTED_SET_MEMBERS.increment();
+                match timeout(
+                    config.request().timeout(),
+                    client.sorted_set_fetch(
+                        cache_name,
+                        Into::<Vec<u8>>::into(&*key),
+                        momento::sorted_set::Order::Ascending,
+                        None,
+                        None,
+                    ),
+                )
+                .await
+                {
+                    Ok(Ok(_)) => {
+                        SORTED_SET_MEMBERS_OK.increment();
+                        Ok(())
+                    }
+                    Ok(Err(e)) => {
+                        SORTED_SET_MEMBERS_EX.increment();
+                        Err(e.into())
+                    }
+                    Err(_) => {
+                        SORTED_SET_MEMBERS_TIMEOUT.increment();
                         Err(ResponseError::Timeout)
                     }
                 }
@@ -360,6 +479,28 @@ async fn task(
                     }
                 }
             }
+            WorkItem::SortedSetRank { key, member } => {
+                SORTED_SET_RANK.increment();
+                match timeout(
+                    config.request().timeout(),
+                    client.sorted_set_get_rank(cache_name, &*key, &*member),
+                )
+                .await
+                {
+                    Ok(Ok(_)) => {
+                        SORTED_SET_RANK_OK.increment();
+                        Ok(())
+                    }
+                    Ok(Err(e)) => {
+                        SORTED_SET_RANK_EX.increment();
+                        Err(e.into())
+                    }
+                    Err(_) => {
+                        SORTED_SET_RANK_TIMEOUT.increment();
+                        Err(ResponseError::Timeout)
+                    }
+                }
+            }
             WorkItem::SortedSetRemove { key, members } => {
                 SORTED_SET_REMOVE.increment();
                 let members: Vec<&[u8]> = members.iter().map(|v| v.borrow()).collect();
@@ -379,28 +520,6 @@ async fn task(
                     }
                     Err(_) => {
                         SORTED_SET_REMOVE_TIMEOUT.increment();
-                        Err(ResponseError::Timeout)
-                    }
-                }
-            }
-            WorkItem::SortedSetRank { key, member } => {
-                SORTED_SET_RANK.increment();
-                match timeout(
-                    config.request().timeout(),
-                    client.sorted_set_get_rank(cache_name, &*key, &*member),
-                )
-                .await
-                {
-                    Ok(Ok(_)) => {
-                        SORTED_SET_RANK_OK.increment();
-                        Ok(())
-                    }
-                    Ok(Err(e)) => {
-                        SORTED_SET_RANK_EX.increment();
-                        Err(e.into())
-                    }
-                    Err(_) => {
-                        SORTED_SET_RANK_TIMEOUT.increment();
                         Err(ResponseError::Timeout)
                     }
                 }
@@ -428,6 +547,9 @@ async fn task(
                     }
                 }
             }
+
+
+
             WorkItem::Reconnect => {
                 continue;
             }

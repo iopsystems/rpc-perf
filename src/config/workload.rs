@@ -107,6 +107,11 @@ pub enum Verb {
     /// * Ping: `PING`
     /// * RESP: `PING`
     Ping,
+
+    /*
+     * KEY-VALUE
+     */
+
     /// Read the value for one or more keys.
     /// * Memcache: `get`
     /// * Momento: `get` (NOTE: cardinality > 1 is not supported)
@@ -123,6 +128,12 @@ pub enum Verb {
     /// * RESP: `DEL`
     #[serde(alias = "del")]
     Delete,
+
+
+    /*
+     * HASHES (DICTIONARIES)
+     */
+
     /// Delete one or more fields in a hash.
     /// * Momento: `dictionary_delete`
     /// * RESP: `HDEL`
@@ -159,61 +170,72 @@ pub enum Verb {
     #[serde(alias = "hset")]
     #[serde(alias = "hmset")]
     HashSet,
+
+    /*
+     * SETS
+     */
+
+    /// Adds one or more members to a set.
+    /// * Momento: `set_add_element`
+    /// * RESP: `SADD`
+    #[serde(alias = "set_add_element")]
+    #[serde(alias = "sadd")]
+    SetAdd,
+    /// Retrieves the members of a set.
+    /// * Momento: `set_fetch`
+    /// * RESP: `SMEMBERS`
+    #[serde(alias = "set_fetch")]
+    #[serde(alias = "smembers")]
+    SetMembers,
+    /// Retrieves the members of a set.
+    /// * Momento: `set_remove_element`
+    /// * RESP: `SREM`
+    #[serde(alias = "set_remove_element")]
+    #[serde(alias = "srem")]
+    SetRemove,
+
+
+    /*
+     * SORTED SETS
+     */
+
     /// Adds one or more members to a sorted set.
     /// * Momento: `sorted_set_put`
     /// * RESP: `ZADD`
     #[serde(alias = "sorted_set_put")]
     #[serde(alias = "zadd")]
     SortedSetAdd,
+    /// Retrieves the members of a sorted set with their scores
+    /// * Moment: `sorted_set_fetch`
+    /// * RESP: `ZUNION 1 [key] WITHSCORES`
+    #[serde(alias = "sorted_set_fetch")]
+    #[serde(alias = "zmembers")]
+    SortedSetMembers,
     /// Increment the score for a member of a sorted set.
     /// * Moemento: `sorted_set_increment`
     /// * RESP: `ZINCRBY`
     #[serde(alias = "sorted_set_increment")]
     #[serde(alias = "zincrby")]
     SortedSetIncrement,
-    /// Retrieve the score for a one or more members of a sorted set.
-    /// * Momento: `sorted_set_get_score`
-    /// * RESP: `ZMSCORE`
-    #[serde(alias = "sorted_set_get_score")]
-    #[serde(alias = "zmscore")]
-    #[serde(alias = "zscore")]
-    SortedSetScore,
-    /// Retrieve members from a sorted set.
-    /// * Momento: `sorted_set_fetch`
-    /// * RESP: `ZRANGE`
-    // SortedSetRange,
     /// Retrieve the rank for a member of a sorted set.
     /// * Momento: `sorted_set_get_rank`
     /// * RESP: `ZRANK`
+    #[serde(alias = "sorted_set_get_rank")]
+    #[serde(alias = "zrank")]
     SortedSetRank,
     /// Removes one or more members from a sorted set.
     /// * Momento: `sorted_set_remove`
     /// * RESP: `ZREM`
+    #[serde(alias = "sorted_set_remove")]
+    #[serde(alias = "zrem")]
     SortedSetRemove,
-    // /// Retrieve the score for a member of a sorted set.
-    // /// * Momento: `sorted_set_get_score`
-    // /// * RESP: `ZSCORE`
-    // SortedSetScore,
-    // TODO(bmartin): the commands below were previously supported
-    // /// Sends a payload with a CRC to an echo server and checks for corruption.
-    // Echo,
-    // /// Hash set non-existing, set the value for a field within the hash stored
-    // /// at the key only if the field does not exist.
-    // Hsetnx,
-    // /// Insert all the specified values at the tail of the list stored at a key.
-    // /// Creates a new key if the key does not exist. Returns an error if the key
-    // /// contains a value which is not a list.
-    // Rpush,
-    // /// Insert all the specified values at the tail of the list stored at a key,
-    // /// returns an error if the key does not exist or contains a value which is
-    // /// not a list.
-    // Rpushx,
-    // /// Count the number of items stored at a key
-    // Count,
-    // /// Returns the elements of the list stored at the key
-    // Lrange,
-    // /// Trims the elements of the list sotred at the key
-    // Ltrim,
+    /// Retrieve the score for a one or more members of a sorted set.
+    /// * Momento: `sorted_set_get_score`
+    /// * RESP: `ZSCORE` / `ZMSCORE`
+    #[serde(alias = "sorted_set_get_score")]
+    #[serde(alias = "zmscore")]
+    #[serde(alias = "zscore")]
+    SortedSetScore,
 }
 
 impl Verb {
@@ -224,6 +246,8 @@ impl Verb {
             Self::HashDelete
                 | Self::HashGet
                 | Self::HashSet
+                | Self::SetAdd
+                | Self::SetRemove
                 | Self::SortedSetAdd
                 | Self::SortedSetScore
                 | Self::SortedSetRemove
