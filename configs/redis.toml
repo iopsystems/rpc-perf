@@ -84,28 +84,28 @@ inner_keys_nkeys = 1_000
 vkind = "i64"
 # controls what commands will be used in this keyspace
 commands = [
-	# request a field from a discrionary
+	# request a field from a hash
 	{ verb = "hget", weight = 30 },
 	# set cardinality > 1 to get multiple fields
 	{ verb = "hget", weight = 10, cardinality = 5 },
 
-	# increment a value for a field in the dictionary
+	# increment a value for a field in the hash
 	{ verb = "hincrby", weight = 10 },
 
-	# retrieve an entire dictionary
+	# retrieve an entire hash
 	{ verb = "hgetall", weight = 5 },
 
-	# delete a field from a dictionary
+	# delete a field from a hash
 	{ verb = "hdel", weight = 10 },
 	# set cardinality > 1 to remove multiple fields
 	{ verb = "hdel", weight = 5, cardinality = 5 },
 
-	# set a field in the dictionary
+	# set a field in the hash
 	{ verb = "hset", weight = 20 },
 	# set cardinality > 1 to set multiple fields
 	{ verb = "hset", weight = 5, cardinality = 5 },
 
-	# delete an entire dictionary
+	# delete an entire hash
 	{ verb = "delete", weight = 5 }
 ]
 
