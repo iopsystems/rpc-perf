@@ -115,6 +115,25 @@ impl TrafficGenerator {
                     data,
                 }
             }
+            Verb::ListPushFront => {
+                WorkItem::ListPushFront {
+                    key: keyspace.sample(rng),
+                    element: keyspace.sample_inner(rng),
+                    truncate: command.truncate(),
+                }
+            }
+            Verb::ListPushBack => {
+                WorkItem::ListPushBack {
+                    key: keyspace.sample(rng),
+                    element: keyspace.sample_inner(rng),
+                    truncate: command.truncate(),
+                }
+            }
+            Verb::ListFetch => {
+                WorkItem::ListFetch {
+                    key: keyspace.sample(rng),
+                }
+            }
             Verb::Ping => WorkItem::Ping {},
             Verb::SetAdd => {
                 let mut members = HashSet::new();
@@ -286,6 +305,25 @@ impl Keyspace {
                 std::process::exit(2);
             }
 
+            if command.truncate().is_some() {
+                // truncate must be >= 1
+                if command.truncate().unwrap() == 0 {
+                    eprintln!(
+                        "truncate must be >= 1",
+                    );
+                    std::process::exit(2);
+                }
+
+                // not all commands support truncate
+                if !command.verb().supports_truncate() {
+                    eprintln!(
+                        "verb: {:?} does not support truncate",
+                        command.verb()
+                    );
+                    std::process::exit(2);
+                }
+            }
+
             if command.verb().needs_inner_key()
                 && (keyspace.inner_keys_nkeys().is_none() || keyspace.inner_keys_klen().is_none())
             {
@@ -295,6 +333,8 @@ impl Keyspace {
                 );
                 std::process::exit(2);
             }
+
+
         }
 
         let command_dist = WeightedAliasIndex::new(command_weights).unwrap();

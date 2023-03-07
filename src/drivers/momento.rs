@@ -143,7 +143,6 @@ async fn task(
             /*
              * HASHES (DICTIONARIES)
              */
-
             WorkItem::HashDelete { key, fields } => {
                 HASH_DELETE.increment();
                 match timeout(
@@ -278,7 +277,7 @@ async fn task(
                     config.request().timeout(),
                     client.dictionary_set(
                         cache_name,
-                        Into::<Vec<u8>>::into(&*key),
+                        &*key,
                         data,
                         CollectionTtl::new(None, false),
                     ),
@@ -310,7 +309,7 @@ async fn task(
                     config.request().timeout(),
                     client.set_add_elements(
                         cache_name,
-                        Into::<Vec<u8>>::into(&*key),
+                        &*key,
                         members,
                         CollectionTtl::new(None, false),
                     ),
@@ -337,7 +336,7 @@ async fn task(
                     config.request().timeout(),
                     client.set_fetch(
                         cache_name,
-                        Into::<Vec<u8>>::into(&*key),
+                        &*key,
                     ),
                 )
                 .await
@@ -363,7 +362,7 @@ async fn task(
                     config.request().timeout(),
                     client.set_remove_elements(
                         cache_name,
-                        Into::<Vec<u8>>::into(&*key),
+                        &*key,
                         members,
                     ),
                 )
@@ -384,7 +383,94 @@ async fn task(
                 }
             }
 
+            /*
+             * LISTS
+             */
+            WorkItem::ListPushFront { key, element, truncate } => {
+                LIST_PUSH_FRONT.increment();
+                match timeout(
+                    config.request().timeout(),
+                    client.list_push_front(
+                        cache_name,
+                        &*key,
+                        &*element,
+                        truncate,
+                        CollectionTtl::new(None, false),
+                    ),
+                )
+                .await
+                {
+                    Ok(Ok(_)) => {
+                        LIST_PUSH_FRONT_OK.increment();
+                        Ok(())
+                    }
+                    Ok(Err(e)) => {
+                        LIST_PUSH_FRONT_EX.increment();
+                        Err(e.into())
+                    }
+                    Err(_) => {
+                        LIST_PUSH_FRONT_TIMEOUT.increment();
+                        Err(ResponseError::Timeout)
+                    }
+                }
+            }
+            WorkItem::ListPushBack { key, element, truncate } => {
+                LIST_PUSH_BACK.increment();
+                match timeout(
+                    config.request().timeout(),
+                    client.list_push_back(
+                        cache_name,
+                        &*key,
+                        &*element,
+                        truncate,
+                        CollectionTtl::new(None, false),
+                    ),
+                )
+                .await
+                {
+                    Ok(Ok(_)) => {
+                        LIST_PUSH_BACK_OK.increment();
+                        Ok(())
+                    }
+                    Ok(Err(e)) => {
+                        LIST_PUSH_BACK_EX.increment();
+                        Err(e.into())
+                    }
+                    Err(_) => {
+                        LIST_PUSH_BACK_TIMEOUT.increment();
+                        Err(ResponseError::Timeout)
+                    }
+                }
+            }
+            WorkItem::ListFetch { key } => {
+                LIST_FETCH.increment();
+                match timeout(
+                    config.request().timeout(),
+                    client.list_fetch(
+                        cache_name,
+                        &*key,
+                    ),
+                )
+                .await
+                {
+                    Ok(Ok(_)) => {
+                        LIST_FETCH_OK.increment();
+                        Ok(())
+                    }
+                    Ok(Err(e)) => {
+                        LIST_FETCH_EX.increment();
+                        Err(e.into())
+                    }
+                    Err(_) => {
+                        LIST_FETCH_TIMEOUT.increment();
+                        Err(ResponseError::Timeout)
+                    }
+                }
+            }
 
+            /*
+             * SORTED SETS
+             */
             WorkItem::SortedSetAdd { key, members } => {
                 SORTED_SET_ADD.increment();
                 let members: Vec<sorted_set::SortedSetElement> = members
@@ -398,7 +484,7 @@ async fn task(
                     config.request().timeout(),
                     client.sorted_set_put(
                         cache_name,
-                        Into::<Vec<u8>>::into(&*key),
+                        &*key,
                         members,
                         CollectionTtl::new(None, false),
                     ),
@@ -425,7 +511,7 @@ async fn task(
                     config.request().timeout(),
                     client.sorted_set_fetch(
                         cache_name,
-                        Into::<Vec<u8>>::into(&*key),
+                        &*key,
                         momento::sorted_set::Order::Ascending,
                         None,
                         None,

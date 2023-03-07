@@ -40,7 +40,7 @@ timeout = 10000
 # number of threads used to drive requests
 threads = 4
 # set a global ratelimit for requests
-ratelimit = 100
+ratelimit = 50
 # set the timeout in milliseconds
 timeout = 1000
 
@@ -48,6 +48,10 @@ timeout = 1000
 # the number of threads that will be used to generate requests
 threads = 1
 
+# An example keyspace showcasing the use of the `key-value` family of commands.
+#
+# Note that we can constrain the number of keys in the keyspace and specify that
+# the generated values are random bytes with 128B values.
 [[workload.keyspace]]
 # sets the relative weight of this keyspace: defaults to 1
 weight = 1
@@ -69,6 +73,12 @@ commands = [
 	{ verb = "delete", weight = 0 },
 ]
 
+# An example keyspace showcasing the use of the `dictionary` family of commands.
+#
+# Note that we use the inner key generator to produce `fields` for these
+# operations. Here we have specified that the value generator produces `i64`
+# values so that we can mix increment and set operations together without
+# producing errors.
 [[workload.keyspace]]
 # sets the relative weight of this keyspace: defaults to 1
 weight = 1
@@ -109,6 +119,70 @@ commands = [
 	{ verb = "delete", weight = 5 }
 ]
 
+# An example keyspace showcasing the use of the `list` family of commands.
+#
+# Note that we use the inner key generator to produce `elements` for these
+# operations. This provides more control than using the value generator would.
+[[workload.keyspace]]
+# sets the relative weight of this keyspace: defaults to 1
+weight = 1
+# sets the length of the key, in bytes
+klen = 20
+# sets the number of keys that will be generated
+nkeys = 1_000_000
+# sets the length of the inner key, in bytesp
+inner_keys_klen = 4
+# sets the number of inner keys that will be generated
+inner_keys_nkeys = 1_000
+# controls what commands will be used in this keyspace
+commands = [
+	# pushes an element to the front of a list
+	{ verb = "list_push_front", weight = 10 },
+	# with truncate to trim the list
+	{ verb = "list_push_front", weight = 10, truncate = 10 },
+
+	# pushes an element to the back of a list
+	{ verb = "list_push_back", weight = 10 },
+	# with truncate to trim the list
+	{ verb = "list_push_back", weight = 10, truncate = 10 },
+
+	# retrieves all elements in a list
+	{ verb = "list_fetch", weight = 10 },
+
+
+	# # adds an element to a sorted set
+	# { verb = "sorted_set_put", weight = 5 },
+	# # with cardinality > 1 to add multiple elements
+	# { verb = "sorted_set_put", weight = 5, cardinality = 5 },
+
+	# # fetch all elements in a sorted set
+	# { verb = "sorted_set_fetch", weight = 5 },
+
+	# # get the score for an element in a sorted set
+	# { verb = "sorted_set_get_score", weight = 5 },
+	# # with cardinality > 1 to get scores for multiple elements
+	# { verb = "sorted_set_get_score", weight = 5, cardinality = 5 },
+
+	# # remove an element from a sorted set
+	# { verb = "sorted_set_remove", weight = 2 },
+	# # with cardinality > 1 to remove multiple elements
+	# { verb = "sorted_set_remove", weight = 2, cardinality = 5 },
+
+	# # delete an entire sorted set
+	# { verb = "delete", weight = 1 },
+
+	# # get the rank of an element in a sorted set
+	# { verb = "sorted_set_get_rank", weight = 40 },
+
+	# # adds to the value of an element in a sorted set
+	# { verb = "sorted_set_increment", weight = 25 },
+]
+
+# An example keyspace showcasing the use of the `sorted set` family of commands.
+#
+# Note that we use the inner key generator to produce `elements` for these
+# operations. The values are `f64` so we do not need to specify parameters for
+# the value generator.
 [[workload.keyspace]]
 # sets the relative weight of this keyspace: defaults to 1
 weight = 1
@@ -150,6 +224,10 @@ commands = [
 	{ verb = "sorted_set_increment", weight = 25 },
 ]
 
+# An example keyspace showcasing the use of the `set` family of commands.
+#
+# Note that we use the inner key generator to produce `elements` for these
+# operations. This provides more control than using the value generator would.
 [[workload.keyspace]]
 # sets the relative weight of this keyspace: defaults to 1
 weight = 1

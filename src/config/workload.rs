@@ -81,6 +81,7 @@ pub struct Command {
     weight: usize,
     #[serde(default = "one")]
     cardinality: usize,
+    truncate: Option<u32>,
 }
 
 impl Command {
@@ -94,6 +95,10 @@ impl Command {
 
     pub fn cardinality(&self) -> usize {
         self.cardinality
+    }
+
+    pub fn truncate(&self) -> Option<u32> {
+        self.truncate
     }
 }
 
@@ -170,6 +175,26 @@ pub enum Verb {
     #[serde(alias = "hset")]
     #[serde(alias = "hmset")]
     HashSet,
+
+    /*
+     * LISTS
+     */
+
+    /// Pushes a value to the front of a list.
+    /// * Momento: `list_push_front`
+    /// * RESP: `LPUSH` (if truncate is set, is fused with `LTRIM`)
+    #[serde(alias = "lpush")]
+    ListPushFront,
+    /// Pushes a value to the back of a list.
+    /// * Momento: `list_push_back`
+    /// * RESP: `RPUSH` (if truncate is set, is fused with `LTRIM`)
+    #[serde(alias = "rpush")]
+    ListPushBack,
+    /// Retrieves all elements in the list.
+    /// * Momento: `list_fetch`
+    /// * RESP: `LRANGE 0 -1 [key]`
+    ListFetch,
+
 
     /*
      * SETS
@@ -266,6 +291,14 @@ impl Verb {
                 | Self::SortedSetRank
                 | Self::SortedSetRemove
                 | Self::SortedSetScore
+        )
+    }
+
+    pub fn supports_truncate(&self) -> bool {
+        matches!(
+            self,
+            Self::ListPushBack
+                | Self::ListPushFront
         )
     }
 }

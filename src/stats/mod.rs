@@ -79,10 +79,7 @@ counter!(
 
 
 
-counter!(LIST_FETCH);
-counter!(LIST_FETCH_EX);
-counter!(LIST_FETCH_OK);
-counter!(LIST_FETCH_TIMEOUT);
+
 
 counter!(PING);
 counter!(PING_EX);
@@ -115,6 +112,22 @@ counter!(HASH_EXISTS);
 counter!(HASH_EXISTS_EX);
 counter!(HASH_EXISTS_HIT);
 counter!(HASH_EXISTS_MISS);
+
+/*
+ * LISTS
+ */
+counter!(LIST_FETCH);
+counter!(LIST_FETCH_EX);
+counter!(LIST_FETCH_OK);
+counter!(LIST_FETCH_TIMEOUT);
+counter!(LIST_PUSH_BACK);
+counter!(LIST_PUSH_BACK_EX);
+counter!(LIST_PUSH_BACK_OK);
+counter!(LIST_PUSH_BACK_TIMEOUT);
+counter!(LIST_PUSH_FRONT);
+counter!(LIST_PUSH_FRONT_EX);
+counter!(LIST_PUSH_FRONT_OK);
+counter!(LIST_PUSH_FRONT_TIMEOUT);
 
 
 /*

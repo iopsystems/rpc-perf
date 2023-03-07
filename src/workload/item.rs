@@ -64,11 +64,13 @@ pub enum WorkItem {
     ListPushBack {
         key: Arc<[u8]>,
         element: Arc<[u8]>,
+        truncate: Option<u32>,
     },
     /// Push an element to the front of a list.
     ListPushFront {
         key: Arc<[u8]>,
         element: Arc<[u8]>,
+        truncate: Option<u32>,
     },
     /// Return the elements of a list between the given indices.
     ListRange {
