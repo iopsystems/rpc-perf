@@ -116,7 +116,6 @@ pub enum Verb {
     /*
      * KEY-VALUE
      */
-
     /// Read the value for one or more keys.
     /// * Memcache: `get`
     /// * Momento: `get` (NOTE: cardinality > 1 is not supported)
@@ -134,11 +133,9 @@ pub enum Verb {
     #[serde(alias = "del")]
     Delete,
 
-
     /*
      * HASHES (DICTIONARIES)
      */
-
     /// Delete one or more fields in a hash.
     /// * Momento: `dictionary_delete`
     /// * RESP: `HDEL`
@@ -179,7 +176,6 @@ pub enum Verb {
     /*
      * LISTS
      */
-
     /// Pushes a value to the front of a list.
     /// * Momento: `list_push_front`
     /// * RESP: `LPUSH` (if truncate is set, is fused with `LTRIM`)
@@ -195,11 +191,9 @@ pub enum Verb {
     /// * RESP: `LRANGE 0 -1 [key]`
     ListFetch,
 
-
     /*
      * SETS
      */
-
     /// Adds one or more members to a set.
     /// * Momento: `set_add_element`
     /// * RESP: `SADD`
@@ -219,11 +213,9 @@ pub enum Verb {
     #[serde(alias = "srem")]
     SetRemove,
 
-
     /*
      * SORTED SETS
      */
-
     /// Adds one or more members to a sorted set.
     /// * Momento: `sorted_set_put`
     /// * RESP: `ZADD`
@@ -295,10 +287,6 @@ impl Verb {
     }
 
     pub fn supports_truncate(&self) -> bool {
-        matches!(
-            self,
-            Self::ListPushBack
-                | Self::ListPushFront
-        )
+        matches!(self, Self::ListPushBack | Self::ListPushFront)
     }
 }

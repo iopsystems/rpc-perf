@@ -50,6 +50,10 @@ impl TrafficGenerator {
         }
     }
 
+    pub fn ratelimiter(&self) -> Option<Arc<Ratelimiter>> {
+        self.ratelimiter.clone()
+    }
+
     pub fn generate(&self, rng: &mut dyn RngCore) -> WorkItem {
         if let Some(ref ratelimiter) = self.ratelimiter {
             ratelimiter.wait();
@@ -115,25 +119,19 @@ impl TrafficGenerator {
                     data,
                 }
             }
-            Verb::ListPushFront => {
-                WorkItem::ListPushFront {
-                    key: keyspace.sample(rng),
-                    element: keyspace.sample_inner(rng),
-                    truncate: command.truncate(),
-                }
-            }
-            Verb::ListPushBack => {
-                WorkItem::ListPushBack {
-                    key: keyspace.sample(rng),
-                    element: keyspace.sample_inner(rng),
-                    truncate: command.truncate(),
-                }
-            }
-            Verb::ListFetch => {
-                WorkItem::ListFetch {
-                    key: keyspace.sample(rng),
-                }
-            }
+            Verb::ListPushFront => WorkItem::ListPushFront {
+                key: keyspace.sample(rng),
+                element: keyspace.sample_inner(rng),
+                truncate: command.truncate(),
+            },
+            Verb::ListPushBack => WorkItem::ListPushBack {
+                key: keyspace.sample(rng),
+                element: keyspace.sample_inner(rng),
+                truncate: command.truncate(),
+            },
+            Verb::ListFetch => WorkItem::ListFetch {
+                key: keyspace.sample(rng),
+            },
             Verb::Ping => WorkItem::Ping {},
             Verb::SetAdd => {
                 let mut members = HashSet::new();
@@ -146,11 +144,9 @@ impl TrafficGenerator {
                     members,
                 }
             }
-            Verb::SetMembers => {
-                WorkItem::SetMembers {
-                    key: keyspace.sample(rng),
-                }
-            }
+            Verb::SetMembers => WorkItem::SetMembers {
+                key: keyspace.sample(rng),
+            },
             Verb::SetRemove => {
                 let mut members = HashSet::new();
                 while members.len() < command.cardinality() {
@@ -173,11 +169,9 @@ impl TrafficGenerator {
                     members,
                 }
             }
-            Verb::SortedSetMembers => {
-                WorkItem::SortedSetMembers {
-                    key: keyspace.sample(rng),
-                }
-            }
+            Verb::SortedSetMembers => WorkItem::SortedSetMembers {
+                key: keyspace.sample(rng),
+            },
             Verb::SortedSetRemove => {
                 let mut members = HashSet::new();
                 while members.len() < command.cardinality() {
@@ -308,18 +302,13 @@ impl Keyspace {
             if command.truncate().is_some() {
                 // truncate must be >= 1
                 if command.truncate().unwrap() == 0 {
-                    eprintln!(
-                        "truncate must be >= 1",
-                    );
+                    eprintln!("truncate must be >= 1",);
                     std::process::exit(2);
                 }
 
                 // not all commands support truncate
                 if !command.verb().supports_truncate() {
-                    eprintln!(
-                        "verb: {:?} does not support truncate",
-                        command.verb()
-                    );
+                    eprintln!("verb: {:?} does not support truncate", command.verb());
                     std::process::exit(2);
                 }
             }
@@ -333,8 +322,6 @@ impl Keyspace {
                 );
                 std::process::exit(2);
             }
-
-
         }
 
         let command_dist = WeightedAliasIndex::new(command_weights).unwrap();

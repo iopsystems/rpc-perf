@@ -140,9 +140,6 @@ fn main() {
         let _ = log.flush();
     });
 
-    // spawn the admin thread
-    rt.spawn(admin::http());
-
     // TODO: figure out what a reasonable size is here
     let (work_sender, work_receiver) = bounded(1_000_000);
 
@@ -150,6 +147,9 @@ fn main() {
 
     debug!("Initializing traffic generator");
     let traffic_generator = TrafficGenerator::new(&config);
+
+    // spawn the admin thread
+    rt.spawn(admin::http(traffic_generator.ratelimiter()));
 
     debug!("Launching workload generation");
     // spawn the request generators on a blocking threads

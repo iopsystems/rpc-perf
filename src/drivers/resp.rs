@@ -152,7 +152,6 @@ async fn task(
             /*
              * HASHES (DICTIONARIES)
              */
-
             WorkItem::HashDelete { key, fields } => {
                 HASH_DELETE.increment();
                 let fields: Vec<&[u8]> = fields.iter().map(|v| v.borrow()).collect();
@@ -358,7 +357,6 @@ async fn task(
             /*
              * LISTS
              */
-
             WorkItem::ListFetch { key } => {
                 LIST_FETCH.increment();
                 match timeout(
@@ -381,7 +379,6 @@ async fn task(
                     }
                 }
             }
-
 
             WorkItem::Ping { .. } => {
                 PING.increment();
@@ -528,7 +525,6 @@ async fn task(
             /*
              * SORTED SETS
              */
-
             WorkItem::SortedSetAdd { key, members } => {
                 SORTED_SET_ADD.increment();
                 if members.is_empty() {
@@ -579,13 +575,15 @@ async fn task(
                     }
                 }
             }
-            WorkItem::SortedSetMembers {
-                key,
-            } => {
+            WorkItem::SortedSetMembers { key } => {
                 SORTED_SET_INCR.increment();
                 match timeout(
                     config.request().timeout(),
-                    redis::cmd("ZUNION").arg(1).arg(&*key).arg("WITHSCORES").query_async::<_, Vec<(Vec<u8>, f64)>>(&mut con),
+                    redis::cmd("ZUNION")
+                        .arg(1)
+                        .arg(&*key)
+                        .arg("WITHSCORES")
+                        .query_async::<_, Vec<(Vec<u8>, f64)>>(&mut con),
                 )
                 .await
                 {

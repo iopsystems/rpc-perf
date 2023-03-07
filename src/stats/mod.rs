@@ -75,12 +75,6 @@ counter!(
     "requests to get all fields from a hash that timed out"
 );
 
-
-
-
-
-
-
 counter!(PING);
 counter!(PING_EX);
 counter!(PING_OK);
@@ -129,7 +123,6 @@ counter!(LIST_PUSH_FRONT_EX);
 counter!(LIST_PUSH_FRONT_OK);
 counter!(LIST_PUSH_FRONT_TIMEOUT);
 
-
 /*
  * SETS
  */
@@ -175,4 +168,3 @@ counter!(SORTED_SET_SCORE);
 counter!(SORTED_SET_SCORE_EX);
 counter!(SORTED_SET_SCORE_OK);
 counter!(SORTED_SET_SCORE_TIMEOUT);
-

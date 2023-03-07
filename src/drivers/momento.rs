@@ -275,12 +275,7 @@ async fn task(
                     data.iter().map(|(k, v)| (k.to_vec(), v.to_vec())).collect();
                 match timeout(
                     config.request().timeout(),
-                    client.dictionary_set(
-                        cache_name,
-                        &*key,
-                        data,
-                        CollectionTtl::new(None, false),
-                    ),
+                    client.dictionary_set(cache_name, &*key, data, CollectionTtl::new(None, false)),
                 )
                 .await
                 {
@@ -334,10 +329,7 @@ async fn task(
                 SET_MEMBERS.increment();
                 match timeout(
                     config.request().timeout(),
-                    client.set_fetch(
-                        cache_name,
-                        &*key,
-                    ),
+                    client.set_fetch(cache_name, &*key),
                 )
                 .await
                 {
@@ -360,11 +352,7 @@ async fn task(
                 let members: Vec<&[u8]> = members.iter().map(|v| v.borrow()).collect();
                 match timeout(
                     config.request().timeout(),
-                    client.set_remove_elements(
-                        cache_name,
-                        &*key,
-                        members,
-                    ),
+                    client.set_remove_elements(cache_name, &*key, members),
                 )
                 .await
                 {
@@ -386,7 +374,11 @@ async fn task(
             /*
              * LISTS
              */
-            WorkItem::ListPushFront { key, element, truncate } => {
+            WorkItem::ListPushFront {
+                key,
+                element,
+                truncate,
+            } => {
                 LIST_PUSH_FRONT.increment();
                 match timeout(
                     config.request().timeout(),
@@ -414,7 +406,11 @@ async fn task(
                     }
                 }
             }
-            WorkItem::ListPushBack { key, element, truncate } => {
+            WorkItem::ListPushBack {
+                key,
+                element,
+                truncate,
+            } => {
                 LIST_PUSH_BACK.increment();
                 match timeout(
                     config.request().timeout(),
@@ -446,10 +442,7 @@ async fn task(
                 LIST_FETCH.increment();
                 match timeout(
                     config.request().timeout(),
-                    client.list_fetch(
-                        cache_name,
-                        &*key,
-                    ),
+                    client.list_fetch(cache_name, &*key),
                 )
                 .await
                 {
@@ -633,8 +626,6 @@ async fn task(
                     }
                 }
             }
-
-
 
             WorkItem::Reconnect => {
                 continue;
