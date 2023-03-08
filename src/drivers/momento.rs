@@ -398,7 +398,9 @@ async fn task(
                         Err(_) => Err(ResponseError::Timeout),
                     }
                 } else {
-                    let elements: Vec<&[u8]> = elements.iter().map(|v| v.borrow()).collect();
+                    // note: we need to reverse because the semantics of list
+                    // concat do not match the redis push semantics
+                    let elements: Vec<&[u8]> = elements.iter().map(|v| v.borrow()).rev().collect();
                     match timeout(
                         config.request().timeout(),
                         client.list_concat_front(
@@ -454,7 +456,9 @@ async fn task(
                         Err(_) => Err(ResponseError::Timeout),
                     }
                 } else {
-                    let elements: Vec<&[u8]> = elements.iter().map(|v| v.borrow()).collect();
+                    // note: we need to reverse because the semantics of list
+                    // concat do not match the redis push semantics
+                    let elements: Vec<&[u8]> = elements.iter().map(|v| v.borrow()).rev().collect();
                     match timeout(
                         config.request().timeout(),
                         client.list_concat_back(

@@ -487,6 +487,28 @@ async fn task(
                     }
                 }
             }
+            WorkItem::ListLength { key } => {
+                LIST_LENGTH.increment();
+                match timeout(
+                    config.request().timeout(),
+                    con.llen::<&[u8], u64>(key.as_ref()),
+                )
+                .await
+                {
+                    Ok(Ok(_)) => {
+                        LIST_LENGTH_OK.increment();
+                        Ok(())
+                    }
+                    Ok(Err(_)) => {
+                        LIST_LENGTH_EX.increment();
+                        Err(ResponseError::Exception)
+                    }
+                    Err(_) => {
+                        LIST_LENGTH_TIMEOUT.increment();
+                        Err(ResponseError::Timeout)
+                    }
+                }
+            }
 
             WorkItem::Ping { .. } => {
                 PING.increment();
