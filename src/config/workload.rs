@@ -190,6 +190,10 @@ pub enum Verb {
     /// * Momento: `list_fetch`
     /// * RESP: `LRANGE 0 -1 [key]`
     ListFetch,
+    /// Retrieves the lengths of the list.
+    /// * Momento: `list_length`
+    /// * RESP: `LLEN`
+    ListLength,
 
     /*
      * SETS
@@ -263,6 +267,8 @@ impl Verb {
             Self::HashDelete
                 | Self::HashGet
                 | Self::HashSet
+                | Self::ListPushBack
+                | Self::ListPushFront
                 | Self::SetAdd
                 | Self::SetRemove
                 | Self::SortedSetAdd
@@ -278,6 +284,10 @@ impl Verb {
                 | Self::HashExists
                 | Self::HashGet
                 | Self::HashSet
+                | Self::ListPushBack
+                | Self::ListPushFront
+                | Self::SetAdd
+                | Self::SetRemove
                 | Self::SortedSetAdd
                 | Self::SortedSetIncrement
                 | Self::SortedSetRank

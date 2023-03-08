@@ -376,67 +376,115 @@ async fn task(
              */
             WorkItem::ListPushFront {
                 key,
-                element,
+                elements,
                 truncate,
             } => {
                 LIST_PUSH_FRONT.increment();
-                match timeout(
-                    config.request().timeout(),
-                    client.list_push_front(
-                        cache_name,
-                        &*key,
-                        &*element,
-                        truncate,
-                        CollectionTtl::new(None, false),
-                    ),
-                )
-                .await
-                {
-                    Ok(Ok(_)) => {
-                        LIST_PUSH_FRONT_OK.increment();
-                        Ok(())
+                let result = if elements.len() == 1 {
+                    match timeout(
+                        config.request().timeout(),
+                        client.list_push_front(
+                            cache_name,
+                            &*key,
+                            &*elements[0],
+                            truncate,
+                            CollectionTtl::new(None, false),
+                        ),
+                    )
+                    .await
+                    {
+                        Ok(Ok(_)) => Ok(()),
+                        Ok(Err(e)) => Err(e.into()),
+                        Err(_) => Err(ResponseError::Timeout),
                     }
-                    Ok(Err(e)) => {
-                        LIST_PUSH_FRONT_EX.increment();
-                        Err(e.into())
+                } else {
+                    let elements: Vec<&[u8]> = elements.iter().map(|v| v.borrow()).collect();
+                    match timeout(
+                        config.request().timeout(),
+                        client.list_concat_front(
+                            cache_name,
+                            &*key,
+                            elements,
+                            truncate,
+                            CollectionTtl::new(None, false),
+                        ),
+                    )
+                    .await
+                    {
+                        Ok(Ok(_)) => Ok(()),
+                        Ok(Err(e)) => Err(e.into()),
+                        Err(_) => Err(ResponseError::Timeout),
+                    }
+                };
+                match result {
+                    Ok(_) => {
+                        LIST_PUSH_FRONT_OK.increment();
+                    }
+                    Err(ResponseError::Timeout) => {
+                        LIST_PUSH_FRONT_TIMEOUT.increment();
                     }
                     Err(_) => {
-                        LIST_PUSH_FRONT_TIMEOUT.increment();
-                        Err(ResponseError::Timeout)
+                        LIST_PUSH_FRONT_EX.increment();
                     }
                 }
+
+                result
             }
             WorkItem::ListPushBack {
                 key,
-                element,
+                elements,
                 truncate,
             } => {
                 LIST_PUSH_BACK.increment();
-                match timeout(
-                    config.request().timeout(),
-                    client.list_push_back(
-                        cache_name,
-                        &*key,
-                        &*element,
-                        truncate,
-                        CollectionTtl::new(None, false),
-                    ),
-                )
-                .await
-                {
-                    Ok(Ok(_)) => {
-                        LIST_PUSH_BACK_OK.increment();
-                        Ok(())
+                let result = if elements.len() == 1 {
+                    match timeout(
+                        config.request().timeout(),
+                        client.list_push_back(
+                            cache_name,
+                            &*key,
+                            &*elements[0],
+                            truncate,
+                            CollectionTtl::new(None, false),
+                        ),
+                    )
+                    .await
+                    {
+                        Ok(Ok(_)) => Ok(()),
+                        Ok(Err(e)) => Err(e.into()),
+                        Err(_) => Err(ResponseError::Timeout),
                     }
-                    Ok(Err(e)) => {
-                        LIST_PUSH_BACK_EX.increment();
-                        Err(e.into())
+                } else {
+                    let elements: Vec<&[u8]> = elements.iter().map(|v| v.borrow()).collect();
+                    match timeout(
+                        config.request().timeout(),
+                        client.list_concat_back(
+                            cache_name,
+                            &*key,
+                            elements,
+                            truncate,
+                            CollectionTtl::new(None, false),
+                        ),
+                    )
+                    .await
+                    {
+                        Ok(Ok(_)) => Ok(()),
+                        Ok(Err(e)) => Err(e.into()),
+                        Err(_) => Err(ResponseError::Timeout),
+                    }
+                };
+                match result {
+                    Ok(_) => {
+                        LIST_PUSH_BACK_OK.increment();
+                    }
+                    Err(ResponseError::Timeout) => {
+                        LIST_PUSH_BACK_TIMEOUT.increment();
                     }
                     Err(_) => {
-                        LIST_PUSH_BACK_TIMEOUT.increment();
-                        Err(ResponseError::Timeout)
+                        LIST_PUSH_BACK_EX.increment();
                     }
                 }
+
+                result
             }
             WorkItem::ListFetch { key } => {
                 LIST_FETCH.increment();
@@ -456,6 +504,28 @@ async fn task(
                     }
                     Err(_) => {
                         LIST_FETCH_TIMEOUT.increment();
+                        Err(ResponseError::Timeout)
+                    }
+                }
+            }
+            WorkItem::ListLength { key } => {
+                LIST_LENGTH.increment();
+                match timeout(
+                    config.request().timeout(),
+                    client.list_fetch(cache_name, &*key),
+                )
+                .await
+                {
+                    Ok(Ok(_)) => {
+                        LIST_LENGTH_OK.increment();
+                        Ok(())
+                    }
+                    Ok(Err(e)) => {
+                        LIST_LENGTH_EX.increment();
+                        Err(e.into())
+                    }
+                    Err(_) => {
+                        LIST_LENGTH_TIMEOUT.increment();
                         Err(ResponseError::Timeout)
                     }
                 }

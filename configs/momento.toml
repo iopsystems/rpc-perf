@@ -136,18 +136,33 @@ inner_keys_klen = 4
 inner_keys_nkeys = 1_000
 # controls what commands will be used in this keyspace
 commands = [
-	# pushes an element to the front of a list
-	{ verb = "list_push_front", weight = 10 },
-	# with truncate to trim the list
-	{ verb = "list_push_front", weight = 10, truncate = 10 },
+	# retrieves all elements in a list
+	{ verb = "list_fetch", weight = 10 },
+
+	# retrieves the length of the list
+	{ verb = "list_length", weight = 10 },
+
+	# removes and retrieves an element from the back of a list
+	{ verb = "list_pop_back", weight = 10 },
+
+	# removes and retrieves an element from the front of a list
+	{ verb = "list_pop_front", weight = 10 },
 
 	# pushes an element to the back of a list
 	{ verb = "list_push_back", weight = 10 },
 	# with truncate to trim the list
 	{ verb = "list_push_back", weight = 10, truncate = 10 },
+	# with cardinality to use `list_concat_back` and with truncate to trim
+	{ verb = "list_push_back", weight = 10, cardinality = 3, truncate = 10 },
 
-	# retrieves all elements in a list
-	{ verb = "list_fetch", weight = 10 },
+	# pushes an element to the front of a list
+	{ verb = "list_push_front", weight = 10 },
+	# with truncate to trim the list
+	{ verb = "list_push_front", weight = 10, truncate = 10 },
+	# with cardinality to use `list_concat_front` and with truncate to trim
+	{ verb = "list_push_front", weight = 10, cardinality = 3, truncate = 10 },
+
+	
 
 
 	# # adds an element to a sorted set

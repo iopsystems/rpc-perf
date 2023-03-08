@@ -119,17 +119,34 @@ impl TrafficGenerator {
                     data,
                 }
             }
-            Verb::ListPushFront => WorkItem::ListPushFront {
-                key: keyspace.sample(rng),
-                element: keyspace.sample_inner(rng),
-                truncate: command.truncate(),
-            },
-            Verb::ListPushBack => WorkItem::ListPushBack {
-                key: keyspace.sample(rng),
-                element: keyspace.sample_inner(rng),
-                truncate: command.truncate(),
-            },
+            Verb::ListPushFront => {
+                let cardinality = command.cardinality();
+                let mut elements = Vec::with_capacity(cardinality);
+                for _ in 0..cardinality {
+                    elements.push(keyspace.sample_inner(rng));
+                }
+                WorkItem::ListPushFront {
+                    key: keyspace.sample(rng),
+                    elements,
+                    truncate: command.truncate(),
+                }
+            }
+            Verb::ListPushBack => {
+                let cardinality = command.cardinality();
+                let mut elements = Vec::with_capacity(cardinality);
+                for _ in 0..cardinality {
+                    elements.push(keyspace.sample_inner(rng));
+                }
+                WorkItem::ListPushBack {
+                    key: keyspace.sample(rng),
+                    elements,
+                    truncate: command.truncate(),
+                }
+            }
             Verb::ListFetch => WorkItem::ListFetch {
+                key: keyspace.sample(rng),
+            },
+            Verb::ListLength => WorkItem::ListLength {
                 key: keyspace.sample(rng),
             },
             Verb::Ping => WorkItem::Ping {},

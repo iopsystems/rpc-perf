@@ -60,16 +60,16 @@ pub enum WorkItem {
     ListPopFront {
         key: Arc<[u8]>,
     },
-    /// Push an element to the back of a list.
+    /// Push one or more elements to the back of a list.
     ListPushBack {
         key: Arc<[u8]>,
-        element: Arc<[u8]>,
+        elements: Vec<Arc<[u8]>>,
         truncate: Option<u32>,
     },
-    /// Push an element to the front of a list.
+    /// Push one or more elements to the front of a list.
     ListPushFront {
         key: Arc<[u8]>,
-        element: Arc<[u8]>,
+        elements: Vec<Arc<[u8]>>,
         truncate: Option<u32>,
     },
     /// Return the elements of a list between the given indices.
