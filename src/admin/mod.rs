@@ -37,6 +37,7 @@ mod filters {
             .and_then(handlers::human_stats)
     }
 
+    // TODO(bmartin): we should probably pass the rate in the body
     /// PUT /ratelimit/:rate
     pub fn update_ratelimit(
         ratelimit: Option<Arc<Ratelimiter>>,

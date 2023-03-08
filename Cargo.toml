@@ -19,9 +19,9 @@ boring = "2.1.0"
 bytes = "1.2.1"
 clap = "4.1.6"
 clocksource = "0.6.0"
-memcache-async = "*"
-# momento = "0.24.0"
-momento = { git = "https://github.com/momentohq/client-sdk-rust" }
+# memcache-async = "*"
+momento = "0.26.2"
+# momento = { git = "https://github.com/momentohq/client-sdk-rust" }
 metriken = "0.1.1"
 mio = "0.8.5"
 net = { git = "https://github.com/pelikan-io/pelikan" }

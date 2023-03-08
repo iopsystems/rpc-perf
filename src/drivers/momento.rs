@@ -468,8 +468,8 @@ async fn task(
                 SORTED_SET_ADD.increment();
                 let members: Vec<sorted_set::SortedSetElement> = members
                     .iter()
-                    .map(|(name, score)| sorted_set::SortedSetElement {
-                        name: name.to_vec(),
+                    .map(|(value, score)| sorted_set::SortedSetElement {
+                        value: value.to_vec(),
                         score: *score,
                     })
                     .collect();
