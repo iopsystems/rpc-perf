@@ -1,6 +1,6 @@
 [general]
 # specify the protocol to be used
-protocol = "resp"
+protocol = "memcache"
 # the interval for stats integration and reporting
 interval = 1
 # the number of intervals to run the test for
@@ -23,20 +23,10 @@ log_backup = "rpc-perf.log.old"
 # option to '0' to disable log rotation.
 log_max_size = 1073741824
 
-# [waterfall]
-# # specify an optional path for a request latency waterfall
-# # file = "waterfall.png"
-# # choose a palette for rendering the waterfall: classic, ironbow
-# palette = "ironbow"
-# # choose a scale for rendering the waterfall: linear, logarithmic
-# scale = "logarithmic"
-# # choose the resolution for the time axis (in milliseconds)
-# resolution = 1000
-
 [target]
 # specify one or more endpoints as IP:PORT pairs
 endpoints = [
-	"192.168.0.71:6379"
+	"127.0.0.1:11211",
 ]
 
 [connection]
@@ -45,12 +35,12 @@ endpoints = [
 poolsize = 20
 # the connect timeout in milliseconds
 timeout = 10000
-# the number of requests to pipeline together into a single transmission
-# pipeline = 1
 
 [request]
+# number of threads used to drive requests
+threads = 4
 # set a global ratelimit for requests
-ratelimit = 100000
+ratelimit = 10_000
 # set the timeout in milliseconds
 timeout = 1000
 
@@ -58,59 +48,23 @@ timeout = 1000
 # the number of threads that will be used to generate requests
 threads = 1
 
-# [[workload.keyspace]]
-# # controls what commands will be used in this keyspace
-# commands = [
-# 	{ verb = "get", weight = 8 },
-# 	{ verb = "set", weight = 2 },
-# 	# { verb = "delete", weight = 1 },
-# ]
-# # sets the length of the key, in bytes
-# klen = 32
-# # sets the number of keys that will be generated
-# nkeys = 1_000_000
-# # sets the relative weight of this keyspace
-# weight = 1
-# inner_keys_nkeys = 1_000
-# inner_keys_klen = 4
-# vlen = 128
-# # sets the distribution across the keyspace: uniform, zipf
-# key_distribution = { "model" = "uniform" }
-# # controls how values will be generated, multiple lengths with varying weights
-# # can be specified here
-# values = [ { length = 16 } ]
-# # provide a time-to-live for items in this keyspace
-# ttl = 0
-# # controls the cardinality of commands which operate on more than one item in
-# # a single request, eg: the number of keys in a `get` request
-# batch_size = 1
-
 [[workload.keyspace]]
-# controls what commands will be used in this keyspace
-commands = [
-	{ verb = "sorted_set_rank", weight = 3 },
-	{ verb = "sorted_set_score", weight = 1 },
-	{ verb = "sorted_set_increment", weight = 4 },
-	{ verb = "sorted_set_add", weight = 2 },
-	# { verb = "delete", weight = 1 },
-]
+# sets the relative weight of this keyspace: defaults to 1
+weight = 1
 # sets the length of the key, in bytes
-klen = 16
+klen = 32
 # sets the number of keys that will be generated
 nkeys = 1_000_000
-# sets the relative weight of this keyspace
-weight = 1
-inner_keys_nkeys = 1_000
-inner_keys_klen = 4
+# sets the value length, in bytes
 vlen = 128
-
-# # sets the distribution across the keyspace: uniform, zipf
-# key_distribution = { "model" = "uniform" }
-# # controls how values will be generated, multiple lengths with varying weights
-# # can be specified here
-# values = [ { length = 16 } ]
-# # provide a time-to-live for items in this keyspace
-# ttl = 0
-# # controls the cardinality of commands which operate on more than one item in
-# # a single request, eg: the number of keys in a `get` request
-# batch_size = 1
+# use random bytes for the values
+vkind = "bytes"
+# controls what commands will be used in this keyspace
+commands = [
+	# get a value
+	{ verb = "get", weight = 80 },
+	# set a value
+	{ verb = "set", weight = 20 },
+	# delete a value
+	{ verb = "delete", weight = 0 },
+]
