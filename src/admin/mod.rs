@@ -111,7 +111,7 @@ mod handlers {
         let mut content = data.join("\n");
         content += "\n";
         let parts: Vec<&str> = content.split('/').collect();
-        Ok(warp::reply::html(parts.join("_")))
+        Ok(parts.join("_"))
     }
 
     pub async fn human_stats() -> Result<impl warp::Reply, Infallible> {
@@ -144,7 +144,7 @@ mod handlers {
         data.sort();
         let mut content = data.join("\n");
         content += "\n";
-        Ok(warp::reply::html(content))
+        Ok(content)
     }
 
     pub async fn update_ratelimit(
