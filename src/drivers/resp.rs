@@ -380,7 +380,7 @@ async fn task(
                     if let Some(len) = truncate {
                         match timeout(
                             config.request().timeout(),
-                            con.ltrim::<&[u8], u64>(key.as_ref(), 0, len as _),
+                            con.ltrim::<&[u8], ()>(key.as_ref(), 0, len as _),
                         )
                         .await
                         {
@@ -434,7 +434,7 @@ async fn task(
                     if let Some(len) = truncate {
                         match timeout(
                             config.request().timeout(),
-                            con.ltrim::<&[u8], u64>(key.as_ref(), -(len as isize + 1), -1),
+                            con.ltrim::<&[u8], ()>(key.as_ref(), -(len as isize + 1), -1),
                         )
                         .await
                         {
@@ -469,7 +469,7 @@ async fn task(
                 LIST_FETCH.increment();
                 match timeout(
                     config.request().timeout(),
-                    con.lrange::<&[u8], Vec<Vec<u8>>>(key.as_ref(), 0, -1),
+                    con.lrange::<&[u8], Option<Vec<Vec<u8>>>>(key.as_ref(), 0, -1),
                 )
                 .await
                 {
@@ -491,7 +491,7 @@ async fn task(
                 LIST_LENGTH.increment();
                 match timeout(
                     config.request().timeout(),
-                    con.llen::<&[u8], u64>(key.as_ref()),
+                    con.llen::<&[u8], Option<u64>>(key.as_ref()),
                 )
                 .await
                 {
@@ -505,6 +505,50 @@ async fn task(
                     }
                     Err(_) => {
                         LIST_LENGTH_TIMEOUT.increment();
+                        Err(ResponseError::Timeout)
+                    }
+                }
+            }
+            WorkItem::ListPopFront { key } => {
+                LIST_POP_FRONT.increment();
+                match timeout(
+                    config.request().timeout(),
+                    con.lpop::<&[u8], Option<Vec<u8>>>(key.as_ref(), None),
+                )
+                .await
+                {
+                    Ok(Ok(_)) => {
+                        LIST_POP_FRONT_OK.increment();
+                        Ok(())
+                    }
+                    Ok(Err(_)) => {
+                        LIST_POP_FRONT_EX.increment();
+                        Err(ResponseError::Exception)
+                    }
+                    Err(_) => {
+                        LIST_POP_FRONT_TIMEOUT.increment();
+                        Err(ResponseError::Timeout)
+                    }
+                }
+            }
+            WorkItem::ListPopBack { key } => {
+                LIST_POP_BACK.increment();
+                match timeout(
+                    config.request().timeout(),
+                    con.rpop::<&[u8], Option<Vec<u8>>>(key.as_ref(), None),
+                )
+                .await
+                {
+                    Ok(Ok(_)) => {
+                        LIST_POP_BACK_OK.increment();
+                        Ok(())
+                    }
+                    Ok(Err(_)) => {
+                        LIST_POP_BACK_EX.increment();
+                        Err(ResponseError::Exception)
+                    }
+                    Err(_) => {
+                        LIST_POP_BACK_TIMEOUT.increment();
                         Err(ResponseError::Timeout)
                     }
                 }

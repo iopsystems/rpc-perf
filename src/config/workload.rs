@@ -193,7 +193,18 @@ pub enum Verb {
     /// Retrieves the lengths of the list.
     /// * Momento: `list_length`
     /// * RESP: `LLEN`
+    #[serde(alias = "llen")]
     ListLength,
+    /// Removes and returns the value at the front of the list
+    /// * Momento: `list_pop_front`
+    /// * RESP: `LPOP`
+    #[serde(alias = "lpop")]
+    ListPopFront,
+    /// Removes and returns the value at the back of the list
+    /// * Momento: `list_pop_back`
+    /// * RESP: `RPOP`
+    #[serde(alias = "rpop")]
+    ListPopBack,
 
     /*
      * SETS

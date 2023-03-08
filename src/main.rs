@@ -159,7 +159,8 @@ fn main() {
         rt.spawn_blocking(move || requests(work_sender, traffic_generator));
     }
 
-    rt.spawn(reconnect(work_sender, config.clone()));
+    let c = config.clone();
+    rt.spawn_blocking(move || reconnect(work_sender, c));
 
     debug!("Launching workload drivers");
     // spawn the request drivers on their own runtime

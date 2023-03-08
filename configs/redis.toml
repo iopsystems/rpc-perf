@@ -48,6 +48,10 @@ timeout = 1000
 # the number of threads that will be used to generate requests
 threads = 1
 
+# An example keyspace showcasing the use of the `key-value` family of commands.
+#
+# Note that we can constrain the number of keys in the keyspace and specify that
+# the generated values are random bytes with 128B values.
 [[workload.keyspace]]
 # sets the relative weight of this keyspace: defaults to 1
 weight = 1
@@ -69,6 +73,12 @@ commands = [
 	{ verb = "delete", weight = 0 },
 ]
 
+# An example keyspace showcasing the use of the `hash` family of commands.
+#
+# Note that we use the inner key generator to produce `fields` for these
+# operations. Here we have specified that the value generator produces `i64`
+# values so that we can mix increment and set operations together without
+# producing errors.
 [[workload.keyspace]]
 # sets the relative weight of this keyspace: defaults to 1
 weight = 1
@@ -109,6 +119,58 @@ commands = [
 	{ verb = "delete", weight = 5 }
 ]
 
+# An example keyspace showcasing the use of the `list` family of commands.
+#
+# Note that we use the inner key generator to produce `elements` for these
+# operations. This provides more control than using the value generator would.
+[[workload.keyspace]]
+# sets the relative weight of this keyspace: defaults to 1
+weight = 1
+# sets the length of the key, in bytes
+klen = 20
+# sets the number of keys that will be generated
+nkeys = 1_000_000
+# sets the length of the inner key, in bytesp
+inner_keys_klen = 4
+# sets the number of inner keys that will be generated
+inner_keys_nkeys = 1_000
+# controls what commands will be used in this keyspace
+commands = [
+	# retrieves all elements in a list (implemented as `LRANGE [key] 0 -1`)
+	{ verb = "list_fetch", weight = 5 },
+
+	# retrieves the length of the list
+	{ verb = "llen", weight = 4 },
+
+	# removes and retrieves an element from the back of a list
+	{ verb = "rpop", weight = 20 },
+
+	# removes and retrieves an element from the front of a list
+	{ verb = "lpop", weight = 20 },
+
+	# pushes an element to the back of a list
+	{ verb = "rpush", weight = 5 },
+	# with truncate to fuse rpush + ltrim
+	{ verb = "rpush", weight = 10, truncate = 10 },
+	# with cardinality to push multiple items and tuncate to fuse a ltrim
+	{ verb = "rpush", weight = 10, cardinality = 3, truncate = 10 },
+
+	# pushes an element to the front of a list
+	{ verb = "lpush", weight = 5 },
+	# with truncate to fuse lpush + ltrim
+	{ verb = "lpush", weight = 10, truncate = 10 },
+	# with cardinality to push multiple items and tuncate to fuse a ltrim
+	{ verb = "lpush", weight = 10, cardinality = 3, truncate = 10 },
+
+	# delete an entire list
+	{ verb = "delete", weight = 1 },
+]
+
+# An example keyspace showcasing the use of the `sorted set` family of commands.
+#
+# Note that we use the inner key generator to produce `elements` for these
+# operations. The values are `f64` so we do not need to specify parameters for
+# the value generator.
 [[workload.keyspace]]
 # sets the relative weight of this keyspace: defaults to 1
 weight = 1
@@ -116,7 +178,7 @@ weight = 1
 klen = 16
 # sets the number of keys that will be generated
 nkeys = 1_000_000
-# sets the length of the inner key, in bytesp
+# sets the length of the inner key, in bytes
 inner_keys_klen = 4
 # sets the number of inner keys that will be generated
 inner_keys_nkeys = 1_000
@@ -151,6 +213,10 @@ commands = [
 	{ verb = "zincrby", weight = 25 },
 ]
 
+# An example keyspace showcasing the use of the `set` family of commands.
+#
+# Note that we use the inner key generator to produce `elements` for these
+# operations. This provides more control than using the value generator would.
 [[workload.keyspace]]
 # sets the relative weight of this keyspace: defaults to 1
 weight = 1

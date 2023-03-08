@@ -149,6 +149,12 @@ impl TrafficGenerator {
             Verb::ListLength => WorkItem::ListLength {
                 key: keyspace.sample(rng),
             },
+            Verb::ListPopFront => WorkItem::ListPopFront {
+                key: keyspace.sample(rng),
+            },
+            Verb::ListPopBack => WorkItem::ListPopBack {
+                key: keyspace.sample(rng),
+            },
             Verb::Ping => WorkItem::Ping {},
             Verb::SetAdd => {
                 let mut members = HashSet::new();
