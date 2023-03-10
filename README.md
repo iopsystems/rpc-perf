@@ -3,6 +3,9 @@
 rpc-perf is a tool for measuring the performance of RPC services with a focus on
 benchmarking caching systems.
 
+[![License: Apache-2.0][license-badge]][license-url]
+[![Build Status: CI][ci-build-badge]][ci-build-url]
+
 # Content
 * [Getting started](#getting-started)
 * [Building from source](#building-from-source)
@@ -44,9 +47,6 @@ If you want to submit a patch, please follow these steps:
 3. create a feature branch on your fork
 4. push your feature branch
 5. create a pull request linked to the issue
-
-[![License: Apache-2.0][license-badge]][license-url]
-[![Build Status: CI][ci-build-badge]][ci-build-url]
 
 [ci-build-badge]: https://img.shields.io/github/workflow/status/iopsystems/rpc-perf/CI/master?label=CI
 [ci-build-url]: https://github.com/iopsystems/rpc-perf/actions/workflows/cargo.yml?query=branch%3Amaster+event%3Apush
