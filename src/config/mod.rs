@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: (Apache-2.0)
+// Copyright Authors of rpc-perf
+
 use core::num::NonZeroU64;
 use serde::Deserialize;
 use std::io::Read;

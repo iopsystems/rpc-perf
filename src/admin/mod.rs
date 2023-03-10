@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: (Apache-2.0)
+// Copyright Authors of rpc-perf
+
 use crate::*;
 use ratelimit::Ratelimiter;
 use std::sync::Arc;

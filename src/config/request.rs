@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: (Apache-2.0)
+// Copyright Authors of rpc-perf
+
 pub use super::*;
 
 #[derive(Clone, Deserialize)]

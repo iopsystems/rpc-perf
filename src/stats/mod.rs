@@ -1,6 +1,5 @@
-// Copyright 2023 IOP Systems, Inc.
-// Licensed under the Apache License, Version 2.0
-// http://www.apache.org/licenses/LICENSE-2.0
+// SPDX-License-Identifier: (Apache-2.0)
+// Copyright Authors of rpc-perf
 
 // for now, we use some of the stats defined in the memcache protocol crate
 pub use protocol_memcache::*;

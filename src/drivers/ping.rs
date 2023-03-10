@@ -1,6 +1,5 @@
-// Copyright 2023 IOP Systems, Inc.
-// Licensed under the Apache License, Version 2.0
-// http://www.apache.org/licenses/LICENSE-2.0
+// SPDX-License-Identifier: (Apache-2.0)
+// Copyright Authors of rpc-perf
 
 use super::*;
 use protocol_ping::Compose;
@@ -95,13 +94,9 @@ async fn task(
 
         REQUEST_OK.increment();
 
-        // println!("wrote: {} bytes to buffer", write_buffer.remaining());
-
         // send request
         s.write_all(write_buffer.borrow()).await?;
         write_buffer.clear();
-
-        // println!("request sent");
 
         // read until response or timeout
         let mut remaining_time = config.request().timeout().as_nanos() as u64;
@@ -196,8 +191,6 @@ async fn task(
                 stream = Some(s);
             }
         }
-
-        // info!("next");
     }
 
     Ok(())
