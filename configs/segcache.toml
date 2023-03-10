@@ -1,5 +1,5 @@
-# An example configuration for benchmarking memcached with an 80/20 read/write
-# mix in a keyspace of 1M keys using 32B keys and 128B values.
+# An example configuration for benchmarking Pelikan Segcache with an 80/20
+# read/write mix in a keyspace of 1M keys using 32B keys and 128B values.
 
 [general]
 # specify the protocol to be used
@@ -29,7 +29,7 @@ log_max_size = 1073741824
 [target]
 # specify one or more endpoints as IP:PORT pairs
 endpoints = [
-	"127.0.0.1:11211",
+	"127.0.0.1:12321",
 ]
 
 [connection]

@@ -1,8 +1,13 @@
+# An example configuration for benchmarking Redis and demonstrating using
+# several keyspaces to test a variety of command families. Each command family
+# is using its own keyspace and covers key-value, hash, list, set, and sorted
+# set.
+
 [general]
 # specify the protocol to be used
 protocol = "resp"
 # the interval for stats integration and reporting
-interval = 1
+interval = 60
 # the number of intervals to run the test for
 duration = 300
 # controls the number of worker threads to launch, each worker thread maintains
