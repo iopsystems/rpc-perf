@@ -29,7 +29,7 @@ pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiv
         .collect();
     // create one task per "connection"
     // note: these may be channels instead of connections for multiplexed protocols
-    for _ in 0..(config.connection().poolsize() * config.general().threads()) {
+    for _ in 0..config.connection().poolsize() {
         for endpoint in &endpoints {
             runtime.spawn(task(work_receiver.clone(), *endpoint, config.clone()));
         }
