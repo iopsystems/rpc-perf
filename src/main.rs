@@ -57,6 +57,8 @@ counter!(CONNECT_OK);
 counter!(CONNECT_TIMEOUT);
 
 fn main() {
+    console_subscriber::init();
+
     // custom panic hook to terminate whole process after unwinding
     std::panic::set_hook(Box::new(|s| {
         eprintln!("{s}");
