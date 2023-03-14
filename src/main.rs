@@ -140,7 +140,7 @@ fn main() {
     });
 
     // TODO: figure out what a reasonable size is here
-    let (work_sender, work_receiver) = bounded(1_000_000);
+    let (work_sender, work_receiver) = bounded(128);
 
     output!("Protocol: {:?}", config.general().protocol());
 

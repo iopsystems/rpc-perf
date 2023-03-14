@@ -55,7 +55,13 @@ impl TrafficGenerator {
 
     pub fn generate(&self, rng: &mut dyn RngCore) -> WorkItem {
         if let Some(ref ratelimiter) = self.ratelimiter {
-            ratelimiter.wait();
+            loop {
+                if ratelimiter.try_wait().is_ok() {
+                    break;
+                }
+
+                std::thread::sleep(std::time::Duration::from_micros(100));
+            }
         }
 
         let keyspace = &self.keyspaces[self.keyspace_dist.sample(rng)];
