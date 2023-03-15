@@ -28,7 +28,7 @@ ratelimit = "0.5.1"
 redis = { version = "0.22.3", features = ["tokio-comp"] }
 ringlog = "0.1.1"
 serde = "1.0.144"
-serde_derive = "1.0.144"
+serde_json = "*"
 session = { git = "https://github.com/pelikan-io/pelikan" }
 slab = "0.4.8"
 tokio = { version = "1.21.2", features = ["full"] }

@@ -22,7 +22,7 @@ use tokio::runtime::Builder;
 use tokio::time::sleep;
 
 mod admin;
-mod cli;
+mod output;
 mod config;
 mod drivers;
 mod generators;
@@ -186,7 +186,14 @@ fn main() {
     }
 
     // provide output on cli and block until run is over
-    cli::output(&config);
+    match config.general().output_format() {
+        OutputFormat::Log => {
+            output::log(&config);
+        }
+        OutputFormat::Json => {
+            output::json(&config);
+        }
+    }
 
     // signal to other threads to shutdown
     RUNNING.store(false, Ordering::Relaxed);

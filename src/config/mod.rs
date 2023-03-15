@@ -16,7 +16,7 @@ mod workload;
 
 pub use connection::Connection;
 pub use debug::Debug;
-pub use general::General;
+pub use general::{General, OutputFormat};
 pub use protocol::Protocol;
 pub use request::Request;
 pub use target::Target;
