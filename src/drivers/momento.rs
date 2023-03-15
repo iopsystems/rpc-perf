@@ -69,11 +69,13 @@ async fn task(
                     Ok(Ok(r)) => match r.result {
                         MomentoGetStatus::HIT => {
                             GET_OK.increment();
+                            RESPONSE_HIT.increment();
                             GET_KEY_HIT.increment();
                             Ok(())
                         }
                         MomentoGetStatus::MISS => {
                             GET_OK.increment();
+                            RESPONSE_MISS.increment();
                             GET_KEY_MISS.increment();
                             Ok(())
                         }
@@ -185,11 +187,14 @@ async fn task(
                                     miss += 1;
                                 }
                             }
+                            RESPONSE_HIT.add(hit);
+                            RESPONSE_MISS.add(miss);
                             HASH_GET_FIELD_HIT.add(hit);
                             HASH_GET_FIELD_MISS.add(miss);
                             Ok(())
                         }
                         None => {
+                            RESPONSE_MISS.add(fields.len() as _);
                             HASH_GET_FIELD_MISS.add(fields.len() as _);
                             Ok(())
                         }
@@ -214,10 +219,12 @@ async fn task(
                 {
                     Ok(Ok(r)) => match r.dictionary {
                         Some(_) => {
+                            RESPONSE_HIT.increment();
                             HASH_GET_ALL_HIT.increment();
                             Ok(())
                         }
                         None => {
+                            RESPONSE_MISS.increment();
                             HASH_GET_ALL_MISS.increment();
                             Ok(())
                         }
@@ -250,8 +257,10 @@ async fn task(
                         HASH_INCR_OK.increment();
                         #[allow(clippy::if_same_then_else)]
                         if r.value == amount {
+                            RESPONSE_MISS.increment();
                             HASH_INCR_MISS.increment();
                         } else {
+                            RESPONSE_HIT.increment();
                             HASH_INCR_HIT.increment();
                         }
                         Ok(())

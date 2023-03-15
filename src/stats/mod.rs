@@ -34,6 +34,9 @@ counter!(
     "responses that were invalid for the protocol"
 );
 
+counter!(RESPONSE_HIT, "read responses which were a hit");
+counter!(RESPONSE_MISS, "read responses which were a miss");
+
 // augment the get stats
 counter!(GET_OK, "get requests that were successful");
 counter!(GET_TIMEOUT, "get requests that resulted in timeout");

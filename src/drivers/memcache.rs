@@ -190,8 +190,9 @@ async fn task(
             Err(ResponseError::Exception) => {
                 // use validate response to record the exception
                 let _ = validate_response(&work_item, &Response::error());
-                CONNECT_CURR.sub(1);
+
                 RESPONSE_EX.increment();
+                CONNECT_CURR.sub(1);
             }
             Err(ResponseError::Timeout) => {
                 RESPONSE_TIMEOUT.increment();
@@ -269,8 +270,10 @@ fn validate_response(work_item: &WorkItem, response: &Response) -> std::result::
         WorkItem::Get { .. } => match response {
             Response::Values(values) => {
                 if values.values().is_empty() {
+                    RESPONSE_MISS.increment();
                     GET_KEY_MISS.increment();
                 } else {
+                    RESPONSE_HIT.increment();
                     GET_KEY_HIT.increment();
                 }
             }

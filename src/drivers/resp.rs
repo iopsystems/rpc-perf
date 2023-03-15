@@ -91,10 +91,12 @@ async fn task(
                 .await
                 {
                     Ok(Ok(None)) => {
+                        RESPONSE_MISS.increment();
                         GET_KEY_MISS.increment();
                         Ok(())
                     }
                     Ok(Ok(Some(_))) => {
+                        RESPONSE_HIT.increment();
                         GET_KEY_HIT.increment();
                         Ok(())
                     }
@@ -182,10 +184,12 @@ async fn task(
                 .await
                 {
                     Ok(Ok(true)) => {
+                        RESPONSE_HIT.increment();
                         HASH_EXISTS_HIT.increment();
                         Ok(())
                     }
                     Ok(Ok(false)) => {
+                        RESPONSE_MISS.increment();
                         HASH_EXISTS_MISS.increment();
                         Ok(())
                     }
@@ -217,10 +221,12 @@ async fn task(
                     .await
                     {
                         Ok(Ok(Some(_))) => {
+                            RESPONSE_HIT.increment();
                             HASH_GET_FIELD_HIT.increment();
                             Ok(())
                         }
                         Ok(Ok(None)) => {
+                            RESPONSE_MISS.increment();
                             HASH_GET_FIELD_MISS.increment();
                             Ok(())
                         }
@@ -245,11 +251,14 @@ async fn task(
                                     misses += 1;
                                 }
                             }
+                            RESPONSE_HIT.add(hits);
+                            RESPONSE_MISS.add(misses);
                             HASH_GET_FIELD_HIT.add(hits);
                             HASH_GET_FIELD_MISS.add(misses);
                             Ok(())
                         }
                         Ok(Ok(None)) => {
+                            RESPONSE_MISS.add(fields.len() as _);
                             HASH_GET_FIELD_MISS.add(fields.len() as _);
                             Ok(())
                         }
@@ -282,11 +291,13 @@ async fn task(
                 .await
                 {
                     Ok(Ok(Some(_))) => {
+                        RESPONSE_HIT.increment();
                         HASH_GET_ALL_OK.increment();
                         HASH_GET_ALL_HIT.increment();
                         Ok(())
                     }
                     Ok(Ok(None)) => {
+                        RESPONSE_MISS.increment();
                         HASH_GET_ALL_OK.increment();
                         HASH_GET_ALL_MISS.increment();
                         Ok(())
@@ -632,7 +643,13 @@ async fn task(
                 )
                 .await
                 {
-                    Ok(Ok(_)) => {
+                    Ok(Ok(set)) => {
+                        if set.is_some() {
+                            RESPONSE_HIT.increment();
+                        } else {
+                            RESPONSE_MISS.increment();
+                        }
+
                         SET_MEMBERS_OK.increment();
                         Ok(())
                     }
@@ -760,7 +777,13 @@ async fn task(
                 )
                 .await
                 {
-                    Ok(Ok(_)) => {
+                    Ok(Ok(set)) => {
+                        if set.is_empty() {
+                            RESPONSE_MISS.increment();
+                        } else {
+                            RESPONSE_HIT.increment();
+                        }
+
                         SORTED_SET_INCR_OK.increment();
                         Ok(())
                     }
@@ -833,7 +856,14 @@ async fn task(
                     )
                     .await
                     {
-                        Ok(Ok(_)) => Ok(()),
+                        Ok(Ok(score)) => {
+                            if score.is_some() {
+                                RESPONSE_HIT.increment();
+                            } else {
+                                RESPONSE_MISS.increment();
+                            }
+                            Ok(())
+                        }
                         Ok(Err(_)) => Err(ResponseError::Exception),
                         Err(_) => Err(ResponseError::Timeout),
                     }
@@ -848,7 +878,16 @@ async fn task(
                     )
                     .await
                     {
-                        Ok(Ok(_)) => Ok(()),
+                        Ok(Ok(scores)) => {
+                            for score in scores {
+                                if score.is_some() {
+                                    RESPONSE_HIT.increment();
+                                } else {
+                                    RESPONSE_MISS.increment();
+                                }
+                            }
+                            Ok(())
+                        },
                         Ok(Err(_)) => Err(ResponseError::Exception),
                         Err(_) => Err(ResponseError::Timeout),
                     }
@@ -877,7 +916,13 @@ async fn task(
                 )
                 .await
                 {
-                    Ok(Ok(_)) => {
+                    Ok(Ok(rank)) => {
+                        if rank.is_some() {
+                            RESPONSE_HIT.increment();
+                        } else {
+                            RESPONSE_MISS.increment();
+                        }
+
                         SORTED_SET_RANK_OK.increment();
                         Ok(())
                     }
