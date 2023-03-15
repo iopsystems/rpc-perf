@@ -57,8 +57,6 @@ counter!(CONNECT_OK);
 counter!(CONNECT_TIMEOUT);
 
 fn main() {
-    console_subscriber::init();
-
     // custom panic hook to terminate whole process after unwinding
     std::panic::set_hook(Box::new(|s| {
         eprintln!("{s}");
@@ -164,14 +162,14 @@ fn main() {
     rt.spawn_blocking(move || reconnect(work_sender, c));
 
     debug!("Launching workload drivers");
+
     // spawn the request drivers on their own runtime
     let mut request_rt = Builder::new_multi_thread()
         .enable_all()
         .worker_threads(config.request().threads())
-        .event_interval(31)
-        .global_queue_interval(61)
         .build()
         .expect("failed to initialize tokio runtime");
+
     match config.general().protocol() {
         Protocol::Memcache => {
             drivers::memcache::launch_tasks(&mut request_rt, config.clone(), work_receiver)
@@ -190,8 +188,10 @@ fn main() {
     // provide output on cli and block until run is over
     cli::output(&config);
 
+    // signal to other threads to shutdown
     RUNNING.store(false, Ordering::Relaxed);
 
+    // delay before exiting
     std::thread::sleep(std::time::Duration::from_millis(100));
 }
 

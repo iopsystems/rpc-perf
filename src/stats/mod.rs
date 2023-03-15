@@ -74,7 +74,8 @@ counter!(
     "requests to get all fields from a hash that timed out"
 );
 
-counter!(PING);
+// `PING` counter comes from protocol-ping for now
+// counter!(PING);
 counter!(PING_EX);
 counter!(PING_OK);
 
