@@ -196,6 +196,7 @@ fn heatmap_to_buckets(heatmap: &Heatmap, _window: usize) -> Vec<Bucket> {
             })
             .collect()
     } else {
+        eprintln!("no histogram");
         vec![]
     }
 }
