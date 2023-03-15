@@ -123,7 +123,9 @@ pub fn log(config: &Config) {
 
 #[derive(Serialize)]
 struct Bucket {
-    value: u64,
+    index: usize,
+    low: u64,
+    high: u64,
     count: u32,
 }
 
@@ -188,10 +190,13 @@ fn heatmap_to_buckets(heatmap: &Heatmap, window: usize) -> Vec<Bucket> {
     if let Some(histogram) = heatmap.iter().nth(idx).map(|w| w.histogram()) {
         (*histogram)
             .into_iter()
+            .enumerate()
             // Only include buckets that actually contain values
-            .filter(|bucket| bucket.count() != 0)
-            .map(|bucket| Bucket {
-                value: bucket.high(),
+            .filter(|(_index, bucket)| bucket.count() != 0)
+            .map(|(index, bucket)| Bucket {
+                index,
+                low: bucket.low(),
+                high: bucket.high(),
                 count: bucket.count(),
             })
             .collect()
