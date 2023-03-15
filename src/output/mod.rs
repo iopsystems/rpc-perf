@@ -185,7 +185,7 @@ fn heatmap_to_buckets(heatmap: &Heatmap, _window: usize) -> Vec<Bucket> {
     //     58
     // };
 
-    if let Some(histogram) = heatmap.iter().nth(0).map(|w| w.histogram()) {
+    if let Some(histogram) = heatmap.iter().nth(60).map(|w| w.histogram()) {
         (*histogram)
             .into_iter()
             // Only include buckets that actually contain values
