@@ -221,7 +221,7 @@ pub fn json(config: &Config) {
 
         now = std::time::Instant::now();
 
-        if next >= now {
+        if next <= now {
             // let now = Instant::now();
             let elapsed = now.duration_since(prev).as_secs_f64();
             prev = now;
