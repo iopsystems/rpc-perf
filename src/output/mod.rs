@@ -179,10 +179,10 @@ struct JsonSnapshot {
 
 // gets the non-zero buckets for the most recent window in the heatmap
 fn heatmap_to_buckets(heatmap: &Heatmap, window: usize) -> Vec<Bucket> {
-    let idx = if window < 60 {
+    let idx = if window < 59 {
         window
     } else {
-        59
+        58
     };
 
     if let Some(histogram) = heatmap.iter().nth(idx).map(|w| w.histogram()) {
