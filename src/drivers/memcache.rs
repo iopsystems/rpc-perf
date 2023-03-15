@@ -177,6 +177,7 @@ async fn task(
 
                 if validate_response(&work_item, &response).is_err() {
                     RESPONSE_EX.increment();
+                    CONNECT_CURR.sub(1);
 
                     continue;
                 }
@@ -187,17 +188,8 @@ async fn task(
                 RESPONSE_LATENCY.increment(stop, latency_ns, 1);
             }
             Err(ResponseError::Exception) => {
-                // record execption
-                match &work_item {
-                    WorkItem::Ping => {
-                        error!("ping exception");
-                        PING_EX.increment();
-                    }
-                    _ => {
-                        error!("unexpected work item");
-                        unimplemented!();
-                    }
-                }
+                // use validate response to record the exception
+                let _ = validate_response(&work_item, &Response::error());
                 CONNECT_CURR.sub(1);
                 RESPONSE_EX.increment();
             }
@@ -284,7 +276,6 @@ fn validate_response(work_item: &WorkItem, response: &Response) -> std::result::
             }
             _ => {
                 GET_EX.increment();
-
                 return Err(());
             }
         },
@@ -297,7 +288,6 @@ fn validate_response(work_item: &WorkItem, response: &Response) -> std::result::
             }
             _ => {
                 REPLACE_EX.increment();
-                RESPONSE_EX.increment();
                 return Err(());
             }
         },
@@ -305,9 +295,11 @@ fn validate_response(work_item: &WorkItem, response: &Response) -> std::result::
             Response::Stored(_) => {
                 SET_STORED.increment();
             }
+            Response::NotStored(_) => {
+                SET_NOT_STORED.increment();
+            }
             _ => {
                 SET_EX.increment();
-                RESPONSE_EX.increment();
                 return Err(());
             }
         },
