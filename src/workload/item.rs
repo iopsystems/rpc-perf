@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 #[allow(dead_code)]
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum WorkItem {
     Add {
         key: Arc<[u8]>,

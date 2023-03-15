@@ -75,58 +75,23 @@ async fn task(
 
         REQUEST.increment();
 
-        // compose request into buffer
-        let request = match &work_item {
-            WorkItem::Add { key, value } => {
-                ADD.increment();
-                Request::add(
-                    (**key).to_owned().into_boxed_slice(),
-                    (**value).to_owned().into_boxed_slice(),
-                    0,
-                    Ttl::none(),
-                    false,
-                )
-            }
-            WorkItem::Get { key } => {
-                GET.increment();
-                Request::get(vec![(**key).to_owned().into_boxed_slice()].into_boxed_slice())
-            }
-            WorkItem::Delete { key } => {
-                DELETE.increment();
-                Request::delete((**key).to_owned().into_boxed_slice(), false)
-            }
-            WorkItem::Replace { key, value } => {
-                REPLACE.increment();
-                Request::replace(
-                    (**key).to_owned().into_boxed_slice(),
-                    (**value).to_owned().into_boxed_slice(),
-                    0,
-                    Ttl::none(),
-                    false,
-                )
-            }
-            WorkItem::Set { key, value } => {
-                SET.increment();
-                Request::set(
-                    (**key).to_owned().into_boxed_slice(),
-                    (**value).to_owned().into_boxed_slice(),
-                    0,
-                    Ttl::none(),
-                    false,
-                )
-            }
-            WorkItem::Reconnect => {
-                CONNECT_CURR.sub(1);
-                continue;
-            }
-            _ => {
-                stream = Some(s);
-                continue;
-            }
-        };
+        // check if we should reconnect
+        if work_item == WorkItem::Reconnect {
+            CONNECT_CURR.sub(1);
+            continue;
+        }
 
+        let request = Request::try_from(&work_item);
+
+        // skip unsupported work items
+        if request.is_err() {
+            stream = Some(s);
+            continue;
+        }
+
+        // compose request
         REQUEST_OK.increment();
-        request.compose(&mut write_buffer);
+        request.unwrap().compose(&mut write_buffer);
 
         let mut start: Instant;
 
@@ -152,7 +117,8 @@ async fn task(
                 }
             }
         }
-        // s.write_all(write_buffer.borrow()).await?;
+
+        // clear the buffers
         write_buffer.clear();
         read_buffer.clear();
 
@@ -209,49 +175,10 @@ async fn task(
             Ok(response) => {
                 let latency_ns = stop.duration_since(start).as_nanos();
 
-                // validate response
-                match &work_item {
-                    WorkItem::Get { .. } => match response {
-                        Response::Values(values) => {
-                            if values.values().is_empty() {
-                                GET_KEY_MISS.increment();
-                            } else {
-                                GET_KEY_HIT.increment();
-                            }
-                        }
-                        _ => {
-                            GET_EX.increment();
-                            RESPONSE_EX.increment();
-                            continue;
-                        }
-                    },
-                    WorkItem::Replace { .. } => match response {
-                        Response::Stored(_) => {
-                            REPLACE_STORED.increment();
-                        }
-                        Response::NotStored(_) => {
-                            REPLACE_NOT_STORED.increment();
-                        }
-                        _ => {
-                            REPLACE_EX.increment();
-                            RESPONSE_EX.increment();
-                            continue;
-                        }
-                    },
-                    WorkItem::Set { .. } => match response {
-                        Response::Stored(_) => {
-                            SET_STORED.increment();
-                        }
-                        _ => {
-                            SET_EX.increment();
-                            RESPONSE_EX.increment();
-                            continue;
-                        }
-                    },
-                    _ => {
-                        error!("unexpected work item");
-                        unimplemented!();
-                    }
+                if validate_response(&work_item, &response).is_err() {
+                    RESPONSE_EX.increment();
+
+                    continue;
                 }
 
                 stream = Some(s);
@@ -286,6 +213,107 @@ async fn task(
                 RESPONSE_BACKEND_TIMEOUT.increment();
                 stream = Some(s);
             }
+        }
+    }
+
+    Ok(())
+}
+
+impl TryFrom<&WorkItem> for Request {
+    type Error = ();
+    fn try_from(other: &WorkItem) -> std::result::Result<protocol_memcache::Request, ()> {
+        match other {
+            WorkItem::Add { key, value } => {
+                ADD.increment();
+                Ok(Request::add(
+                    (**key).to_owned().into_boxed_slice(),
+                    (**value).to_owned().into_boxed_slice(),
+                    0,
+                    Ttl::none(),
+                    false,
+                ))
+            }
+            WorkItem::Get { key } => {
+                GET.increment();
+                Ok(Request::get(
+                    vec![(**key).to_owned().into_boxed_slice()].into_boxed_slice(),
+                ))
+            }
+            WorkItem::Delete { key } => {
+                DELETE.increment();
+                Ok(Request::delete(
+                    (**key).to_owned().into_boxed_slice(),
+                    false,
+                ))
+            }
+            WorkItem::Replace { key, value } => {
+                REPLACE.increment();
+                Ok(Request::replace(
+                    (**key).to_owned().into_boxed_slice(),
+                    (**value).to_owned().into_boxed_slice(),
+                    0,
+                    Ttl::none(),
+                    false,
+                ))
+            }
+            WorkItem::Set { key, value } => {
+                SET.increment();
+                Ok(Request::set(
+                    (**key).to_owned().into_boxed_slice(),
+                    (**value).to_owned().into_boxed_slice(),
+                    0,
+                    Ttl::none(),
+                    false,
+                ))
+            }
+            _ => Err(()),
+        }
+    }
+}
+
+fn validate_response(work_item: &WorkItem, response: &Response) -> std::result::Result<(), ()> {
+    // validate response
+    match &work_item {
+        WorkItem::Get { .. } => match response {
+            Response::Values(values) => {
+                if values.values().is_empty() {
+                    GET_KEY_MISS.increment();
+                } else {
+                    GET_KEY_HIT.increment();
+                }
+            }
+            _ => {
+                GET_EX.increment();
+
+                return Err(());
+            }
+        },
+        WorkItem::Replace { .. } => match response {
+            Response::Stored(_) => {
+                REPLACE_STORED.increment();
+            }
+            Response::NotStored(_) => {
+                REPLACE_NOT_STORED.increment();
+            }
+            _ => {
+                REPLACE_EX.increment();
+                RESPONSE_EX.increment();
+                return Err(());
+            }
+        },
+        WorkItem::Set { .. } => match response {
+            Response::Stored(_) => {
+                SET_STORED.increment();
+            }
+            _ => {
+                SET_EX.increment();
+                RESPONSE_EX.increment();
+                return Err(());
+            }
+        },
+        _ => {
+            error!("unexpected work item");
+            unimplemented!();
         }
     }
 
