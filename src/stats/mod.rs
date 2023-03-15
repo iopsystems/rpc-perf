@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: (Apache-2.0)
 // Copyright Authors of rpc-perf
 
-// for now, we use some of the stats defined in the memcache protocol crate
+// for now, we use some of the stats defined in the protocol crates
 pub use protocol_memcache::*;
 
 counter!(REQUEST, "total requests dequeued");
@@ -75,7 +75,7 @@ counter!(
 );
 
 // `PING` counter comes from protocol-ping for now
-// counter!(PING);
+counter!(PING);
 counter!(PING_EX);
 counter!(PING_OK);
 

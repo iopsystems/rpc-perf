@@ -20,8 +20,7 @@ metriken = "0.1.1"
 mio = "0.8.5"
 net = { git = "https://github.com/pelikan-io/pelikan" }
 protocol-memcache = { git = "https://github.com/pelikan-io/pelikan" }
-protocol-ping = { git = "https://github.com/pelikan-io/pelikan" }
-tokio = { version = "1.21.2", features = ["full"] }
+protocol-ping = { git = "https://github.com/brayniac/pelikan", branch = "ping-stats" }
 rand = "0.8.5"
 rand_distr = "0.4.3"
 rand_xoshiro = "0.6.0"
@@ -32,6 +31,8 @@ serde = "1.0.144"
 serde_derive = "1.0.144"
 session = { git = "https://github.com/pelikan-io/pelikan" }
 slab = "0.4.8"
+tokio = { version = "1.21.2", features = ["full"] }
+tokio-boring = "2.1.5"
 toml = "0.7.2"
 zipf = "7.0.0"
 warp = "0.3.3"

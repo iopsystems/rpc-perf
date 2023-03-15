@@ -353,13 +353,27 @@ dependencies = [
 [[package]]
 name = "common"
 version = "0.3.1"
+source = "git+https://github.com/brayniac/pelikan?branch=ping-stats#35980c3a81e1da12a17019f27785566120b78bfe"
+dependencies = [
+ "boring",
+ "clocksource",
+ "macros 0.3.1 (git+https://github.com/brayniac/pelikan?branch=ping-stats)",
+ "metriken",
+ "net 0.3.1 (git+https://github.com/brayniac/pelikan?branch=ping-stats)",
+ "ringlog",
+ "serde",
+]
+
+[[package]]
+name = "common"
+version = "0.3.1"
 source = "git+https://github.com/pelikan-io/pelikan#4d3cd13896a66ddb930d90571da657b97a177df8"
 dependencies = [
  "boring",
  "clocksource",
- "macros",
+ "macros 0.3.1 (git+https://github.com/pelikan-io/pelikan)",
  "metriken",
- "net",
+ "net 0.3.1 (git+https://github.com/pelikan-io/pelikan)",
  "ringlog",
  "serde",
 ]
@@ -376,14 +390,27 @@ dependencies = [
 [[package]]
 name = "config"
 version = "0.3.1"
+source = "git+https://github.com/brayniac/pelikan?branch=ping-stats#35980c3a81e1da12a17019f27785566120b78bfe"
+dependencies = [
+ "common 0.3.1 (git+https://github.com/brayniac/pelikan?branch=ping-stats)",
+ "log",
+ "serde",
+ "serde_json",
+ "toml 0.6.0",
+ "zookeeper 0.7.0",
+]
+
+[[package]]
+name = "config"
+version = "0.3.1"
 source = "git+https://github.com/pelikan-io/pelikan#4d3cd13896a66ddb930d90571da657b97a177df8"
 dependencies = [
- "common",
+ "common 0.3.1 (git+https://github.com/pelikan-io/pelikan)",
  "log",
  "serde",
  "serde_json",
  "toml 0.5.10",
- "zookeeper",
+ "zookeeper 0.6.1",
 ]
 
 [[package]]
@@ -992,10 +1019,20 @@ dependencies = [
 [[package]]
 name = "logger"
 version = "0.3.1"
+source = "git+https://github.com/brayniac/pelikan?branch=ping-stats#35980c3a81e1da12a17019f27785566120b78bfe"
+dependencies = [
+ "common 0.3.1 (git+https://github.com/brayniac/pelikan?branch=ping-stats)",
+ "config 0.3.1 (git+https://github.com/brayniac/pelikan?branch=ping-stats)",
+ "ringlog",
+]
+
+[[package]]
+name = "logger"
+version = "0.3.1"
 source = "git+https://github.com/pelikan-io/pelikan#4d3cd13896a66ddb930d90571da657b97a177df8"
 dependencies = [
- "common",
- "config",
+ "common 0.3.1 (git+https://github.com/pelikan-io/pelikan)",
+ "config 0.3.1 (git+https://github.com/pelikan-io/pelikan)",
  "ringlog",
 ]
 
@@ -1006,6 +1043,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b823e83b2affd8f40a9ee8c29dbc56404c1e34cd2710921f2801e2cf29527afa"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "macros"
+version = "0.3.1"
+source = "git+https://github.com/brayniac/pelikan?branch=ping-stats#35980c3a81e1da12a17019f27785566120b78bfe"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -1205,6 +1252,19 @@ dependencies = [
 [[package]]
 name = "net"
 version = "0.3.1"
+source = "git+https://github.com/brayniac/pelikan?branch=ping-stats#35980c3a81e1da12a17019f27785566120b78bfe"
+dependencies = [
+ "boring",
+ "boring-sys",
+ "foreign-types-shared",
+ "libc",
+ "metriken",
+ "mio 0.8.5",
+]
+
+[[package]]
+name = "net"
+version = "0.3.1"
 source = "git+https://github.com/pelikan-io/pelikan#4d3cd13896a66ddb930d90571da657b97a177df8"
 dependencies = [
  "boring",
@@ -1245,6 +1305,15 @@ checksum = "d273983c5a657a70a3e8f2a01329822f3b8c8172b73826411a55751e404a0a4a"
 dependencies = [
  "memchr",
  "minimal-lexical",
+]
+
+[[package]]
+name = "nom8"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ae01545c9c7fc4486ab7debaf2aad7003ac19431791868fb2e8066df97fad2f8"
+dependencies = [
+ "memchr",
 ]
 
 [[package]]
@@ -1495,13 +1564,25 @@ dependencies = [
 [[package]]
 name = "protocol-common"
 version = "0.3.1"
+source = "git+https://github.com/brayniac/pelikan?branch=ping-stats#35980c3a81e1da12a17019f27785566120b78bfe"
+dependencies = [
+ "bytes 1.3.0",
+ "common 0.3.1 (git+https://github.com/brayniac/pelikan?branch=ping-stats)",
+ "config 0.3.1 (git+https://github.com/brayniac/pelikan?branch=ping-stats)",
+ "logger 0.3.1 (git+https://github.com/brayniac/pelikan?branch=ping-stats)",
+ "storage-types 0.3.1 (git+https://github.com/brayniac/pelikan?branch=ping-stats)",
+]
+
+[[package]]
+name = "protocol-common"
+version = "0.3.1"
 source = "git+https://github.com/pelikan-io/pelikan#4d3cd13896a66ddb930d90571da657b97a177df8"
 dependencies = [
  "bytes 1.3.0",
- "common",
- "config",
- "logger",
- "storage-types",
+ "common 0.3.1 (git+https://github.com/pelikan-io/pelikan)",
+ "config 0.3.1 (git+https://github.com/pelikan-io/pelikan)",
+ "logger 0.3.1 (git+https://github.com/pelikan-io/pelikan)",
+ "storage-types 0.3.1 (git+https://github.com/pelikan-io/pelikan)",
 ]
 
 [[package]]
@@ -1509,24 +1590,24 @@ name = "protocol-memcache"
 version = "0.3.1"
 source = "git+https://github.com/pelikan-io/pelikan#4d3cd13896a66ddb930d90571da657b97a177df8"
 dependencies = [
- "common",
- "logger",
+ "common 0.3.1 (git+https://github.com/pelikan-io/pelikan)",
+ "logger 0.3.1 (git+https://github.com/pelikan-io/pelikan)",
  "metriken",
  "nom 5.1.2",
- "protocol-common",
+ "protocol-common 0.3.1 (git+https://github.com/pelikan-io/pelikan)",
 ]
 
 [[package]]
 name = "protocol-ping"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#4d3cd13896a66ddb930d90571da657b97a177df8"
+source = "git+https://github.com/brayniac/pelikan?branch=ping-stats#35980c3a81e1da12a17019f27785566120b78bfe"
 dependencies = [
- "common",
- "config",
- "logger",
+ "common 0.3.1 (git+https://github.com/brayniac/pelikan?branch=ping-stats)",
+ "config 0.3.1 (git+https://github.com/brayniac/pelikan?branch=ping-stats)",
+ "logger 0.3.1 (git+https://github.com/brayniac/pelikan?branch=ping-stats)",
  "metriken",
- "protocol-common",
- "storage-types",
+ "protocol-common 0.3.1 (git+https://github.com/brayniac/pelikan?branch=ping-stats)",
+ "storage-types 0.3.1 (git+https://github.com/brayniac/pelikan?branch=ping-stats)",
 ]
 
 [[package]]
@@ -1698,7 +1779,7 @@ dependencies = [
  "metriken",
  "mio 0.8.5",
  "momento",
- "net",
+ "net 0.3.1 (git+https://github.com/pelikan-io/pelikan)",
  "protocol-memcache",
  "protocol-ping",
  "rand",
@@ -1712,6 +1793,7 @@ dependencies = [
  "session",
  "slab",
  "tokio",
+ "tokio-boring",
  "toml 0.7.3",
  "warp",
  "zipf",
@@ -1915,11 +1997,11 @@ version = "0.3.1"
 source = "git+https://github.com/pelikan-io/pelikan#4d3cd13896a66ddb930d90571da657b97a177df8"
 dependencies = [
  "bytes 1.3.0",
- "common",
+ "common 0.3.1 (git+https://github.com/pelikan-io/pelikan)",
  "log",
  "metriken",
- "net",
- "protocol-common",
+ "net 0.3.1 (git+https://github.com/pelikan-io/pelikan)",
+ "protocol-common 0.3.1 (git+https://github.com/pelikan-io/pelikan)",
 ]
 
 [[package]]
@@ -2019,6 +2101,11 @@ name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
+
+[[package]]
+name = "storage-types"
+version = "0.3.1"
+source = "git+https://github.com/brayniac/pelikan?branch=ping-stats#35980c3a81e1da12a17019f27785566120b78bfe"
 
 [[package]]
 name = "storage-types"
@@ -2154,6 +2241,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "tokio-boring"
+version = "2.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eb059337235a89f03252c6285da8f0a6747a85bbd42e9ece70178d578054cba7"
+dependencies = [
+ "boring",
+ "boring-sys",
+ "tokio",
+]
+
+[[package]]
 name = "tokio-io-timeout"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2233,14 +2331,35 @@ dependencies = [
 
 [[package]]
 name = "toml"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4fb9d890e4dc9298b70f740f615f2e05b9db37dce531f6b24fb77ac993f9f217"
+dependencies = [
+ "serde",
+ "serde_spanned",
+ "toml_datetime 0.5.1",
+ "toml_edit 0.18.1",
+]
+
+[[package]]
+name = "toml"
 version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b403acf6f2bb0859c93c7f0d967cb4a75a7ac552100f9322faf64dc047669b21"
 dependencies = [
  "serde",
  "serde_spanned",
- "toml_datetime",
- "toml_edit",
+ "toml_datetime 0.6.1",
+ "toml_edit 0.19.6",
+]
+
+[[package]]
+name = "toml_datetime"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4553f467ac8e3d374bc9a177a26801e5d0f9b211aa1673fb137a403afd1c9cf5"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
@@ -2254,6 +2373,19 @@ dependencies = [
 
 [[package]]
 name = "toml_edit"
+version = "0.18.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "56c59d8dd7d0dcbc6428bf7aa2f0e823e26e43b3c9aca15bbc9475d23e5fa12b"
+dependencies = [
+ "indexmap",
+ "nom8",
+ "serde",
+ "serde_spanned",
+ "toml_datetime 0.5.1",
+]
+
+[[package]]
+name = "toml_edit"
 version = "0.19.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "08de71aa0d6e348f070457f85af8bd566e2bc452156a423ddf22861b3a953fae"
@@ -2261,7 +2393,7 @@ dependencies = [
  "indexmap",
  "serde",
  "serde_spanned",
- "toml_datetime",
+ "toml_datetime 0.6.1",
  "winnow",
 ]
 
@@ -2805,6 +2937,22 @@ name = "zookeeper"
 version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4c33bece4e00dc8fbd92ad66a0b3f066940bdd075dd40635b555648f16d9e95"
+dependencies = [
+ "byteorder",
+ "bytes 0.5.6",
+ "lazy_static",
+ "log",
+ "mio 0.6.23",
+ "mio-extras",
+ "snowflake",
+ "zookeeper_derive",
+]
+
+[[package]]
+name = "zookeeper"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9ad5aef26217dec3996c044b71493aed1b94f42efad1139b63c3f309ffa75605"
 dependencies = [
  "byteorder",
  "bytes 0.5.6",
