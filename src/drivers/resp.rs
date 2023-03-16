@@ -2,8 +2,10 @@
 // Copyright Authors of rpc-perf
 
 use super::*;
+use crate::net::Connector;
 use crate::Instant;
 use redis::AsyncCommands;
+use redis::RedisConnectionInfo;
 use std::borrow::Borrow;
 use std::net::SocketAddr;
 use std::net::ToSocketAddrs;
@@ -41,36 +43,46 @@ async fn task(
     config: Config,
 ) -> Result<()> {
     trace!("launching resp task for endpoint: {endpoint}");
+    let connector = Connector::new(&config);
 
-    let client = redis::Client::open(format!("redis://{}", endpoint)).map_err(|e| {
-        warn!("failed to create redis client: {e}");
-        Error::new(ErrorKind::Other, "failed to create redis client")
-    })?;
+    let redis_connection_info = RedisConnectionInfo {
+        db: 0,
+        username: None,
+        password: None,
+    };
+
     let mut connection = None;
 
     while RUNNING.load(Ordering::Relaxed) {
         if connection.is_none() {
             CONNECT.increment();
-            connection =
-                match timeout(config.connection().timeout(), client.get_async_connection()).await {
-                    Ok(Ok(c)) => {
-                        CONNECT_OK.increment();
-                        CONNECT_CURR.add(1);
+            connection = match timeout(config.connection().timeout(), connector.connect(endpoint))
+                .await
+            {
+                Ok(Ok(c)) => {
+                    CONNECT_OK.increment();
+                    CONNECT_CURR.add(1);
+                    if let Ok(c) = redis::aio::Connection::new(&redis_connection_info, c).await {
                         Some(c)
-                    }
-                    Ok(Err(e)) => {
-                        trace!("error connecting: {e}");
+                    } else {
                         CONNECT_EX.increment();
                         sleep(Duration::from_millis(100)).await;
                         continue;
                     }
-                    Err(_) => {
-                        trace!("connect timeout");
-                        CONNECT_TIMEOUT.increment();
-                        sleep(Duration::from_millis(100)).await;
-                        continue;
-                    }
                 }
+                Ok(Err(e)) => {
+                    trace!("error connecting: {e}");
+                    CONNECT_EX.increment();
+                    sleep(Duration::from_millis(100)).await;
+                    continue;
+                }
+                Err(_) => {
+                    trace!("connect timeout");
+                    CONNECT_TIMEOUT.increment();
+                    sleep(Duration::from_millis(100)).await;
+                    continue;
+                }
+            }
         }
 
         let mut con = connection.take().unwrap();

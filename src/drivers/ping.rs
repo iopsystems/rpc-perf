@@ -2,6 +2,7 @@
 // Copyright Authors of rpc-perf
 
 use super::*;
+use crate::net::Connector;
 use protocol_ping::Compose;
 use protocol_ping::{Parse, Request, Response};
 use session::Buf;
@@ -43,6 +44,8 @@ async fn task(
     endpoint: SocketAddr,
     config: Config,
 ) -> Result<()> {
+    let connector = Connector::new(&config);
+
     let mut stream = None;
     let parser = protocol_ping::ResponseParser::new();
     let mut read_buffer = Buffer::new(4096);
@@ -51,20 +54,20 @@ async fn task(
     while RUNNING.load(Ordering::Relaxed) {
         if stream.is_none() {
             CONNECT.increment();
-            stream =
-                match timeout(config.connection().timeout(), TcpStream::connect(endpoint)).await {
-                    Ok(Ok(s)) => Some(s),
-                    Ok(Err(_)) => {
-                        CONNECT_EX.increment();
-                        sleep(Duration::from_millis(100)).await;
-                        continue;
-                    }
-                    Err(_) => {
-                        CONNECT_TIMEOUT.increment();
-                        sleep(Duration::from_millis(100)).await;
-                        continue;
-                    }
+            stream = match timeout(config.connection().timeout(), connector.connect(endpoint)).await
+            {
+                Ok(Ok(s)) => Some(s),
+                Ok(Err(_)) => {
+                    CONNECT_EX.increment();
+                    sleep(Duration::from_millis(100)).await;
+                    continue;
                 }
+                Err(_) => {
+                    CONNECT_TIMEOUT.increment();
+                    sleep(Duration::from_millis(100)).await;
+                    continue;
+                }
+            }
         }
 
         let mut s = stream.take().unwrap();

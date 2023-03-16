@@ -1,7 +1,7 @@
-use tokio::io::AsyncWrite;
-use tokio::io::AsyncRead;
-use tokio::net::ToSocketAddrs;
 use crate::Config;
+use tokio::io::AsyncRead;
+use tokio::io::AsyncWrite;
+use tokio::net::ToSocketAddrs;
 
 pub struct Connector {
     inner: ConnectorImpl,
@@ -28,9 +28,9 @@ impl Connector {
 
     pub async fn connect<A: ToSocketAddrs>(&self, addr: A) -> Result<Stream, std::io::Error> {
         Ok(Stream {
-            inner: StreamImpl::Tcp(tokio::net::TcpStream::connect(addr).await?)
+            inner: StreamImpl::Tcp(tokio::net::TcpStream::connect(addr).await?),
         })
-    } 
+    }
 }
 
 enum ConnectorImpl {
@@ -63,11 +63,13 @@ enum StreamImpl {
 }
 
 impl AsyncRead for Stream {
-    fn poll_read(mut self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>, buf: &mut tokio::io::ReadBuf<'_>) -> std::task::Poll<std::result::Result<(), std::io::Error>> {
+    fn poll_read(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut tokio::io::ReadBuf<'_>,
+    ) -> std::task::Poll<std::result::Result<(), std::io::Error>> {
         match &mut self.inner {
-            StreamImpl::Tcp(s) => {
-                std::pin::Pin::new(s).poll_read(cx, buf)
-            }
+            StreamImpl::Tcp(s) => std::pin::Pin::new(s).poll_read(cx, buf),
             _ => {
                 unimplemented!()
             }
@@ -76,31 +78,35 @@ impl AsyncRead for Stream {
 }
 
 impl AsyncWrite for Stream {
-    fn poll_write(mut self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>, buf: &[u8]) -> std::task::Poll<std::result::Result<usize, std::io::Error>> {
+    fn poll_write(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &[u8],
+    ) -> std::task::Poll<std::result::Result<usize, std::io::Error>> {
         match &mut self.inner {
-            StreamImpl::Tcp(s) => {
-                std::pin::Pin::new(s).poll_write(cx, buf)
-            }
+            StreamImpl::Tcp(s) => std::pin::Pin::new(s).poll_write(cx, buf),
             _ => {
                 unimplemented!()
             }
         }
     }
-    fn poll_flush(mut self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<std::result::Result<(), std::io::Error>> {
+    fn poll_flush(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<std::result::Result<(), std::io::Error>> {
         match &mut self.inner {
-            StreamImpl::Tcp(s) => {
-                std::pin::Pin::new(s).poll_flush(cx)
-            }
+            StreamImpl::Tcp(s) => std::pin::Pin::new(s).poll_flush(cx),
             _ => {
                 unimplemented!()
             }
         }
     }
-    fn poll_shutdown(mut self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<std::result::Result<(), std::io::Error>> {
+    fn poll_shutdown(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<std::result::Result<(), std::io::Error>> {
         match &mut self.inner {
-            StreamImpl::Tcp(s) => {
-                std::pin::Pin::new(s).poll_shutdown(cx)
-            }
+            StreamImpl::Tcp(s) => std::pin::Pin::new(s).poll_shutdown(cx),
             _ => {
                 unimplemented!()
             }
