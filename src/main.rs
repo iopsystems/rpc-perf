@@ -22,10 +22,11 @@ use tokio::runtime::Builder;
 use tokio::time::sleep;
 
 mod admin;
-mod output;
 mod config;
 mod drivers;
 mod generators;
+mod net;
+mod output;
 mod stats;
 mod workload;
 

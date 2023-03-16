@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: (Apache-2.0)
 // Copyright Authors of rpc-perf
 
+use crate::net::Connector;
 use super::*;
 
 use protocol_memcache::{Compose, Parse, Request, Response, Ttl};
@@ -38,6 +39,8 @@ async fn task(
     endpoint: SocketAddr,
     config: Config,
 ) -> Result<()> {
+    let connector = Connector::new(&config);
+
     let mut stream = None;
     let parser = protocol_memcache::ResponseParser {};
     let mut read_buffer = Buffer::new(4096);
@@ -47,7 +50,7 @@ async fn task(
         if stream.is_none() {
             CONNECT.increment();
             stream =
-                match timeout(config.connection().timeout(), TcpStream::connect(endpoint)).await {
+                match timeout(config.connection().timeout(), connector.connect(endpoint)).await {
                     Ok(Ok(s)) => {
                         CONNECT_OK.increment();
                         CONNECT_CURR.add(1);

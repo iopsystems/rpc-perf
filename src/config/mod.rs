@@ -12,6 +12,7 @@ mod general;
 mod protocol;
 mod request;
 mod target;
+mod tls;
 mod workload;
 
 pub use connection::Connection;
@@ -20,6 +21,7 @@ pub use general::{General, OutputFormat};
 pub use protocol::Protocol;
 pub use request::Request;
 pub use target::Target;
+pub use tls::Tls;
 pub use workload::{Command, Keyspace, ValueKind, Verb, Workload};
 
 #[derive(Clone, Deserialize)]
@@ -28,6 +30,7 @@ pub struct Config {
     connection: Connection,
     debug: Debug,
     target: Target,
+    tls: Tls,
     request: Request,
     workload: Workload,
 }
@@ -69,6 +72,10 @@ impl Config {
 
     pub fn target(&self) -> &Target {
         &self.target
+    }
+
+    pub fn tls(&self) -> &Tls {
+        &self.tls
     }
 
     pub fn request(&self) -> &Request {

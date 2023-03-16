@@ -887,7 +887,7 @@ async fn task(
                                 }
                             }
                             Ok(())
-                        },
+                        }
                         Ok(Err(_)) => Err(ResponseError::Exception),
                         Err(_) => Err(ResponseError::Timeout),
                     }

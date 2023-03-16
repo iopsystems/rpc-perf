@@ -30,7 +30,7 @@ impl General {
     }
 
     pub fn output_format(&self) -> OutputFormat {
-    	self.output_format
+        self.output_format
     }
 }
 
@@ -38,8 +38,8 @@ impl General {
 #[serde(rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
 pub enum OutputFormat {
-	Log,
-	Json,
+    Log,
+    Json,
 }
 
 impl Default for OutputFormat {

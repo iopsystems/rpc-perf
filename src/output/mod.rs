@@ -181,11 +181,7 @@ struct JsonSnapshot {
 
 // gets the non-zero buckets for the most recent window in the heatmap
 fn heatmap_to_buckets(heatmap: &Heatmap, window: usize) -> Vec<Bucket> {
-    let idx = if window > 59 {
-        1
-    } else {
-        60 - window
-    };
+    let idx = if window > 59 { 1 } else { 60 - window };
 
     if let Some(histogram) = heatmap.iter().nth(idx).map(|w| w.histogram()) {
         (*histogram)
@@ -247,7 +243,7 @@ pub fn json(config: &Config) {
                 reconnect: Stat::RequestReconnect.delta(&mut snapshot),
                 unsupported: Stat::RequestUnsupported.delta(&mut snapshot),
             };
-            
+
             let response_ok = Stat::ResponseOk.delta(&mut snapshot);
             let response_ex = Stat::ResponseEx.delta(&mut snapshot);
             let response_timeout = Stat::ResponseTimeout.delta(&mut snapshot);
@@ -262,7 +258,7 @@ pub fn json(config: &Config) {
                 miss: 0,
             };
 
-            let json =  JsonSnapshot {
+            let json = JsonSnapshot {
                 window: window_id,
                 elapsed,
                 connections,
