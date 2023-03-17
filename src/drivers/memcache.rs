@@ -7,39 +7,26 @@ use crate::net::Connector;
 use protocol_memcache::{Compose, Parse, Request, Response, Ttl};
 use session::{Buf, BufMut, Buffer};
 use std::borrow::{Borrow, BorrowMut};
-use std::net::{SocketAddr, ToSocketAddrs};
 
 /// Launch tasks with one conncetion per task as memcache protocol is not mux-enabled.
 pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiver<WorkItem>) {
     debug!("launching memcache protocol tasks");
 
-    let endpoints: Vec<SocketAddr> = config
-        .target()
-        .endpoints()
-        .iter()
-        .map(|e| {
-            e.to_socket_addrs()
-                .expect("bad endpoint")
-                .next()
-                .expect("lookup failed")
-        })
-        .collect();
-
     // create one task per connection
     for _ in 0..config.connection().poolsize() {
-        for endpoint in &endpoints {
-            runtime.spawn(task(work_receiver.clone(), *endpoint, config.clone()));
+        for endpoint in config.target().endpoints() {
+            runtime.spawn(task(
+                work_receiver.clone(),
+                endpoint.clone(),
+                config.clone(),
+            ));
         }
     }
 }
 
 #[allow(clippy::slow_vector_initialization)]
-async fn task(
-    work_receiver: Receiver<WorkItem>,
-    endpoint: SocketAddr,
-    config: Config,
-) -> Result<()> {
-    let connector = Connector::new(&config);
+async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Config) -> Result<()> {
+    let connector = Connector::new(&config)?;
 
     let mut stream = None;
     let parser = protocol_memcache::ResponseParser {};
@@ -49,24 +36,24 @@ async fn task(
     while RUNNING.load(Ordering::Relaxed) {
         if stream.is_none() {
             CONNECT.increment();
-            stream = match timeout(config.connection().timeout(), connector.connect(endpoint)).await
-            {
-                Ok(Ok(s)) => {
-                    CONNECT_OK.increment();
-                    CONNECT_CURR.add(1);
-                    Some(s)
+            stream =
+                match timeout(config.connection().timeout(), connector.connect(&endpoint)).await {
+                    Ok(Ok(s)) => {
+                        CONNECT_OK.increment();
+                        CONNECT_CURR.add(1);
+                        Some(s)
+                    }
+                    Ok(Err(_)) => {
+                        CONNECT_EX.increment();
+                        sleep(Duration::from_millis(100)).await;
+                        continue;
+                    }
+                    Err(_) => {
+                        CONNECT_TIMEOUT.increment();
+                        sleep(Duration::from_millis(100)).await;
+                        continue;
+                    }
                 }
-                Ok(Err(_)) => {
-                    CONNECT_EX.increment();
-                    sleep(Duration::from_millis(100)).await;
-                    continue;
-                }
-                Err(_) => {
-                    CONNECT_TIMEOUT.increment();
-                    sleep(Duration::from_millis(100)).await;
-                    continue;
-                }
-            }
         }
 
         let mut s = stream.take().unwrap();
@@ -96,30 +83,9 @@ async fn task(
         REQUEST_OK.increment();
         request.unwrap().compose(&mut write_buffer);
 
-        let mut start: Instant;
-
         // send request
-        loop {
-            s.writable().await?;
-            start = Instant::now();
-
-            match s.try_write(write_buffer.borrow()) {
-                Ok(n) => {
-                    write_buffer.advance(n);
-                    if write_buffer.remaining() == 0 {
-                        break;
-                    } else {
-                        continue;
-                    }
-                }
-                Err(ref e) if e.kind() == ErrorKind::WouldBlock => {
-                    continue;
-                }
-                Err(e) => {
-                    return Err(e);
-                }
-            }
-        }
+        let start = Instant::now();
+        s.write_all(write_buffer.borrow()).await?;
 
         // clear the buffers
         write_buffer.clear();

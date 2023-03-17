@@ -7,43 +7,29 @@ use crate::Instant;
 use redis::AsyncCommands;
 use redis::RedisConnectionInfo;
 use std::borrow::Borrow;
-use std::net::SocketAddr;
-use std::net::ToSocketAddrs;
 
 /// Launch tasks with one conncetion per task as RESP protocol is not mux-enabled.
 pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiver<WorkItem>) {
     debug!("launching resp protocol tasks");
 
-    let endpoints: Vec<SocketAddr> = config
-        .target()
-        .endpoints()
-        .iter()
-        .map(|e| {
-            e.to_socket_addrs()
-                .expect("bad endpoint")
-                .next()
-                .expect("lookup failed")
-        })
-        .collect();
-
     // create one task per "connection"
     // note: these may be channels instead of connections for multiplexed protocols
     for _ in 0..config.connection().poolsize() {
-        for endpoint in &endpoints {
-            runtime.spawn(task(work_receiver.clone(), *endpoint, config.clone()));
+        for endpoint in config.target().endpoints() {
+            runtime.spawn(task(
+                work_receiver.clone(),
+                endpoint.clone(),
+                config.clone(),
+            ));
         }
     }
 }
 
 #[allow(dead_code)]
 #[allow(clippy::slow_vector_initialization)]
-async fn task(
-    work_receiver: Receiver<WorkItem>,
-    endpoint: SocketAddr,
-    config: Config,
-) -> Result<()> {
+async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Config) -> Result<()> {
     trace!("launching resp task for endpoint: {endpoint}");
-    let connector = Connector::new(&config);
+    let connector = Connector::new(&config)?;
 
     let redis_connection_info = RedisConnectionInfo {
         db: 0,
@@ -56,7 +42,7 @@ async fn task(
     while RUNNING.load(Ordering::Relaxed) {
         if connection.is_none() {
             CONNECT.increment();
-            connection = match timeout(config.connection().timeout(), connector.connect(endpoint))
+            connection = match timeout(config.connection().timeout(), connector.connect(&endpoint))
                 .await
             {
                 Ok(Ok(c)) => {

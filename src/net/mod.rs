@@ -1,60 +1,110 @@
+// SPDX-License-Identifier: (Apache-2.0)
+// Copyright Authors of rpc-perf
+
 use crate::Config;
+use boring::ssl::{SslFiletype, SslMethod};
+use boring::x509::X509;
+use std::io::{Error, ErrorKind, Result};
 use tokio::io::AsyncRead;
 use tokio::io::AsyncWrite;
-use tokio::net::ToSocketAddrs;
 
 pub struct Connector {
     inner: ConnectorImpl,
 }
 
 impl Connector {
-    pub fn new(config: &Config) -> Self {
+    pub fn new(config: &Config) -> Result<Self> {
         let private_key = config.tls().private_key();
         let certificate = config.tls().certificate();
         let certificate_chain = config.tls().certificate_chain();
         let _ca_file = config.tls().ca_file();
 
         if private_key.is_some() && (certificate.is_some() || certificate_chain.is_some()) {
-            eprintln!("TLS is not implemented.");
-            Connector {
-                inner: ConnectorImpl::Tcp,
+            let mut ssl_connector = boring::ssl::SslConnector::builder(SslMethod::tls_client())?;
+
+            ssl_connector.set_private_key_file(private_key.unwrap(), SslFiletype::PEM)?;
+
+            match (certificate, certificate_chain) {
+                (Some(cert), Some(chain)) => {
+                    // assume cert is just a leaf and that we need to append the
+                    // certs in the chain file after loading the leaf cert
+
+                    ssl_connector.set_certificate_file(cert, SslFiletype::PEM)?;
+                    let pem = std::fs::read(chain)?;
+                    let chain = X509::stack_from_pem(&pem)?;
+                    for cert in chain {
+                        ssl_connector.add_extra_chain_cert(cert)?;
+                    }
+                }
+                (Some(cert), None) => {
+                    // treat cert file like it's a chain for convenience
+                    ssl_connector.set_certificate_chain_file(cert)?;
+                }
+                (None, Some(chain)) => {
+                    // load all certs from chain
+                    ssl_connector.set_certificate_chain_file(chain)?;
+                }
+                (None, None) => unreachable!(),
             }
+
+            let ssl_connector = ssl_connector.build();
+
+            Ok(Connector {
+                inner: ConnectorImpl::TlsTcp(TlsTcpConnector {
+                    inner: ssl_connector,
+                    verify_hostname: config.tls().verify_hostname(),
+                    use_sni: config.tls().use_sni(),
+                }),
+            })
         } else {
-            Connector {
+            Ok(Connector {
                 inner: ConnectorImpl::Tcp,
-            }
+            })
         }
     }
 
-    pub async fn connect<A: ToSocketAddrs>(&self, addr: A) -> Result<Stream, std::io::Error> {
-        Ok(Stream {
-            inner: StreamImpl::Tcp(tokio::net::TcpStream::connect(addr).await?),
-        })
+    pub async fn connect(&self, addr: &str) -> Result<Stream> {
+        match &self.inner {
+            ConnectorImpl::Tcp => Ok(Stream {
+                inner: StreamImpl::Tcp(tokio::net::TcpStream::connect(addr).await?),
+            }),
+            ConnectorImpl::TlsTcp(connector) => {
+                let stream = tokio::net::TcpStream::connect(addr).await?;
+                let domain = addr.split(':').next().unwrap().to_owned();
+
+                let config = connector
+                    .inner
+                    .configure()?
+                    .verify_hostname(connector.verify_hostname)
+                    .use_server_name_indication(connector.use_sni);
+
+                match tokio_boring::connect(config, &domain, stream).await {
+                    Ok(stream) => Ok(Stream {
+                        inner: StreamImpl::TlsTcp(stream),
+                    }),
+                    Err(e) => match e.as_io_error() {
+                        Some(e) => Err(Error::new(e.kind(), e.to_string())),
+                        None => Err(Error::new(ErrorKind::Other, e.to_string())),
+                    },
+                }
+            }
+        }
     }
 }
 
 enum ConnectorImpl {
     Tcp,
+    TlsTcp(TlsTcpConnector),
+}
+
+pub struct TlsTcpConnector {
+    inner: boring::ssl::SslConnector,
+    verify_hostname: bool,
+    use_sni: bool,
 }
 
 pub struct Stream {
     inner: StreamImpl,
-}
-
-impl Stream {
-    pub async fn writable(&self) -> Result<(), std::io::Error> {
-        match &self.inner {
-            StreamImpl::Tcp(s) => s.writable().await,
-            _ => unimplemented!(),
-        }
-    }
-
-    pub fn try_write(&mut self, buf: &[u8]) -> Result<usize, std::io::Error> {
-        match &self.inner {
-            StreamImpl::Tcp(s) => s.try_write(buf),
-            _ => unimplemented!(),
-        }
-    }
 }
 
 enum StreamImpl {
@@ -70,9 +120,7 @@ impl AsyncRead for Stream {
     ) -> std::task::Poll<std::result::Result<(), std::io::Error>> {
         match &mut self.inner {
             StreamImpl::Tcp(s) => std::pin::Pin::new(s).poll_read(cx, buf),
-            _ => {
-                unimplemented!()
-            }
+            StreamImpl::TlsTcp(s) => std::pin::Pin::new(s).poll_read(cx, buf),
         }
     }
 }
@@ -85,9 +133,7 @@ impl AsyncWrite for Stream {
     ) -> std::task::Poll<std::result::Result<usize, std::io::Error>> {
         match &mut self.inner {
             StreamImpl::Tcp(s) => std::pin::Pin::new(s).poll_write(cx, buf),
-            _ => {
-                unimplemented!()
-            }
+            StreamImpl::TlsTcp(s) => std::pin::Pin::new(s).poll_write(cx, buf),
         }
     }
     fn poll_flush(
@@ -96,9 +142,7 @@ impl AsyncWrite for Stream {
     ) -> std::task::Poll<std::result::Result<(), std::io::Error>> {
         match &mut self.inner {
             StreamImpl::Tcp(s) => std::pin::Pin::new(s).poll_flush(cx),
-            _ => {
-                unimplemented!()
-            }
+            StreamImpl::TlsTcp(s) => std::pin::Pin::new(s).poll_flush(cx),
         }
     }
     fn poll_shutdown(
@@ -107,9 +151,7 @@ impl AsyncWrite for Stream {
     ) -> std::task::Poll<std::result::Result<(), std::io::Error>> {
         match &mut self.inner {
             StreamImpl::Tcp(s) => std::pin::Pin::new(s).poll_shutdown(cx),
-            _ => {
-                unimplemented!()
-            }
+            StreamImpl::TlsTcp(s) => std::pin::Pin::new(s).poll_shutdown(cx),
         }
     }
 }
