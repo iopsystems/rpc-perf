@@ -30,7 +30,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
     let connector = Connector::new(&config)?;
 
     let mut sender = None;
-    let mut connection = None;
+    // let mut connection = None;
 
     while RUNNING.load(Ordering::Relaxed) {
         if sender.is_none() {
@@ -41,7 +41,12 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                         CONNECT_OK.increment();
                         CONNECT_CURR.add(1);
                         sender = Some(s);
-                        connection = Some(c);
+                        // connection = Some(c);
+                        tokio::spawn(async move {
+                            if let Err(e) = c.await {
+                                eprintln!("Error in connection: {}", e);
+                            }
+                        });
                     } else {
                         CONNECT_EX.increment();
                         sleep(Duration::from_millis(100)).await;
@@ -64,8 +69,6 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
         }
 
         let mut s = sender.take().unwrap();
-        let c = connection.take().unwrap();
-
         
 
         let work_item = work_receiver
@@ -93,7 +96,6 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
             _ => {
                 REQUEST_UNSUPPORTED.increment();
                 sender = Some(s);
-                connection = Some(c);
                 continue;
             }
         };
@@ -131,7 +133,6 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                 }
 
                 sender = Some(s);
-                connection = Some(c);
 
                 
             }
