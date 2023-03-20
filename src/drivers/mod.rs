@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: (Apache-2.0)
 // Copyright Authors of rpc-perf
 
+pub mod http1;
 pub mod memcache;
 pub mod momento;
 pub mod ping;
@@ -12,7 +13,6 @@ use ::momento::MomentoError;
 use async_channel::Receiver;
 use std::io::{Error, ErrorKind, Result};
 use tokio::io::*;
-use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
 use tokio::time::{timeout, Duration};
 

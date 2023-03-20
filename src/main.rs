@@ -172,6 +172,9 @@ fn main() {
         .expect("failed to initialize tokio runtime");
 
     match config.general().protocol() {
+        Protocol::Http1 => {
+            drivers::http1::launch_tasks(&mut request_rt, config.clone(), work_receiver)
+        }
         Protocol::Memcache => {
             drivers::memcache::launch_tasks(&mut request_rt, config.clone(), work_receiver)
         }

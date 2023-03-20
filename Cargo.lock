@@ -1731,6 +1731,8 @@ dependencies = [
  "clap",
  "clocksource",
  "foreign-types-shared",
+ "http",
+ "hyper",
  "metriken",
  "mio 0.8.6",
  "momento",
