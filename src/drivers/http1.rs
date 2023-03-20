@@ -93,6 +93,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
             _ => {
                 REQUEST_UNSUPPORTED.increment();
                 sender = Some(s);
+                connection = Some(c);
                 continue;
             }
         };
@@ -100,12 +101,12 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
         REQUEST_OK.increment();
 
         // send request
-        let response = timeout(config.request().timeout(), s.send_request(request)).await;
+        let response = s.send_request(request).await;
 
         let stop = Instant::now();
 
         match response {
-            Ok(Ok(response)) => {
+            Ok(response) => {
                 // validate response
                 match work_item {
                     WorkItem::Get { .. } => match response.status() {
@@ -134,7 +135,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
 
                 
             }
-            Ok(Err(_e)) => {
+            Err(_e) => {
                 // record execption
                 match work_item {
                     WorkItem::Get { .. } => {
@@ -146,10 +147,10 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                     }
                 }
             }
-            Err(_) => {
-                error!("timeout");
-                RESPONSE_TIMEOUT.increment();
-            }
+            // Err(_) => {
+            //     error!("timeout");
+            //     RESPONSE_TIMEOUT.increment();
+            // }
         }
 
 
