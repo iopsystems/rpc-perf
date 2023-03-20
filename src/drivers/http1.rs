@@ -29,11 +29,13 @@ pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiv
 async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Config) -> Result<()> {
     let connector = Connector::new(&config)?;
 
+
     let mut sender = None;
     // let mut connection = None;
 
     while RUNNING.load(Ordering::Relaxed) {
         if sender.is_none() {
+            info!("connecting");
             CONNECT.increment();
             match timeout(config.connection().timeout(), connector.connect(&endpoint)).await {
                 Ok(Ok(s)) => {
@@ -78,6 +80,8 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
 
         let start = Instant::now();
 
+        info!("build request");
+
         // compose request into buffer
         let request = match work_item {
             WorkItem::Get { .. } => {
@@ -102,10 +106,14 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
 
         REQUEST_OK.increment();
 
+        info!("send request");
+
         // send request
         let response = s.send_request(request).await;
 
         let stop = Instant::now();
+
+        info!("process response");
 
         match response {
             Ok(response) => {
@@ -132,9 +140,9 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                     continue;
                 }
 
-                sender = Some(s);
+                info!("ready");
 
-                
+                sender = Some(s);
             }
             Err(_e) => {
                 // record execption
