@@ -53,6 +53,7 @@ threads = 1
 [[workload.keyspace]]
 # sets the relative weight of this keyspace: defaults to 1
 weight = 1
+nkeys = 1
 # controls what commands will be used in this keyspace
 commands = [
 	# get /

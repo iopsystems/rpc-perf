@@ -38,6 +38,8 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
             match timeout(config.connection().timeout(), connector.connect(&endpoint)).await {
                 Ok(Ok(s)) => {
                     if let Ok((s, c)) = http1::handshake(s).await {
+                        CONNECT_OK.increment();
+                        CONNECT_CURR.add(1);
                         sender = Some(s);
                         connection = Some(c);
                     } else {
@@ -64,9 +66,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
         let mut s = sender.take().unwrap();
         let c = connection.take().unwrap();
 
-        if s.ready().await.is_err() {
-            continue;
-        }
+        
 
         let work_item = work_receiver
             .recv()
@@ -122,11 +122,17 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                     }
                 }
 
+                RESPONSE_OK.increment();
+                RESPONSE_LATENCY.increment(stop, stop.duration_since(start).as_nanos(), 1);
+
+                if s.ready().await.is_err() {
+                    continue;
+                }
+
                 sender = Some(s);
                 connection = Some(c);
 
-                RESPONSE_OK.increment();
-                RESPONSE_LATENCY.increment(stop, stop.duration_since(start).as_nanos(), 1);
+                
             }
             Ok(Err(_e)) => {
                 // record execption
@@ -145,6 +151,8 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                 RESPONSE_TIMEOUT.increment();
             }
         }
+
+
     }
 
     Ok(())
