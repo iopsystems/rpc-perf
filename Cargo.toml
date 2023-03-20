@@ -29,7 +29,7 @@ rand_distr = "0.4.3"
 rand_xoshiro = "0.6.0"
 ratelimit = "0.5.1"
 redis = { version = "0.22.3", features = ["tokio-comp"] }
-reqwest = { version = "0.11.15", features = ["rustls"] }
+reqwest = { version = "0.11.15", default-features = false, features = ["rustls-tls"] }
 ringlog = "0.1.1"
 serde = "1.0.144"
 serde_json = "*"
