@@ -38,12 +38,15 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
             .await
             .map_err(|_| Error::new(ErrorKind::Other, "channel closed"))?;
 
-        let start = Instant::now();
+        REQUEST.increment();
 
         // compose request into buffer
         let request = match work_item {
             WorkItem::Get { .. } => {
-                client.get(format!("http://{endpoint}/")).build().expect("failed to create request")
+                client
+                    .get(format!("http://{endpoint}/"))
+                    .build()
+                    .expect("failed to create request")
 
                 // Request::Ping.compose(&mut write_buffer);
             }
@@ -61,8 +64,8 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
         REQUEST_OK.increment();
 
         // send request
+        let start = Instant::now();
         let response = client.execute(request).await;
-
         let stop = Instant::now();
 
         match response {
@@ -96,7 +99,6 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                         }
                     }
                 }
-                
             }
         }
     }

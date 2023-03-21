@@ -64,7 +64,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
             .await
             .map_err(|_| Error::new(ErrorKind::Other, "channel closed"))?;
 
-        let start = Instant::now();
+        REQUEST.increment();
 
         // compose request into buffer
         match work_item {
@@ -85,6 +85,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
         REQUEST_OK.increment();
 
         // send request
+        let start = Instant::now();
         s.write_all(write_buffer.borrow()).await?;
         write_buffer.clear();
 
