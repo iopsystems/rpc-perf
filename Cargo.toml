@@ -12,11 +12,11 @@ license = "Apache-2.0"
 async-channel = "1.8.0"
 backtrace = "0.3.67"
 boring = "2.1.0"
-boring-sys = "*"
+boring-sys = "2.1.0"
 bytes = "1.2.1"
 clap = "4.1.6"
 clocksource = "0.6.0"
-foreign-types-shared = "*"
+foreign-types-shared = "0.3.1"
 hyper = { version = "0.14.25", features = ["backports", "http1", "http2", "client"] }
 momento = "0.26.2"
 metriken = "0.1.1"
@@ -32,7 +32,7 @@ redis = { version = "0.22.3", features = ["tokio-comp"] }
 reqwest = { version = "0.11.15", default-features = false, features = ["rustls-tls"] }
 ringlog = "0.1.1"
 serde = "1.0.144"
-serde_json = "*"
+serde_json = "1.0.94"
 session = { git = "https://github.com/pelikan-io/pelikan" }
 slab = "0.4.8"
 tokio = { version = "1.21.2", features = ["full"] }
@@ -41,22 +41,22 @@ toml = "0.7.2"
 zipf = "7.0.0"
 warp = "0.3.3"
 
-# [profile.release]
-# opt-level = 3
-# debug = true
-# rpath = false
-# lto = true
-# debug-assertions = false
-# codegen-units = 1
+[profile.release]
+opt-level = 3
+debug = true
+rpath = false
+lto = true
+debug-assertions = false
+codegen-units = 1
 
-# [profile.bench]
-# opt-level = 3
-# debug = true
-# rpath = false
-# lto = true
-# debug-assertions = false
-# codegen-units = 1
+[profile.bench]
+opt-level = 3
+debug = true
+rpath = false
+lto = true
+debug-assertions = false
+codegen-units = 1
 
-# [profile.dev]
-# debug = true
-# opt-level = 0
+[profile.dev]
+debug = true
+opt-level = 0
