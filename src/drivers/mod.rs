@@ -2,6 +2,7 @@
 // Copyright Authors of rpc-perf
 
 pub mod http1;
+pub mod http2;
 pub mod memcache;
 pub mod momento;
 pub mod ping;

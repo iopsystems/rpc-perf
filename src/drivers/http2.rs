@@ -1,20 +1,36 @@
 // SPDX-License-Identifier: (Apache-2.0)
 // Copyright Authors of rpc-perf
 
+use std::sync::Arc;
 use super::*;
 
 use reqwest::Client;
 
 /// Launch tasks with one conncetion per task as http/1.1 is not mux'd
 pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiver<WorkItem>) {
-    debug!("launching http1 protocol tasks");
+    debug!("launching http2 protocol tasks");
+
+    let client = Arc::new(Client::builder()
+        .http2_prior_knowledge()
+        .user_agent("rpc-perf/1.0")
+        .timeout(config.request().timeout())
+        .connect_timeout(config.connection().timeout())
+        .pool_idle_timeout(None)
+        .build()
+        .expect("failed to create client"));
+
+    // technically, we might not have an open connection until a request is sent
+    // but this is the only mechanism we have right now to make these stats look
+    // sensible in the output
+    CONNECT.increment();
+    CONNECT_CURR.add(1);
 
     for _ in 0..config.connection().poolsize() {
         for endpoint in config.target().endpoints() {
             runtime.spawn(task(
                 work_receiver.clone(),
                 endpoint.clone(),
-                config.clone(),
+                client.clone(),
             ));
         }
     }
@@ -22,22 +38,7 @@ pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiv
 
 // a task for http/1.1
 #[allow(clippy::slow_vector_initialization)]
-async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Config) -> Result<()> {
-    // technically, we might not have an open connection until a request is sent
-    // but this is the only mechanism we have right now to make these stats look
-    // sensible in the output
-    CONNECT.increment();
-    CONNECT_CURR.add(1);
-
-    let client = Client::builder()
-        .http1_only()
-        .user_agent("rpc-perf/1.0")
-        .timeout(config.request().timeout())
-        .connect_timeout(config.connection().timeout())
-        .pool_idle_timeout(None)
-        .build()
-        .expect("failed to create client");
-
+async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, client: Arc<Client>) -> Result<()> {
     while RUNNING.load(Ordering::Relaxed) {
         let work_item = work_receiver
             .recv()

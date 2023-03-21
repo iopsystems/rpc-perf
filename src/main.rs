@@ -175,6 +175,9 @@ fn main() {
         Protocol::Http1 => {
             drivers::http1::launch_tasks(&mut request_rt, config.clone(), work_receiver)
         }
+        Protocol::Http2 => {
+            drivers::http2::launch_tasks(&mut request_rt, config.clone(), work_receiver)
+        }
         Protocol::Memcache => {
             drivers::memcache::launch_tasks(&mut request_rt, config.clone(), work_receiver)
         }
