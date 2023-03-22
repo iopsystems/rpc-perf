@@ -18,7 +18,7 @@ clap = "4.1.6"
 clocksource = "0.6.0"
 foreign-types-shared = "0.3.1"
 http-body-util = "0.1.0-rc.2"
-hyper = { path = "./hyper", features = ["http1", "http2", "client"]}
+hyper = { version = "1.0.0-rc.3", features = ["http1", "http2", "client"]}
 # hyper = { version = "0.14.25", features = ["backports", "http1", "http2", "client"] }
 momento = "0.26.2"
 metriken = "0.1.1"
