@@ -35,6 +35,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
         .timeout(config.request().timeout())
         .connect_timeout(config.connection().timeout())
         .pool_idle_timeout(None)
+        .connection_verbose(true)
         .build()
         .expect("failed to create client");
 
