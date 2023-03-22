@@ -1,9 +1,13 @@
 // SPDX-License-Identifier: (Apache-2.0)
 // Copyright Authors of rpc-perf
 
+use bytes::Bytes;
+use hyper::{Uri, Request};
+use crate::net::Connector;
+use http_body_util::Empty;
 use super::*;
 
-use reqwest::Client;
+// use reqwest::Client;
 
 /// Launch tasks with one conncetion per task as http/1.1 is not mux'd
 pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiver<WorkItem>) {
@@ -23,23 +27,47 @@ pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiv
 // a task for http/1.1
 #[allow(clippy::slow_vector_initialization)]
 async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Config) -> Result<()> {
-    // technically, we might not have an open connection until a request is sent
-    // but this is the only mechanism we have right now to make these stats look
-    // sensible in the output
-    CONNECT.increment();
-    CONNECT_CURR.add(1);
-
-    let client = Client::builder()
-        .http1_only()
-        .user_agent("rpc-perf/1.0")
-        .timeout(config.request().timeout())
-        .connect_timeout(config.connection().timeout())
-        .pool_idle_timeout(None)
-        .connection_verbose(true)
-        .build()
-        .expect("failed to create client");
+    let connector = Connector::new(&config)?;
+    let mut sender = None;
 
     while RUNNING.load(Ordering::Relaxed) {
+        if sender.is_none() {
+            CONNECT.increment();
+            let stream =
+                match timeout(config.connection().timeout(), connector.connect(&endpoint)).await {
+                    Ok(Ok(s)) => s,
+                    Ok(Err(_)) => {
+                        CONNECT_EX.increment();
+                        sleep(Duration::from_millis(100)).await;
+                        continue;
+                    }
+                    Err(_) => {
+                        CONNECT_TIMEOUT.increment();
+                        sleep(Duration::from_millis(100)).await;
+                        continue;
+                    }
+                };
+
+            let (s, conn) = match hyper::client::conn::http1::handshake(stream).await {
+                Ok((s,c)) => (s, c),
+                Err(_e) => {
+                    CONNECT_EX.increment();
+                    sleep(Duration::from_millis(100)).await;
+                    continue;
+                }
+            };
+
+            sender = Some(s);
+
+            tokio::task::spawn(async move {
+                if let Err(err) = conn.await {
+                    println!("Connection failed: {:?}", err);
+                }
+            });
+        }
+
+        let mut s = sender.take().unwrap();
+
         let work_item = work_receiver
             .recv()
             .await
@@ -50,12 +78,12 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
         // compose request into buffer
         let request = match work_item {
             WorkItem::Get { .. } => {
-                client
-                    .get(format!("http://{endpoint}/"))
-                    .build()
-                    .expect("failed to create request")
-
-                // Request::Ping.compose(&mut write_buffer);
+                let url: Uri = "http://{endpoint}/".parse().unwrap();
+                let authority = url.authority().unwrap().clone();
+                Request::builder()
+                    .uri(url)
+                    .header(hyper::header::HOST, authority.as_str())
+                    .body(Empty::<Bytes>::new()).expect("failed to build request")
             }
             WorkItem::Reconnect => {
                 REQUEST_RECONNECT.increment();
@@ -72,7 +100,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
 
         // send request
         let start = Instant::now();
-        let response = client.execute(request).await;
+        let response = s.send_request(request).await;
         let stop = Instant::now();
 
         match response {
