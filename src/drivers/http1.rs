@@ -101,11 +101,11 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
 
         // send request
         let start = Instant::now();
-        let response = s.send_request(request).await;
+        let response = timeout(config.request().timeout(), s.send_request(request)).await;
         let stop = Instant::now();
 
         match response {
-            Ok(_response) => {
+            Ok(Ok(_response)) => {
                 // validate response
                 match work_item {
                     WorkItem::Get { .. } => {
@@ -120,23 +120,22 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                 RESPONSE_OK.increment();
                 RESPONSE_LATENCY.increment(stop, stop.duration_since(start).as_nanos(), 1);
             }
-            Err(e) => {
-                if e.is_timeout() {
-                    RESPONSE_TIMEOUT.increment();
-                } else {
-                    // record execption
-                    match work_item {
-                        WorkItem::Get { .. } => {
-                            GET_EX.increment();
-                        }
-                        _ => {
-                            error!("unexpected work item");
-                            unimplemented!();
-                        }
+            Ok(Err(_e)) => {
+                // record execption
+                match work_item {
+                    WorkItem::Get { .. } => {
+                        GET_EX.increment();
+                    }
+                    _ => {
+                        error!("unexpected work item");
+                        unimplemented!();
                     }
                 }
 
                 continue;
+            }
+            Err(_) => {
+                RESPONSE_TIMEOUT.increment();
             }
         }
 
