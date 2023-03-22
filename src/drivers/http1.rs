@@ -78,7 +78,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
         // compose request into buffer
         let request = match work_item {
             WorkItem::Get { .. } => {
-                let url: Uri = "http://{endpoint}/".parse().unwrap();
+                let url: Uri = format!("http://{endpoint}/").parse().unwrap();
                 let authority = url.authority().unwrap().clone();
                 Request::builder()
                     .uri(url)
