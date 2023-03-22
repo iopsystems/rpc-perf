@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: (Apache-2.0)
 // Copyright Authors of rpc-perf
 
-use bytes::Bytes;
-use hyper::{Uri, Request};
-use crate::net::Connector;
-use http_body_util::Empty;
 use super::*;
+use crate::net::Connector;
+use bytes::Bytes;
+use http_body_util::Empty;
+use hyper::{Request, Uri};
 
 // use reqwest::Client;
 
@@ -49,7 +49,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                 };
 
             let (s, conn) = match hyper::client::conn::http1::handshake(stream).await {
-                Ok((s,c)) => (s, c),
+                Ok((s, c)) => (s, c),
                 Err(_e) => {
                     CONNECT_EX.increment();
                     sleep(Duration::from_millis(100)).await;
@@ -83,7 +83,8 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                 Request::builder()
                     .uri(url)
                     .header(hyper::header::HOST, authority.as_str())
-                    .body(Empty::<Bytes>::new()).expect("failed to build request")
+                    .body(Empty::<Bytes>::new())
+                    .expect("failed to build request")
             }
             WorkItem::Reconnect => {
                 REQUEST_RECONNECT.increment();
@@ -134,8 +135,16 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                         }
                     }
                 }
+
+                continue;
             }
         }
+
+        if s.ready().await.is_err() {
+            continue;
+        }
+
+        sender = Some(s);
     }
 
     Ok(())

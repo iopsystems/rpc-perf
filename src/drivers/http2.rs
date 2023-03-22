@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: (Apache-2.0)
 // Copyright Authors of rpc-perf
 
-use std::sync::Arc;
 use super::*;
+use std::sync::Arc;
 
 use reqwest::Client;
 
@@ -10,14 +10,16 @@ use reqwest::Client;
 pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiver<WorkItem>) {
     debug!("launching http2 protocol tasks");
 
-    let client = Arc::new(Client::builder()
-        .http2_prior_knowledge()
-        .user_agent("rpc-perf/1.0")
-        .timeout(config.request().timeout())
-        .connect_timeout(config.connection().timeout())
-        .pool_idle_timeout(None)
-        .build()
-        .expect("failed to create client"));
+    let client = Arc::new(
+        Client::builder()
+            .http2_prior_knowledge()
+            .user_agent("rpc-perf/1.0")
+            .timeout(config.request().timeout())
+            .connect_timeout(config.connection().timeout())
+            .pool_idle_timeout(None)
+            .build()
+            .expect("failed to create client"),
+    );
 
     // technically, we might not have an open connection until a request is sent
     // but this is the only mechanism we have right now to make these stats look
@@ -38,7 +40,11 @@ pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiv
 
 // a task for http/1.1
 #[allow(clippy::slow_vector_initialization)]
-async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, client: Arc<Client>) -> Result<()> {
+async fn task(
+    work_receiver: Receiver<WorkItem>,
+    endpoint: String,
+    client: Arc<Client>,
+) -> Result<()> {
     while RUNNING.load(Ordering::Relaxed) {
         let work_item = work_receiver
             .recv()
