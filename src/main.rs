@@ -226,6 +226,8 @@ enum Stat {
     ResponseOk,
     ResponseEx,
     ResponseTimeout,
+    ResponseHit,
+    ResponseMiss,
 }
 
 impl Stat {
@@ -242,6 +244,8 @@ impl Stat {
             Self::ResponseEx => &RESPONSE_EX,
             Self::ResponseOk => &RESPONSE_OK,
             Self::ResponseTimeout => &RESPONSE_TIMEOUT,
+            Self::ResponseHit => &RESPONSE_HIT,
+            Self::ResponseMiss => &RESPONSE_MISS,
         }
     }
 

@@ -53,6 +53,8 @@ pub fn log(config: &Config) {
             let response_ok = Stat::ResponseOk.delta(&mut snapshot);
             let response_ex = Stat::ResponseEx.delta(&mut snapshot);
             let response_timeout = Stat::ResponseTimeout.delta(&mut snapshot);
+            let response_hit = Stat::ResponseHit.delta(&mut snapshot);
+            let response_miss = Stat::ResponseMiss.delta(&mut snapshot);
 
             output!("-----");
             output!("Window: {}", window_id);
@@ -91,11 +93,14 @@ pub fn log(config: &Config) {
 
             let response_sr = 100.0 * response_ok as f64 / response_total as f64;
             let response_to = 100.0 * response_timeout as f64 / response_total as f64;
+            let response_hr = 100.0 * response_hit as f64 / (response_hit + response_miss) as f64;
+
 
             output!(
-                "Response: Success: {:.2} % Timeout: {:.2} %",
+                "Response: Success: {:.2} % Timeout: {:.2} % Hit: {:.2} %",
                 response_sr,
-                response_to
+                response_to,
+                response_hr,
             );
             output!(
                 "Response Rate (/s): Ok: {:.2} Error: {:.2} Timeout: {:.2}",
