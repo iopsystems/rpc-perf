@@ -134,7 +134,8 @@ fn main() {
     // spawn logging thread
     rt.spawn(async move {
         while RUNNING.load(Ordering::Relaxed) {
-            sleep(Duration::from_millis(50)).await;
+            clocksource::refresh_clock();
+            sleep(Duration::from_millis(1)).await;
             let _ = log.flush();
         }
         let _ = log.flush();

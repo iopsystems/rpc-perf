@@ -5,9 +5,8 @@ use super::*;
 use crate::net::Connector;
 use bytes::Bytes;
 use http_body_util::Empty;
+use hyper::header::{HeaderName, HeaderValue};
 use hyper::{Request, Uri};
-
-// use reqwest::Client;
 
 /// Launch tasks with one conncetion per task as http/1.1 is not mux'd
 pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiver<WorkItem>) {
@@ -57,6 +56,8 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                 }
             };
 
+            SESSION.increment();
+
             sender = Some(s);
 
             tokio::task::spawn(async move {
@@ -87,12 +88,13 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                     .expect("failed to build request")
             }
             WorkItem::Reconnect => {
+                SESSION_CLOSED_CLIENT.increment();
                 REQUEST_RECONNECT.increment();
                 continue;
             }
             _ => {
                 REQUEST_UNSUPPORTED.increment();
-                // stream = Some(s);
+                sender = Some(s);
                 continue;
             }
         };
@@ -105,7 +107,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
         let stop = Instant::now();
 
         match response {
-            Ok(Ok(_response)) => {
+            Ok(Ok(response)) => {
                 // validate response
                 match work_item {
                     WorkItem::Get { .. } => {
@@ -119,6 +121,15 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
 
                 RESPONSE_OK.increment();
                 RESPONSE_LATENCY.increment(stop, stop.duration_since(start).as_nanos(), 1);
+
+                if let Some(header) = response
+                    .headers()
+                    .get(HeaderName::from_bytes(b"Connection").unwrap())
+                {
+                    if header == HeaderValue::from_static("close") {
+                        SESSION_CLOSED_SERVER.increment();
+                    }
+                }
             }
             Ok(Err(_e)) => {
                 // record execption
@@ -131,15 +142,17 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                         unimplemented!();
                     }
                 }
-
+                SESSION_CLOSED_CLIENT.increment();
                 continue;
             }
             Err(_) => {
                 RESPONSE_TIMEOUT.increment();
+                SESSION_CLOSED_CLIENT.increment();
+                continue;
             }
         }
 
-        if s.ready().await.is_err() {
+        if let Err(_e) = s.ready().await {
             continue;
         }
 

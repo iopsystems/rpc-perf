@@ -85,6 +85,10 @@ counter!(PING_OK);
 counter!(CONNECT);
 counter!(CONNECT_EX);
 
+counter!(SESSION);
+counter!(SESSION_CLOSED_CLIENT);
+counter!(SESSION_CLOSED_SERVER);
+
 /*
  * HASHES (DICTIONARIES)
  */

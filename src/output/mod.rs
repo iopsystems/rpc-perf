@@ -95,7 +95,6 @@ pub fn log(config: &Config) {
             let response_to = 100.0 * response_timeout as f64 / response_total as f64;
             let response_hr = 100.0 * response_hit as f64 / (response_hit + response_miss) as f64;
 
-
             output!(
                 "Response: Success: {:.2} % Timeout: {:.2} % Hit: {:.2} %",
                 response_sr,
