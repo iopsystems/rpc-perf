@@ -767,7 +767,11 @@ async fn task(
         match result {
             Ok(_) => {
                 RESPONSE_OK.increment();
-                RESPONSE_LATENCY.increment(stop, stop.duration_since(start).as_nanos(), 1);
+
+                let latency = stop.duration_since(start).as_nanos();
+
+                REQUEST_LATENCY.increment(start, latency, 1);
+                RESPONSE_LATENCY.increment(stop, latency, 1);
             }
             Err(ResponseError::Exception) => {
                 RESPONSE_EX.increment();

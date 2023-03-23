@@ -48,6 +48,12 @@ type Instant = clocksource::Instant<clocksource::Nanoseconds<u64>>;
 static RUNNING: AtomicBool = AtomicBool::new(true);
 
 heatmap!(
+    REQUEST_LATENCY,
+    1_000_000_000,
+    "distribution of request latencies in nanoseconds"
+);
+
+heatmap!(
     RESPONSE_LATENCY,
     1_000_000_000,
     "distribution of response latencies in nanoseconds"
