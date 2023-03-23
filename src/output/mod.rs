@@ -184,10 +184,8 @@ struct JsonSnapshot {
 }
 
 // gets the non-zero buckets for the most recent window in the heatmap
-fn heatmap_to_buckets(heatmap: &Heatmap, window: usize) -> Vec<Bucket> {
-    let idx = if window > 59 { 1 } else { 60 - window };
-
-    if let Some(histogram) = heatmap.iter().nth(idx).map(|w| w.histogram()) {
+fn heatmap_to_buckets(heatmap: &Heatmap) -> Vec<Bucket> {
+    if let Some(histogram) = heatmap.iter().nth(60).map(|w| w.histogram()) {
         (*histogram)
             .into_iter()
             .enumerate()
@@ -268,7 +266,7 @@ pub fn json(config: &Config) {
                 connections,
                 requests,
                 responses,
-                response_latency: heatmap_to_buckets(&RESPONSE_LATENCY, window_id as usize),
+                response_latency: heatmap_to_buckets(&RESPONSE_LATENCY),
             };
 
             println!(
