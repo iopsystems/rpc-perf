@@ -180,7 +180,7 @@ struct JsonSnapshot {
     responses: Responses,
 
     // connect: Vec<Bucket>,
-    response_latency: Vec<Bucket>,
+    request_latency: Vec<Bucket>,
 }
 
 // gets the non-zero buckets for the most recent window in the heatmap
@@ -266,7 +266,7 @@ pub fn json(config: &Config) {
                 connections,
                 requests,
                 responses,
-                response_latency: heatmap_to_buckets(&RESPONSE_LATENCY),
+                request_latency: heatmap_to_buckets(&REQUEST_LATENCY),
             };
 
             println!(
