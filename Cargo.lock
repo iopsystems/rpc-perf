@@ -347,27 +347,13 @@ dependencies = [
 [[package]]
 name = "common"
 version = "0.3.1"
-source = "git+https://github.com/brayniac/pelikan?branch=ping-stats#35980c3a81e1da12a17019f27785566120b78bfe"
-dependencies = [
- "boring",
- "clocksource",
- "macros 0.3.1 (git+https://github.com/brayniac/pelikan?branch=ping-stats)",
- "metriken",
- "net 0.3.1 (git+https://github.com/brayniac/pelikan?branch=ping-stats)",
- "ringlog",
- "serde",
-]
-
-[[package]]
-name = "common"
-version = "0.3.1"
 source = "git+https://github.com/pelikan-io/pelikan#55c99b8161f56ea95cef31a7ed625402455ce65d"
 dependencies = [
  "boring",
  "clocksource",
- "macros 0.3.1 (git+https://github.com/pelikan-io/pelikan)",
+ "macros",
  "metriken",
- "net 0.3.1 (git+https://github.com/pelikan-io/pelikan)",
+ "net",
  "ringlog",
  "serde",
 ]
@@ -384,22 +370,9 @@ dependencies = [
 [[package]]
 name = "config"
 version = "0.3.1"
-source = "git+https://github.com/brayniac/pelikan?branch=ping-stats#35980c3a81e1da12a17019f27785566120b78bfe"
-dependencies = [
- "common 0.3.1 (git+https://github.com/brayniac/pelikan?branch=ping-stats)",
- "log",
- "serde",
- "serde_json",
- "toml 0.6.0",
- "zookeeper",
-]
-
-[[package]]
-name = "config"
-version = "0.3.1"
 source = "git+https://github.com/pelikan-io/pelikan#55c99b8161f56ea95cef31a7ed625402455ce65d"
 dependencies = [
- "common 0.3.1 (git+https://github.com/pelikan-io/pelikan)",
+ "common",
  "log",
  "serde",
  "serde_json",
@@ -1067,20 +1040,10 @@ dependencies = [
 [[package]]
 name = "logger"
 version = "0.3.1"
-source = "git+https://github.com/brayniac/pelikan?branch=ping-stats#35980c3a81e1da12a17019f27785566120b78bfe"
-dependencies = [
- "common 0.3.1 (git+https://github.com/brayniac/pelikan?branch=ping-stats)",
- "config 0.3.1 (git+https://github.com/brayniac/pelikan?branch=ping-stats)",
- "ringlog",
-]
-
-[[package]]
-name = "logger"
-version = "0.3.1"
 source = "git+https://github.com/pelikan-io/pelikan#55c99b8161f56ea95cef31a7ed625402455ce65d"
 dependencies = [
- "common 0.3.1 (git+https://github.com/pelikan-io/pelikan)",
- "config 0.3.1 (git+https://github.com/pelikan-io/pelikan)",
+ "common",
+ "config",
  "ringlog",
 ]
 
@@ -1091,16 +1054,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b823e83b2affd8f40a9ee8c29dbc56404c1e34cd2710921f2801e2cf29527afa"
 dependencies = [
  "libc",
-]
-
-[[package]]
-name = "macros"
-version = "0.3.1"
-source = "git+https://github.com/brayniac/pelikan?branch=ping-stats#35980c3a81e1da12a17019f27785566120b78bfe"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
 ]
 
 [[package]]
@@ -1295,19 +1248,6 @@ dependencies = [
  "safemem",
  "tempfile",
  "twoway",
-]
-
-[[package]]
-name = "net"
-version = "0.3.1"
-source = "git+https://github.com/brayniac/pelikan?branch=ping-stats#35980c3a81e1da12a17019f27785566120b78bfe"
-dependencies = [
- "boring",
- "boring-sys",
- "foreign-types-shared",
- "libc",
- "metriken",
- "mio 0.8.6",
 ]
 
 [[package]]
@@ -1599,25 +1539,13 @@ dependencies = [
 [[package]]
 name = "protocol-common"
 version = "0.3.1"
-source = "git+https://github.com/brayniac/pelikan?branch=ping-stats#35980c3a81e1da12a17019f27785566120b78bfe"
-dependencies = [
- "bytes 1.4.0",
- "common 0.3.1 (git+https://github.com/brayniac/pelikan?branch=ping-stats)",
- "config 0.3.1 (git+https://github.com/brayniac/pelikan?branch=ping-stats)",
- "logger 0.3.1 (git+https://github.com/brayniac/pelikan?branch=ping-stats)",
- "storage-types 0.3.1 (git+https://github.com/brayniac/pelikan?branch=ping-stats)",
-]
-
-[[package]]
-name = "protocol-common"
-version = "0.3.1"
 source = "git+https://github.com/pelikan-io/pelikan#55c99b8161f56ea95cef31a7ed625402455ce65d"
 dependencies = [
  "bytes 1.4.0",
- "common 0.3.1 (git+https://github.com/pelikan-io/pelikan)",
- "config 0.3.1 (git+https://github.com/pelikan-io/pelikan)",
- "logger 0.3.1 (git+https://github.com/pelikan-io/pelikan)",
- "storage-types 0.3.1 (git+https://github.com/pelikan-io/pelikan)",
+ "common",
+ "config",
+ "logger",
+ "storage-types",
 ]
 
 [[package]]
@@ -1625,24 +1553,24 @@ name = "protocol-memcache"
 version = "0.3.1"
 source = "git+https://github.com/pelikan-io/pelikan#55c99b8161f56ea95cef31a7ed625402455ce65d"
 dependencies = [
- "common 0.3.1 (git+https://github.com/pelikan-io/pelikan)",
- "logger 0.3.1 (git+https://github.com/pelikan-io/pelikan)",
+ "common",
+ "logger",
  "metriken",
  "nom",
- "protocol-common 0.3.1 (git+https://github.com/pelikan-io/pelikan)",
+ "protocol-common",
 ]
 
 [[package]]
 name = "protocol-ping"
 version = "0.3.1"
-source = "git+https://github.com/brayniac/pelikan?branch=ping-stats#35980c3a81e1da12a17019f27785566120b78bfe"
+source = "git+https://github.com/pelikan-io/pelikan#92b04c5552c8c2f0ea96ee0ab1396b46198d1033"
 dependencies = [
- "common 0.3.1 (git+https://github.com/brayniac/pelikan?branch=ping-stats)",
- "config 0.3.1 (git+https://github.com/brayniac/pelikan?branch=ping-stats)",
- "logger 0.3.1 (git+https://github.com/brayniac/pelikan?branch=ping-stats)",
+ "common",
+ "config",
+ "logger",
  "metriken",
- "protocol-common 0.3.1 (git+https://github.com/brayniac/pelikan?branch=ping-stats)",
- "storage-types 0.3.1 (git+https://github.com/brayniac/pelikan?branch=ping-stats)",
+ "protocol-common",
+ "storage-types",
 ]
 
 [[package]]
@@ -1848,7 +1776,7 @@ dependencies = [
  "metriken",
  "mio 0.8.6",
  "momento",
- "net 0.3.1 (git+https://github.com/pelikan-io/pelikan)",
+ "net",
  "protocol-memcache",
  "protocol-ping",
  "rand",
@@ -2067,11 +1995,11 @@ version = "0.3.1"
 source = "git+https://github.com/pelikan-io/pelikan#55c99b8161f56ea95cef31a7ed625402455ce65d"
 dependencies = [
  "bytes 1.4.0",
- "common 0.3.1 (git+https://github.com/pelikan-io/pelikan)",
+ "common",
  "log",
  "metriken",
- "net 0.3.1 (git+https://github.com/pelikan-io/pelikan)",
- "protocol-common 0.3.1 (git+https://github.com/pelikan-io/pelikan)",
+ "net",
+ "protocol-common",
 ]
 
 [[package]]
@@ -2165,11 +2093,6 @@ name = "spin"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
-
-[[package]]
-name = "storage-types"
-version = "0.3.1"
-source = "git+https://github.com/brayniac/pelikan?branch=ping-stats#35980c3a81e1da12a17019f27785566120b78bfe"
 
 [[package]]
 name = "storage-types"
