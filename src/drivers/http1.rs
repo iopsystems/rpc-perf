@@ -28,9 +28,16 @@ pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiv
 async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Config) -> Result<()> {
     let connector = Connector::new(&config)?;
     let mut sender = None;
+    let mut session_requests = 0;
+    let mut session_start = Instant::now();
 
     while RUNNING.load(Ordering::Relaxed) {
         if sender.is_none() {
+            if session_requests != 0 {
+                let stop = Instant::now();
+                let lifecycle_ns = (stop - session_start).as_nanos();
+                SESSION_LIFECYCLE_REQUESTS.increment(stop, lifecycle_ns, 1);
+            }
             CONNECT.increment();
             let stream =
                 match timeout(config.connection().timeout(), connector.connect(&endpoint)).await {
@@ -56,6 +63,8 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                 }
             };
 
+            session_start = Instant::now();
+            session_requests = 0;
             SESSION.increment();
 
             sender = Some(s);
@@ -159,6 +168,8 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
         if let Err(_e) = s.ready().await {
             continue;
         }
+
+        session_requests += 1;
 
         sender = Some(s);
     }

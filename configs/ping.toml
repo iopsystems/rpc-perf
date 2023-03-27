@@ -58,3 +58,5 @@ commands = [
 	# sends a `PING` and expects a `PONG`
 	{ verb = "ping", weight = 100 },
 ]
+
+[tls]

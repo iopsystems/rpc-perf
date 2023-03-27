@@ -70,3 +70,5 @@ commands = [
 	# delete a value
 	{ verb = "delete", weight = 0 },
 ]
+
+[tls]

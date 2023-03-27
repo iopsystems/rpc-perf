@@ -50,13 +50,19 @@ static RUNNING: AtomicBool = AtomicBool::new(true);
 heatmap!(
     REQUEST_LATENCY,
     1_000_000_000,
-    "distribution of request latencies in nanoseconds"
+    "distribution of request latencies in nanoseconds. incremented at time of requests disbatch."
 );
 
 heatmap!(
     RESPONSE_LATENCY,
     1_000_000_000,
-    "distribution of response latencies in nanoseconds"
+    "distribution of response latencies in nanoseconds. incremented at time of response receipt."
+);
+
+heatmap!(
+    SESSION_LIFECYCLE_REQUESTS,
+    1_000_000_000,
+    "distribution of requests per session lifecycle. incremented at time of session close."
 );
 
 gauge!(CONNECT_CURR);

@@ -60,3 +60,5 @@ commands = [
 	# get /
 	{ verb = "get", weight = 80 },
 ]
+
+[tls]
