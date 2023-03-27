@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: (Apache-2.0)
 // Copyright Authors of rpc-perf
 
+use hyper::client::conn::http2::SendRequest;
+use hyper::rt::Executor;
+use std::future::Future;
 use super::*;
 use crate::net::Connector;
 use bytes::Bytes;
@@ -8,25 +11,65 @@ use http_body_util::Empty;
 use hyper::header::{HeaderName, HeaderValue};
 use hyper::{Request, Uri};
 
-/// Launch tasks with one conncetion per task as http/1.1 is not mux'd
+#[derive(Clone)]
+struct Queue<T> {
+    tx: async_channel::Sender<T>,
+    rx: async_channel::Receiver<T>,
+}
+
+impl<T> Queue<T> {
+    pub fn new(size: usize) -> Self {
+        let (tx, rx) = async_channel::bounded::<T>(size);
+
+        Self {
+            tx,
+            rx,
+        }
+    }
+
+    pub async fn send(&self, item: T) -> std::result::Result<(), async_channel::SendError<T>> {
+        self.tx.send(item).await
+    }
+
+    pub async fn recv(&self) -> std::result::Result<T, async_channel::RecvError> {
+        self.rx.recv().await
+    }
+}
+
+// launch a pool manager and worker tasks since HTTP/2.0 is mux'ed we prepare
+// senders in the pool manager and pass them over a queue to our worker tasks
 pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiver<WorkItem>) {
-    debug!("launching http1 protocol tasks");
+    debug!("launching http2 protocol tasks");
 
     for _ in 0..config.connection().poolsize() {
         for endpoint in config.target().endpoints() {
+            let queue = Queue::new(1);
+            runtime.spawn(pool_manager(endpoint.clone(), config.clone(), queue.clone()));
+
             runtime.spawn(task(
                 work_receiver.clone(),
                 endpoint.clone(),
                 config.clone(),
+                queue.clone(),
             ));
         }
     }
 }
 
-// a task for http/1.1
-#[allow(clippy::slow_vector_initialization)]
-async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Config) -> Result<()> {
-    let connector = Connector::new(&config)?;
+struct TokioExecutor;
+
+impl<F> Executor<F> for TokioExecutor
+where
+    F: Future + Send + 'static,
+    F::Output: Send + 'static,
+{
+    fn execute(&self, future: F) {
+        tokio::spawn(future);
+    }
+}
+
+async fn pool_manager(endpoint: String, config: Config, queue: Queue<SendRequest<Empty<Bytes>>>) {
+    let connector = Connector::new(&config).expect("failed to init connector");
     let mut sender = None;
 
     while RUNNING.load(Ordering::Relaxed) {
@@ -47,7 +90,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                     }
                 };
 
-            let (s, conn) = match hyper::client::conn::http1::handshake(stream).await {
+            let (s, conn) = match hyper::client::conn::http2::handshake(TokioExecutor{}, stream).await {
                 Ok((s, c)) => (s, c),
                 Err(_e) => {
                     CONNECT_EX.increment();
@@ -65,6 +108,32 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                     println!("Connection failed: {:?}", err);
                 }
             });
+        }
+
+        let mut s = sender.take().unwrap();
+
+        if let Err(_e) = s.ready().await {
+            continue;
+        }
+
+        if queue.send(s.clone()).await.is_err() {
+            return;
+        }
+
+        sender = Some(s);
+    }
+}
+
+// a task for http/2.0
+#[allow(clippy::slow_vector_initialization)]
+async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Config, queue: Queue<SendRequest<Empty<Bytes>>>) -> Result<()> {
+    // let connector = Connector::new(&config)?;
+    let mut sender = None;
+
+    while RUNNING.load(Ordering::Relaxed) {
+        if sender.is_none() {
+            let s = queue.recv().await.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+            sender = Some(s);
         }
 
         let mut s = sender.take().unwrap();
@@ -128,7 +197,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
 
                 if let Some(header) = response
                     .headers()
-                    .get(HeaderName::from_bytes(b"Connection").unwrap())
+                    .get(HeaderName::from_bytes(b"connection").unwrap())
                 {
                     if header == HeaderValue::from_static("close") {
                         SESSION_CLOSED_SERVER.increment();
