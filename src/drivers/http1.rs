@@ -55,7 +55,10 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                 };
 
             let (s, conn) = match hyper::client::conn::http1::handshake(stream).await {
-                Ok((s, c)) => (s, c),
+                Ok((s, c)) => {
+                    CONNECT_OK.increment();
+                    (s, c)
+                }
                 Err(_e) => {
                     CONNECT_EX.increment();
                     sleep(Duration::from_millis(100)).await;
@@ -65,6 +68,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
 
             session_start = Instant::now();
             session_requests = 0;
+            CONNECT_CURR.add(1);
             SESSION.increment();
 
             sender = Some(s);
@@ -99,6 +103,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
             WorkItem::Reconnect => {
                 SESSION_CLOSED_CLIENT.increment();
                 REQUEST_RECONNECT.increment();
+                CONNECT_CURR.sub(1);
                 continue;
             }
             _ => {
@@ -156,16 +161,19 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                     }
                 }
                 SESSION_CLOSED_CLIENT.increment();
+                CONNECT_CURR.sub(1);
                 continue;
             }
             Err(_) => {
                 RESPONSE_TIMEOUT.increment();
                 SESSION_CLOSED_CLIENT.increment();
+                CONNECT_CURR.sub(1);
                 continue;
             }
         }
 
         if let Err(_e) = s.ready().await {
+            CONNECT_CURR.sub(1);
             continue;
         }
 
