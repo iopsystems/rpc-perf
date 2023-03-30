@@ -33,9 +33,10 @@ endpoints = [
 ]
 
 [connection]
-# the total number of concurrent HTTP/2.0 streams which are multiplexec on a
-# single TCP connection
+# the total number of TCP connections to maintain
 poolsize = 20
+# the number of HTTP/2.0 sessions per TCP stream
+concurrency = 10
 # the connect timeout in milliseconds
 timeout = 10000
 
@@ -54,7 +55,6 @@ threads = 1
 [[workload.keyspace]]
 # sets the relative weight of this keyspace: defaults to 1
 weight = 1
-nkeys = 1
 # controls what commands will be used in this keyspace
 commands = [
 	# get /

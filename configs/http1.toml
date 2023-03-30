@@ -10,7 +10,7 @@ interval = 1
 duration = 300
 # output is reported using the logging format on stdout. `json` output can also
 # be used here
-output_format = "json"
+output_format = "log"
 # run the admin thread with a HTTP listener at the address provided, this allows
 # stats exposition via HTTP
 admin = "127.0.0.1:9090"
@@ -29,7 +29,7 @@ log_max_size = 1073741824
 [target]
 # specify one or more endpoints as IP:PORT pairs
 endpoints = [
-	"192.168.0.72:8080",
+	"192.168.0.101:80",
 ]
 
 [connection]
@@ -50,14 +50,25 @@ timeout = 1000
 # the number of threads that will be used to generate requests
 threads = 1
 
+# [[workload.keyspace]]
+# # sets the relative weight of this keyspace: defaults to 1
+# weight = 1
+# # controls what commands will be used in this keyspace
+# commands = [
+# 	# get /
+# 	{ verb = "get", weight = 80 },
+# ]
+
 [[workload.keyspace]]
 # sets the relative weight of this keyspace: defaults to 1
 weight = 1
-nkeys = 1
-klen = 1
+# set the key length
+klen = 32
+# set the number of keys
+nkeys = 100
 # controls what commands will be used in this keyspace
 commands = [
-	# get /
+	# get /[key]
 	{ verb = "get", weight = 80 },
 ]
 

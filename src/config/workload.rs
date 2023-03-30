@@ -32,14 +32,20 @@ impl Workload {
 
 #[derive(Clone, Deserialize)]
 pub struct Keyspace {
+    #[serde(default)]
     nkeys: usize,
+    #[serde(default)]
     klen: usize,
     #[serde(default = "one")]
     weight: usize,
+    #[serde(default)]
     inner_keys_nkeys: Option<usize>,
+    #[serde(default)]
     inner_keys_klen: Option<usize>,
     commands: Vec<Command>,
+    #[serde(default)]
     vlen: Option<usize>,
+    #[serde(default)]
     vkind: Option<ValueKind>,
 }
 
@@ -84,6 +90,7 @@ pub struct Command {
     weight: usize,
     #[serde(default = "one")]
     cardinality: usize,
+    #[serde(default)]
     truncate: Option<u32>,
 }
 

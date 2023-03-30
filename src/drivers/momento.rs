@@ -12,34 +12,34 @@ use std::collections::HashMap;
 /// Launch tasks with one channel per task as gRPC is mux-enabled.
 pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiver<WorkItem>) {
     debug!("launching momento protocol tasks");
-    let client = {
-        let _guard = runtime.enter();
 
-        // initialize the Momento cache client
-        if std::env::var("MOMENTO_AUTHENTICATION").is_err() {
-            eprintln!("environment variable `MOMENTO_AUTHENTICATION` is not set");
-            std::process::exit(1);
-        }
-        let auth_token =
-            std::env::var("MOMENTO_AUTHENTICATION").expect("MOMENTO_AUTHENTICATION must be set");
-        let client =
+    for _ in 0..config.connection().poolsize() {
+        let client = {
+            let _guard = runtime.enter();
+
+            // initialize the Momento cache client
+            if std::env::var("MOMENTO_AUTHENTICATION").is_err() {
+                eprintln!("environment variable `MOMENTO_AUTHENTICATION` is not set");
+                std::process::exit(1);
+            }
+            let auth_token =
+                std::env::var("MOMENTO_AUTHENTICATION").expect("MOMENTO_AUTHENTICATION must be set");
             match SimpleCacheClientBuilder::new(auth_token, std::time::Duration::from_secs(600)) {
                 Ok(c) => c.build(),
                 Err(e) => {
                     eprintln!("could not create cache client: {}", e);
                     std::process::exit(1);
                 }
-            };
+            }
+        };
 
-        client
-    };
+        CONNECT.increment();
+        CONNECT_CURR.add(1);
 
-    CONNECT.increment();
-    CONNECT_CURR.add(1);
-
-    // create one task per channel
-    for _ in 0..config.connection().poolsize() {
-        runtime.spawn(task(config.clone(), client.clone(), work_receiver.clone()));
+        // create one task per channel
+        for _ in 0..config.connection().concurrency() {
+            runtime.spawn(task(config.clone(), client.clone(), work_receiver.clone()));
+        }
     }
 }
 

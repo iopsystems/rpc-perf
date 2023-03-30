@@ -12,6 +12,10 @@ use hyper::{Request, Uri};
 pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiver<WorkItem>) {
     debug!("launching http1 protocol tasks");
 
+    if config.connection().concurrency() > 1 {
+        error!("HTTP/1.1 does not support multiplexing sessions onto single streams. Ignoring the concurrency parameter.");
+    }
+
     for _ in 0..config.connection().poolsize() {
         for endpoint in config.target().endpoints() {
             runtime.spawn(task(
@@ -90,9 +94,10 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
         REQUEST.increment();
 
         // compose request into buffer
-        let request = match work_item {
-            WorkItem::Get { .. } => {
-                let url: Uri = format!("http://{endpoint}/").parse().unwrap();
+        let request = match &work_item {
+            WorkItem::Get { key } => {
+                let key = unsafe { std::str::from_utf8_unchecked(key) };
+                let url: Uri = format!("http://{endpoint}/{key}").parse().unwrap();
                 let authority = url.authority().unwrap().clone();
                 Request::builder()
                     .uri(url)

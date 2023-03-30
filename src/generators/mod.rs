@@ -254,7 +254,8 @@ pub struct KeyDistribution {
 
 impl Keyspace {
     pub fn new(keyspace: &config::Keyspace) -> Self {
-        let nkeys = keyspace.nkeys();
+        // nkeys must be >= 1
+        let nkeys = std::cmp::max(1, keyspace.nkeys());
         let klen = keyspace.klen();
 
         // we use a predictable seed to generate the keys in the keyspace

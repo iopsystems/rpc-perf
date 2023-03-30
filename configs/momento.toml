@@ -35,8 +35,10 @@ endpoints = []
 cache_name = "preview-cache"
 
 [connection]
-# the total number of connections to each endpoint
-poolsize = 20
+# the total number of TCP connections
+poolsize = 1
+# the number of gRPC sessions per TCP connection
+concurrency = 20
 # the connect timeout in milliseconds
 timeout = 10000
 

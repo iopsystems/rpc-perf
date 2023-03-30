@@ -5,8 +5,11 @@ use super::*;
 
 #[derive(Clone, Deserialize)]
 pub struct Connection {
-    /// The total number of connections this process will have to each endpoint.
+    /// The number of connections this process will have to each endpoint.
     poolsize: usize,
+    /// The number of concurrent sessions per connection.
+    #[serde(default)]
+    concurrency: usize,
     /// Connection timeout.
     timeout: u64,
     /// Connection ratelimit. Useful when there's a large number of connections
@@ -25,7 +28,11 @@ impl Connection {
     }
 
     pub fn poolsize(&self) -> usize {
-        self.poolsize
+        std::cmp::max(1, self.poolsize)
+    }
+
+    pub fn concurrency(&self) -> usize {
+        std::cmp::max(1, self.concurrency)
     }
 
     pub fn reconnect_rate(&self) -> Option<NonZeroU64> {

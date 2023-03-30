@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: (Apache-2.0)
 // Copyright Authors of rpc-perf
 
+use std::sync::Arc;
+use ratelimit::Ratelimiter;
 use crate::*;
 
 use serde::Serialize;
@@ -17,7 +19,7 @@ macro_rules! output {
     }};
 }
 
-pub fn log(config: &Config) {
+pub fn log(config: &Config, traffic_ratelimit: Option<Arc<Ratelimiter>>) {
     let mut interval = config.general().interval().as_millis();
     let mut duration = config.general().duration().as_millis();
 
@@ -28,6 +30,8 @@ pub fn log(config: &Config) {
     };
 
     let mut prev = Instant::now();
+
+    let mut windows_under_target_rate = 0;
 
     while duration > 0 {
         std::thread::sleep(Duration::from_millis(10));
@@ -59,7 +63,7 @@ pub fn log(config: &Config) {
             output!("-----");
             output!("Window: {}", window_id);
 
-            let connect_sr = connect_ok as f64 / connect_total as f64;
+            let connect_sr = 100.0 * connect_ok as f64 / connect_total as f64;
 
             output!(
                 "Connection: Open: {} Success Rate: {:.2} %",
@@ -118,6 +122,18 @@ pub fn log(config: &Config) {
             }
 
             output!("{latencies}");
+
+            if let Some(rate) = traffic_ratelimit.as_ref().map(|v| v.rate()) {
+                if request_ok as f64 / elapsed < 0.95 * rate as f64 {
+                    windows_under_target_rate += 1;
+                } else {
+                    windows_under_target_rate = 0;
+                }
+
+                if windows_under_target_rate > 5 {
+                    break;
+                }
+            }
 
             interval = config.general().interval().as_millis();
             window_id += 1;
@@ -204,7 +220,7 @@ fn heatmap_to_buckets(heatmap: &Heatmap) -> Vec<Bucket> {
     }
 }
 
-pub fn json(config: &Config) {
+pub fn json(config: &Config, traffic_ratelimit: Option<Arc<Ratelimiter>>) {
     let mut now = std::time::Instant::now();
 
     let mut prev = now;

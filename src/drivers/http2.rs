@@ -43,15 +43,22 @@ pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiv
 
     for _ in 0..config.connection().poolsize() {
         for endpoint in config.target().endpoints() {
+            // for each endpoint have poolsize # of pool_managers, each managing
+            // a single TCP stream
+
             let queue = Queue::new(1);
             runtime.spawn(pool_manager(endpoint.clone(), config.clone(), queue.clone()));
 
-            runtime.spawn(task(
-                work_receiver.clone(),
-                endpoint.clone(),
-                config.clone(),
-                queue.clone(),
-            ));
+            // since HTTP/2.0 allows muxing several sessions onto a single TCP
+            // stream, we launch one task for each session on this TCP stream
+            for _ in 0..config.connection().concurrency() {
+                runtime.spawn(task(
+                    work_receiver.clone(),
+                    endpoint.clone(),
+                    config.clone(),
+                    queue.clone(),
+                ));
+            }
         }
     }
 }

@@ -161,8 +161,10 @@ fn main() {
     debug!("Initializing traffic generator");
     let traffic_generator = TrafficGenerator::new(&config);
 
+    let traffic_ratelimit = traffic_generator.ratelimiter();
+
     // spawn the admin thread
-    rt.spawn(admin::http(traffic_generator.ratelimiter()));
+    rt.spawn(admin::http(traffic_ratelimit.clone()));
 
     debug!("Launching workload generation");
     // spawn the request generators on a blocking threads
@@ -208,10 +210,10 @@ fn main() {
     // provide output on cli and block until run is over
     match config.general().output_format() {
         OutputFormat::Log => {
-            output::log(&config);
+            output::log(&config, traffic_ratelimit);
         }
         OutputFormat::Json => {
-            output::json(&config);
+            output::json(&config, traffic_ratelimit);
         }
     }
 
