@@ -163,7 +163,7 @@ struct Connections {
     timeout: u64,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Copy, Clone)]
 struct Requests {
     total: u64,
     ok: u64,
@@ -236,6 +236,8 @@ pub fn json(config: &Config, traffic_ratelimit: Option<Arc<Ratelimiter>>) {
         prev: HashMap::new(),
     };
 
+    let mut windows_under_target_rate = 0;
+
     while end > now {
         std::thread::sleep(Duration::from_millis(1));
 
@@ -289,6 +291,18 @@ pub fn json(config: &Config, traffic_ratelimit: Option<Arc<Ratelimiter>>) {
                 "{}",
                 serde_json::to_string(&json).expect("Failed to output to stdout")
             );
+
+            if let Some(rate) = traffic_ratelimit.as_ref().map(|v| v.rate()) {
+                if requests.ok as f64 / elapsed < 0.95 * rate as f64 {
+                    windows_under_target_rate += 1;
+                } else {
+                    windows_under_target_rate = 0;
+                }
+
+                if windows_under_target_rate > 5 {
+                    break;
+                }
+            }
 
             window_id += 1;
         }
