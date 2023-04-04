@@ -11,6 +11,9 @@ fn one() -> usize {
 pub struct Workload {
     keyspace: Vec<Keyspace>,
     threads: usize,
+    // zero is treated as unlimited
+    #[serde(default)]
+    ratelimit: u64,
 }
 
 #[derive(Clone, Deserialize, Copy, Debug, Ord, Eq, PartialOrd, PartialEq, Hash)]
@@ -27,6 +30,10 @@ impl Workload {
 
     pub fn threads(&self) -> usize {
         self.threads
+    }
+
+    pub fn ratelimit(&self) -> Option<NonZeroU64> {
+        NonZeroU64::new(self.ratelimit)
     }
 }
 

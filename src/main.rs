@@ -9,9 +9,7 @@ use warp::Filter;
 #[macro_use]
 extern crate ringlog;
 
-use crate::generators::reconnect;
-use crate::generators::requests;
-use crate::generators::TrafficGenerator;
+use crate::workload::{reconnect, requests, Generator};
 use async_channel::{bounded, Sender};
 use backtrace::Backtrace;
 use clap::{Arg, Command};
@@ -24,7 +22,6 @@ use tokio::time::sleep;
 mod admin;
 mod clients;
 mod config;
-mod generators;
 mod net;
 mod output;
 mod stats;
@@ -158,20 +155,20 @@ fn main() {
 
     output!("Protocol: {:?}", config.general().protocol());
 
-    debug!("Initializing traffic generator");
-    let traffic_generator = TrafficGenerator::new(&config);
+    debug!("Initializing workload generator");
+    let workload_generator = Generator::new(&config);
 
-    let traffic_ratelimit = traffic_generator.ratelimiter();
+    let workload_ratelimit = workload_generator.ratelimiter();
 
     // spawn the admin thread
-    rt.spawn(admin::http(traffic_ratelimit.clone()));
+    rt.spawn(admin::http(workload_ratelimit.clone()));
 
     debug!("Launching workload generation");
     // spawn the request generators on a blocking threads
     for _ in 0..config.workload().threads() {
         let work_sender = work_sender.clone();
-        let traffic_generator = traffic_generator.clone();
-        rt.spawn_blocking(move || requests(work_sender, traffic_generator));
+        let workload_generator = workload_generator.clone();
+        rt.spawn_blocking(move || requests(work_sender, workload_generator));
     }
 
     let c = config.clone();
@@ -210,10 +207,10 @@ fn main() {
     // provide output on cli and block until run is over
     match config.general().output_format() {
         OutputFormat::Log => {
-            output::log(&config, traffic_ratelimit);
+            output::log(&config, workload_ratelimit);
         }
         OutputFormat::Json => {
-            output::json(&config, traffic_ratelimit);
+            output::json(&config, workload_ratelimit);
         }
     }
 
