@@ -10,6 +10,8 @@ fn one() -> usize {
 #[derive(Clone, Deserialize)]
 pub struct Workload {
     keyspace: Vec<Keyspace>,
+    #[serde(default)]
+    topics: Vec<Topics>,
     threads: usize,
     // zero is treated as unlimited
     #[serde(default)]
@@ -28,12 +30,49 @@ impl Workload {
         &self.keyspace
     }
 
+    pub fn topics(&self) -> &[Topics] {
+        &self.topics
+    }
+
     pub fn threads(&self) -> usize {
         self.threads
     }
 
     pub fn ratelimit(&self) -> Option<NonZeroU64> {
         NonZeroU64::new(self.ratelimit)
+    }
+}
+
+#[derive(Clone, Deserialize)]
+pub struct Topics {
+    ntopics: usize,
+    topiclen: usize,
+    #[serde(default = "one")]
+    weight: usize,
+    subscriber_poolsize: usize,
+    #[serde(default = "one")]
+    subscriber_concurrency: usize,
+}
+
+impl Topics {
+    pub fn weight(&self) -> usize {
+        self.weight
+    }
+
+    pub fn ntopics(&self) -> usize {
+        self.ntopics
+    }
+
+    pub fn topiclen(&self) -> usize {
+        self.topiclen
+    }
+
+    pub fn subscriber_poolsize(&self) -> usize {
+        self.subscriber_poolsize
+    }
+
+    pub fn subscriber_concurrency(&self) -> usize {
+        self.subscriber_concurrency
     }
 }
 
