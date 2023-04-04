@@ -38,8 +38,18 @@ pub fn launch_workload(generator: Generator, config: &Config, client_sender: Sen
     // spawn the request generators on a blocking threads
     for _ in 0..config.workload().threads() {
         let client_sender = client_sender.clone();
+        let pubsub_sender = pubsub_sender.clone();
         let generator = generator.clone();
-        workload_rt.spawn_blocking(move || requests(client_sender, generator));
+        workload_rt.spawn_blocking(move || {
+            // use a prng seeded from the entropy pool so that request generation is
+            // unpredictable within the space and each individual request generation
+            // task will generate a unique sequence
+            let mut rng = Xoshiro512PlusPlus::from_entropy();
+
+            while RUNNING.load(Ordering::Relaxed) {
+                generator.generate(&client_sender, &pubsub_sender, &mut rng);
+            }
+        });
     }
 
     let c = config.clone();
@@ -70,6 +80,11 @@ impl Generator {
             component_weights.push(keyspace.weight());
         }
 
+        for topics in config.workload().topics() {
+            components.push(Component::Topics(Topics::new(topics)));
+            component_weights.push(topics.weight());
+        }
+
         Self {
             ratelimiter,
             components,
@@ -81,7 +96,7 @@ impl Generator {
         self.ratelimiter.clone()
     }
 
-    pub fn generate(&self, rng: &mut dyn RngCore) -> WorkItem {
+    pub fn generate(&self, client_sender: &Sender<WorkItem>, pubsub_sender: &Sender<WorkItem>, rng: &mut dyn RngCore) {
         if let Some(ref ratelimiter) = self.ratelimiter {
             loop {
                 if ratelimiter.try_wait().is_ok() {
@@ -93,11 +108,26 @@ impl Generator {
         }
 
         match &self.components[self.component_dist.sample(rng)] {
-            Component::Keyspace(keyspace) => self.generate_request(keyspace, rng),
+            Component::Keyspace(keyspace) => {
+                let _ = client_sender.send_blocking(self.generate_request(keyspace, rng));
+            }
+            Component::Topics(topics) => {
+                let _ = pubsub_sender.send_blocking(self.generate_pubsub(topics, rng));
+            }
         }
+    }
 
+    fn generate_pubsub(&self, topics: &Topics, rng: &mut dyn RngCore) -> WorkItem {
+        let index = topics.topic_dist.inner.sample(rng);
+        let topic = topics.topics[index].clone();
 
+        let mut message = vec![0_u8; topics.message_len];
+        rng.fill(&mut message[32..topics.message_len]);
 
+        WorkItem::Publish {
+            topic,
+            message,
+        }
     }
 
     fn generate_request(&self, keyspace: &Keyspace, rng: &mut dyn RngCore) -> WorkItem {
@@ -274,6 +304,44 @@ impl Generator {
 #[derive(Clone)]
 enum Component {
     Keyspace(Keyspace),
+    Topics(Topics),
+}
+
+#[derive(Clone)]
+struct Topics {
+    topics: Vec<Arc<String>>,
+    topic_dist: KeyDistribution,
+    message_len: usize,
+}
+
+impl Topics {
+    pub fn new(topics: &config::Topics) -> Self {
+        // ntopics must be >= 1
+        let ntopics = std::cmp::max(1, topics.topics());
+        let topiclen = topics.topic_len();
+        let message_len = topics.message_len();
+
+        // we use a predictable seed to generate the topic names
+        let mut rng = Xoshiro512PlusPlus::seed_from_u64(0);
+        let mut topics = HashSet::with_capacity(ntopics);
+        while topics.len() < ntopics {
+            let topic = (&mut rng)
+                .sample_iter(&Alphanumeric)
+                .take(topiclen)
+                .collect::<Vec<u8>>();
+            let _ = topics.insert(unsafe { std::str::from_utf8_unchecked(&topic) }.to_string());
+        }
+        let topics = topics.drain().map(|k| k.into()).collect();
+        let topic_dist = KeyDistribution {
+            inner: Uniform::new(0, ntopics),
+        };
+
+        Self {
+            topics,
+            topic_dist,
+            message_len,
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -428,20 +496,6 @@ impl Keyspace {
             }
         }
     }
-}
-
-pub fn requests(work_sender: Sender<WorkItem>, generator: Generator) -> Result<()> {
-    // use a prng seeded from the entropy pool so that request generation is
-    // unpredictable within the space and each individual request generation
-    // task will generate a unique sequence
-    let mut rng = Xoshiro512PlusPlus::from_entropy();
-
-    while RUNNING.load(Ordering::Relaxed) {
-        let work_item = generator.generate(&mut rng);
-        let _ = work_sender.send_blocking(work_item);
-    }
-
-    Ok(())
 }
 
 pub async fn reconnect(work_sender: Sender<WorkItem>, config: Config) -> Result<()> {

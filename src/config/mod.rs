@@ -22,7 +22,7 @@ pub use protocol::Protocol;
 pub use pubsub::Pubsub;
 pub use target::Target;
 pub use tls::Tls;
-pub use workload::{Command, Keyspace, ValueKind, Verb, Workload};
+pub use workload::{Command, Keyspace, Topics, ValueKind, Verb, Workload};
 
 #[derive(Clone, Deserialize)]
 pub struct Config {

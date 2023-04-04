@@ -135,4 +135,8 @@ pub enum WorkItem {
         members: Vec<Arc<[u8]>>,
     },
     Ping,
+    Publish {
+        topic: Arc<String>,
+        message: Vec<u8>,
+    }
 }

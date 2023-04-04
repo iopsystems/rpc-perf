@@ -45,8 +45,9 @@ impl Workload {
 
 #[derive(Clone, Deserialize)]
 pub struct Topics {
-    ntopics: usize,
-    topiclen: usize,
+    topics: usize,
+    topic_len: usize,
+    message_len: usize,
     #[serde(default = "one")]
     weight: usize,
     subscriber_poolsize: usize,
@@ -59,12 +60,16 @@ impl Topics {
         self.weight
     }
 
-    pub fn ntopics(&self) -> usize {
-        self.ntopics
+    pub fn topics(&self) -> usize {
+        self.topics
     }
 
-    pub fn topiclen(&self) -> usize {
-        self.topiclen
+    pub fn topic_len(&self) -> usize {
+        self.topic_len
+    }
+
+    pub fn message_len(&self) -> usize {
+        self.message_len
     }
 
     pub fn subscriber_poolsize(&self) -> usize {
