@@ -12,11 +12,11 @@ use hyper::{Request, Uri};
 pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiver<WorkItem>) {
     debug!("launching http1 protocol tasks");
 
-    if config.connection().concurrency() > 1 {
+    if config.client().concurrency() > 1 {
         error!("HTTP/1.1 does not support multiplexing sessions onto single streams. Ignoring the concurrency parameter.");
     }
 
-    for _ in 0..config.connection().poolsize() {
+    for _ in 0..config.client().poolsize() {
         for endpoint in config.target().endpoints() {
             runtime.spawn(task(
                 work_receiver.clone(),
@@ -44,7 +44,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
             }
             CONNECT.increment();
             let stream =
-                match timeout(config.connection().timeout(), connector.connect(&endpoint)).await {
+                match timeout(config.client().connect_timeout(), connector.connect(&endpoint)).await {
                     Ok(Ok(s)) => s,
                     Ok(Err(_)) => {
                         CONNECT_EX.increment();
@@ -122,7 +122,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
 
         // send request
         let start = Instant::now();
-        let response = timeout(config.request().timeout(), s.send_request(request)).await;
+        let response = timeout(config.client().request_timeout(), s.send_request(request)).await;
         let stop = Instant::now();
 
         match response {

@@ -22,8 +22,8 @@ use tokio::runtime::Builder;
 use tokio::time::sleep;
 
 mod admin;
+mod clients;
 mod config;
-mod drivers;
 mod generators;
 mod net;
 mod output;
@@ -180,30 +180,30 @@ fn main() {
     debug!("Launching workload drivers");
 
     // spawn the request drivers on their own runtime
-    let mut request_rt = Builder::new_multi_thread()
+    let mut client_rt = Builder::new_multi_thread()
         .enable_all()
-        .worker_threads(config.request().threads())
+        .worker_threads(config.client().threads())
         .build()
         .expect("failed to initialize tokio runtime");
 
     match config.general().protocol() {
         Protocol::Http1 => {
-            drivers::http1::launch_tasks(&mut request_rt, config.clone(), work_receiver)
+            clients::http1::launch_tasks(&mut client_rt, config.clone(), work_receiver)
         }
         Protocol::Http2 => {
-            drivers::http2::launch_tasks(&mut request_rt, config.clone(), work_receiver)
+            clients::http2::launch_tasks(&mut client_rt, config.clone(), work_receiver)
         }
         Protocol::Memcache => {
-            drivers::memcache::launch_tasks(&mut request_rt, config.clone(), work_receiver)
+            clients::memcache::launch_tasks(&mut client_rt, config.clone(), work_receiver)
         }
         Protocol::Momento => {
-            drivers::momento::launch_tasks(&mut request_rt, config.clone(), work_receiver)
+            clients::momento::launch_tasks(&mut client_rt, config.clone(), work_receiver)
         }
         Protocol::Ping => {
-            drivers::ping::launch_tasks(&mut request_rt, config.clone(), work_receiver)
+            clients::ping::launch_tasks(&mut client_rt, config.clone(), work_receiver)
         }
         Protocol::Resp => {
-            drivers::resp::launch_tasks(&mut request_rt, config.clone(), work_receiver)
+            clients::resp::launch_tasks(&mut client_rt, config.clone(), work_receiver)
         }
     }
 

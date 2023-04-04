@@ -1,0 +1,77 @@
+# An example configuration for benchmarking Momento (https://www.gomomento.com)
+# and demonstrating the use of the preview functionality for collections. Each
+# command family is using its own keyspace and covers key-value, hash, list,
+# set, and sorted set.
+
+[general]
+# specify the protocol to be used
+protocol = "momento"
+# the interval for stats integration and reporting
+interval = 60
+# the number of intervals to run the test for
+duration = 300
+# output is reported using the logging format on stdout. `json` output can also
+# be used here
+output_format = "log"
+# run the admin thread with a HTTP listener at the address provided, this allows
+# stats exposition via HTTP
+admin = "127.0.0.1:9090"
+
+[debug]
+# choose from: error, warn, info, debug, trace
+log_level = "info"
+# optionally, log to the file below instead of standard out
+# log_file = "rpc-perf.log"
+# backup file name for use with log rotation
+log_backup = "rpc-perf.log.old"
+# trigger log rotation when the file grows beyond this size (in bytes). Set this
+# option to '0' to disable log rotation.
+log_max_size = 1073741824
+
+[target]
+# we don't need to specify any endpoints for momento
+endpoints = []
+# specify the name of the target cache
+cache_name = "preview-cache"
+
+[client]
+# number of threads used to drive requests
+threads = 4
+# the total number of TCP connections
+poolsize = 1
+# the number of gRPC sessions per TCP connection
+concurrency = 20
+# the connect timeout in milliseconds
+connect_timeout = 10000
+# the request timeout in milliseconds
+request_timeout = 1000
+
+[subscribers]
+# the number of subscriber worker threads
+threads = 4
+# the connect timeout in milliseconds
+connect_timeout = 10000
+
+[workload]
+# the number of threads that will be used to generate requests
+threads = 1
+# the global ratelimit
+ratelimit = 50
+
+[[workload.topics]]
+# the weight relative to other workload components
+weight = 1
+# the total number of Momento clients for subscribers to this set of topics
+subscriber_poolsize = 10
+# the total number of gRPC sessions per Momento client for this set of topics
+subscriber_concurrency = 100
+# sets the number of topics
+ntopics = 32
+# set the length of the topic names, in bytes
+topiclen = 64
+# sets the value length, in bytes
+vlen = 128
+# use random bytes for the values
+vkind = "bytes"
+
+[tls]

@@ -13,7 +13,7 @@ pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiv
     debug!("launching memcache protocol tasks");
 
     // create one task per connection
-    for _ in 0..config.connection().poolsize() {
+    for _ in 0..config.client().poolsize() {
         for endpoint in config.target().endpoints() {
             runtime.spawn(task(
                 work_receiver.clone(),
@@ -37,7 +37,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
         if stream.is_none() {
             CONNECT.increment();
             stream =
-                match timeout(config.connection().timeout(), connector.connect(&endpoint)).await {
+                match timeout(config.client().connect_timeout(), connector.connect(&endpoint)).await {
                     Ok(Ok(s)) => {
                         CONNECT_OK.increment();
                         CONNECT_CURR.add(1);
@@ -94,8 +94,8 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
         // read until response or timeout
         let response = loop {
             let remaining_time = config
-                .request()
-                .timeout()
+                .client()
+                .request_timeout()
                 .as_millis()
                 .saturating_sub(start.elapsed().as_millis().into());
             if remaining_time == 0 {

@@ -17,7 +17,7 @@ pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiv
 
     // create one task per "connection"
     // note: these may be channels instead of connections for multiplexed protocols
-    for _ in 0..config.connection().poolsize() {
+    for _ in 0..config.client().poolsize() {
         for endpoint in config.target().endpoints() {
             runtime.spawn(task(
                 work_receiver.clone(),
@@ -42,7 +42,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
         if stream.is_none() {
             CONNECT.increment();
             stream =
-                match timeout(config.connection().timeout(), connector.connect(&endpoint)).await {
+                match timeout(config.client().connect_timeout(), connector.connect(&endpoint)).await {
                     Ok(Ok(s)) => Some(s),
                     Ok(Err(_)) => {
                         CONNECT_EX.increment();
@@ -90,7 +90,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
         write_buffer.clear();
 
         // read until response or timeout
-        let mut remaining_time = config.request().timeout().as_nanos() as u64;
+        let mut remaining_time = config.client().request_timeout().as_nanos() as u64;
         let response = loop {
             match timeout(
                 Duration::from_millis(remaining_time / 1000000),

@@ -14,7 +14,7 @@ pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiv
 
     // create one task per "connection"
     // note: these may be channels instead of connections for multiplexed protocols
-    for _ in 0..config.connection().poolsize() {
+    for _ in 0..config.client().poolsize() {
         for endpoint in config.target().endpoints() {
             runtime.spawn(task(
                 work_receiver.clone(),
@@ -42,7 +42,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
     while RUNNING.load(Ordering::Relaxed) {
         if connection.is_none() {
             CONNECT.increment();
-            connection = match timeout(config.connection().timeout(), connector.connect(&endpoint))
+            connection = match timeout(config.client().connect_timeout(), connector.connect(&endpoint))
                 .await
             {
                 Ok(Ok(c)) => {
@@ -83,7 +83,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
             WorkItem::Get { key } => {
                 GET.increment();
                 match timeout(
-                    config.request().timeout(),
+                    config.client().request_timeout(),
                     con.get::<&[u8], Option<Vec<u8>>>(&key),
                 )
                 .await
@@ -111,7 +111,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
             WorkItem::Set { key, value } => {
                 SET.increment();
                 match timeout(
-                    config.request().timeout(),
+                    config.client().request_timeout(),
                     con.set::<&[u8], &[u8], ()>(&key, &value),
                 )
                 .await
@@ -132,7 +132,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
             }
             WorkItem::Delete { key } => {
                 DELETE.increment();
-                match timeout(config.request().timeout(), con.del::<&[u8], ()>(&key)).await {
+                match timeout(config.client().request_timeout(), con.del::<&[u8], ()>(&key)).await {
                     Ok(Ok(_)) => {
                         DELETE_OK.increment();
                         Ok(())
@@ -155,7 +155,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                 HASH_DELETE.increment();
                 let fields: Vec<&[u8]> = fields.iter().map(|v| v.borrow()).collect();
                 match timeout(
-                    config.request().timeout(),
+                    config.client().request_timeout(),
                     con.hdel::<&[u8], Vec<&[u8]>, usize>(&key, fields),
                 )
                 .await
@@ -176,7 +176,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
             }
             WorkItem::HashExists { key, field } => {
                 match timeout(
-                    config.request().timeout(),
+                    config.client().request_timeout(),
                     con.hexists::<&[u8], &[u8], bool>(&key, &field),
                 )
                 .await
@@ -197,7 +197,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
             }
             WorkItem::HashIncrement { key, field, amount } => {
                 match timeout(
-                    config.request().timeout(),
+                    config.client().request_timeout(),
                     con.hincr::<&[u8], &[u8], i64, i64>(&key, &field, amount),
                 )
                 .await
@@ -213,7 +213,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
 
                 let result = if fields.len() == 1 {
                     match timeout(
-                        config.request().timeout(),
+                        config.client().request_timeout(),
                         con.hget::<&[u8], &[u8], Option<Vec<u8>>>(&key, &fields[0]),
                     )
                     .await
@@ -234,7 +234,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                 } else {
                     let fields: Vec<&[u8]> = fields.iter().map(|f| &**f).collect();
                     match timeout(
-                        config.request().timeout(),
+                        config.client().request_timeout(),
                         con.hget::<&[u8], &[&[u8]], Option<Vec<Option<Vec<u8>>>>>(&key, &fields),
                     )
                     .await
@@ -283,7 +283,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
             WorkItem::HashGetAll { key } => {
                 HASH_GET_ALL.increment();
                 match timeout(
-                    config.request().timeout(),
+                    config.client().request_timeout(),
                     con.hgetall::<&[u8], Option<HashMap<Vec<u8>, Vec<u8>>>>(key.as_ref()),
                 )
                 .await
@@ -319,7 +319,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                 let result = if data.len() == 1 {
                     let (field, value) = data.iter().next().unwrap();
                     match timeout(
-                        config.request().timeout(),
+                        config.client().request_timeout(),
                         con.hset::<&[u8], &[u8], &[u8], ()>(
                             key.as_ref(),
                             field.as_ref(),
@@ -336,7 +336,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                     let d: Vec<(&[u8], &[u8])> =
                         data.iter().map(|(k, v)| (k.as_ref(), v.as_ref())).collect();
                     match timeout(
-                        config.request().timeout(),
+                        config.client().request_timeout(),
                         con.hset_multiple::<&[u8], &[u8], &[u8], ()>(&key, &d),
                     )
                     .await
@@ -374,7 +374,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                 LIST_PUSH_FRONT.increment();
                 let elements: Vec<&[u8]> = elements.iter().map(|v| v.borrow()).collect();
                 let mut result = match timeout(
-                    config.request().timeout(),
+                    config.client().request_timeout(),
                     con.lpush::<&[u8], &Vec<&[u8]>, u64>(key.as_ref(), &elements),
                 )
                 .await
@@ -387,7 +387,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                 if result.is_ok() {
                     if let Some(len) = truncate {
                         match timeout(
-                            config.request().timeout(),
+                            config.client().request_timeout(),
                             con.ltrim::<&[u8], ()>(key.as_ref(), 0, len as _),
                         )
                         .await
@@ -428,7 +428,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                 LIST_PUSH_BACK.increment();
                 let elements: Vec<&[u8]> = elements.iter().map(|v| v.borrow()).collect();
                 let mut result = match timeout(
-                    config.request().timeout(),
+                    config.client().request_timeout(),
                     con.rpush::<&[u8], &Vec<&[u8]>, u64>(key.as_ref(), &elements),
                 )
                 .await
@@ -441,7 +441,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                 if result.is_ok() {
                     if let Some(len) = truncate {
                         match timeout(
-                            config.request().timeout(),
+                            config.client().request_timeout(),
                             con.ltrim::<&[u8], ()>(key.as_ref(), -(len as isize + 1), -1),
                         )
                         .await
@@ -476,7 +476,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
             WorkItem::ListFetch { key } => {
                 LIST_FETCH.increment();
                 match timeout(
-                    config.request().timeout(),
+                    config.client().request_timeout(),
                     con.lrange::<&[u8], Option<Vec<Vec<u8>>>>(key.as_ref(), 0, -1),
                 )
                 .await
@@ -498,7 +498,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
             WorkItem::ListLength { key } => {
                 LIST_LENGTH.increment();
                 match timeout(
-                    config.request().timeout(),
+                    config.client().request_timeout(),
                     con.llen::<&[u8], Option<u64>>(key.as_ref()),
                 )
                 .await
@@ -520,7 +520,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
             WorkItem::ListPopFront { key } => {
                 LIST_POP_FRONT.increment();
                 match timeout(
-                    config.request().timeout(),
+                    config.client().request_timeout(),
                     con.lpop::<&[u8], Option<Vec<u8>>>(key.as_ref(), None),
                 )
                 .await
@@ -542,7 +542,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
             WorkItem::ListPopBack { key } => {
                 LIST_POP_BACK.increment();
                 match timeout(
-                    config.request().timeout(),
+                    config.client().request_timeout(),
                     con.rpop::<&[u8], Option<Vec<u8>>>(key.as_ref(), None),
                 )
                 .await
@@ -565,7 +565,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
             WorkItem::Ping { .. } => {
                 PING.increment();
                 match timeout(
-                    config.request().timeout(),
+                    config.client().request_timeout(),
                     redis::cmd("PING").query_async(&mut con),
                 )
                 .await
@@ -592,7 +592,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                     continue;
                 } else if members.len() == 1 {
                     match timeout(
-                        config.request().timeout(),
+                        config.client().request_timeout(),
                         con.sadd::<&[u8], &[u8], u64>(key.as_ref(), &*members[0]),
                     )
                     .await
@@ -613,7 +613,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                 } else {
                     let members: Vec<&[u8]> = members.iter().map(|v| v.borrow()).collect();
                     match timeout(
-                        config.request().timeout(),
+                        config.client().request_timeout(),
                         con.sadd::<&[u8], &Vec<&[u8]>, u64>(&key, &members),
                     )
                     .await
@@ -636,7 +636,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
             WorkItem::SetMembers { key } => {
                 SET_MEMBERS.increment();
                 match timeout(
-                    config.request().timeout(),
+                    config.client().request_timeout(),
                     con.smembers::<&[u8], Option<Vec<Vec<u8>>>>(key.as_ref()),
                 )
                 .await
@@ -668,7 +668,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                     continue;
                 } else if members.len() == 1 {
                     match timeout(
-                        config.request().timeout(),
+                        config.client().request_timeout(),
                         con.srem::<&[u8], &[u8], u64>(key.as_ref(), &*members[0]),
                     )
                     .await
@@ -689,7 +689,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                 } else {
                     let members: Vec<&[u8]> = members.iter().map(|v| v.borrow()).collect();
                     match timeout(
-                        config.request().timeout(),
+                        config.client().request_timeout(),
                         con.srem::<&[u8], &Vec<&[u8]>, u64>(&key, &members),
                     )
                     .await
@@ -721,7 +721,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                 } else if members.len() == 1 {
                     let (member, score) = members.first().unwrap();
                     match timeout(
-                        config.request().timeout(),
+                        config.client().request_timeout(),
                         con.zadd::<&[u8], f64, &[u8], f64>(key.as_ref(), member.as_ref(), *score),
                     )
                     .await
@@ -743,7 +743,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                     let d: Vec<(f64, &[u8])> =
                         members.iter().map(|(m, s)| (*s, m.as_ref())).collect();
                     match timeout(
-                        config.request().timeout(),
+                        config.client().request_timeout(),
                         con.zadd_multiple::<&[u8], f64, &[u8], f64>(&key, &d),
                     )
                     .await
@@ -766,7 +766,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
             WorkItem::SortedSetMembers { key } => {
                 SORTED_SET_INCR.increment();
                 match timeout(
-                    config.request().timeout(),
+                    config.client().request_timeout(),
                     redis::cmd("ZUNION")
                         .arg(1)
                         .arg(&*key)
@@ -802,7 +802,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
             } => {
                 SORTED_SET_INCR.increment();
                 match timeout(
-                    config.request().timeout(),
+                    config.client().request_timeout(),
                     con.zincr::<&[u8], &[u8], f64, String>(&key, &member, amount),
                 )
                 .await
@@ -825,7 +825,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                 SORTED_SET_REMOVE.increment();
                 let members: Vec<&[u8]> = members.iter().map(|v| v.borrow()).collect();
                 match timeout(
-                    config.request().timeout(),
+                    config.client().request_timeout(),
                     con.zrem::<&[u8], Vec<&[u8]>, usize>(&key, members),
                 )
                 .await
@@ -849,7 +849,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
 
                 let result = if members.len() == 1 {
                     match timeout(
-                        config.request().timeout(),
+                        config.client().request_timeout(),
                         con.zscore::<&[u8], &[u8], Option<f64>>(key.as_ref(), members[0].as_ref()),
                     )
                     .await
@@ -868,7 +868,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                 } else {
                     let members: Vec<&[u8]> = members.iter().map(|v| v.borrow()).collect();
                     match timeout(
-                        config.request().timeout(),
+                        config.client().request_timeout(),
                         con.zscore_multiple::<&[u8], &[u8], Vec<Option<f64>>>(
                             key.as_ref(),
                             &members,
@@ -909,7 +909,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
             WorkItem::SortedSetRank { key, member } => {
                 SORTED_SET_RANK.increment();
                 match timeout(
-                    config.request().timeout(),
+                    config.client().request_timeout(),
                     con.zrank::<&[u8], &[u8], Option<u64>>(key.as_ref(), member.as_ref()),
                 )
                 .await

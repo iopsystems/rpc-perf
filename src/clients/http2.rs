@@ -41,7 +41,7 @@ impl<T> Queue<T> {
 pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiver<WorkItem>) {
     debug!("launching http2 protocol tasks");
 
-    for _ in 0..config.connection().poolsize() {
+    for _ in 0..config.client().poolsize() {
         for endpoint in config.target().endpoints() {
             // for each endpoint have poolsize # of pool_managers, each managing
             // a single TCP stream
@@ -51,7 +51,7 @@ pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiv
 
             // since HTTP/2.0 allows muxing several sessions onto a single TCP
             // stream, we launch one task for each session on this TCP stream
-            for _ in 0..config.connection().concurrency() {
+            for _ in 0..config.client().concurrency() {
                 runtime.spawn(task(
                     work_receiver.clone(),
                     endpoint.clone(),
@@ -83,7 +83,7 @@ async fn pool_manager(endpoint: String, config: Config, queue: Queue<SendRequest
         if sender.is_none() {
             CONNECT.increment();
             let stream =
-                match timeout(config.connection().timeout(), connector.connect(&endpoint)).await {
+                match timeout(config.client().connect_timeout(), connector.connect(&endpoint)).await {
                     Ok(Ok(s)) => s,
                     Ok(Err(_)) => {
                         CONNECT_EX.increment();
@@ -179,7 +179,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
 
         // send request
         let start = Instant::now();
-        let response = timeout(config.request().timeout(), s.send_request(request)).await;
+        let response = timeout(config.client().request_timeout(), s.send_request(request)).await;
         let stop = Instant::now();
 
         match response {

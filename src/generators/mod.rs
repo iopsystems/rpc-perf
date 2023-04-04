@@ -30,8 +30,8 @@ pub struct TrafficGenerator {
 impl TrafficGenerator {
     pub fn new(config: &Config) -> Self {
         let ratelimiter = config
-            .request()
-            .ratelimit()
+            .client()
+            .request_ratelimit()
             .map(|r| Arc::new(Ratelimiter::new(1000, 1, r.into())));
 
         let mut keyspaces = Vec::new();
@@ -404,7 +404,7 @@ pub fn requests(work_sender: Sender<WorkItem>, generator: TrafficGenerator) -> R
 }
 
 pub async fn reconnect(work_sender: Sender<WorkItem>, config: Config) -> Result<()> {
-    let rate = config.connection().reconnect_rate();
+    let rate = config.client().reconnect_rate();
 
     let mut ratelimit_params = if rate.is_some() {
         Some(convert_ratelimit(rate.unwrap()))

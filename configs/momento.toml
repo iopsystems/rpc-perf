@@ -34,21 +34,19 @@ endpoints = []
 # specify the name of the target cache
 cache_name = "preview-cache"
 
-[connection]
-# the total number of TCP connections
+[client]
+# number of threads used to drive client requests
+threads = 4
+# number of gRPC clients to initialize, each maintains at least one TCP stream
 poolsize = 1
-# the number of gRPC sessions per TCP connection
+# an upper limit on the number of concurrent requests per gRPC client
 concurrency = 20
 # the connect timeout in milliseconds
-timeout = 10000
-
-[request]
-# number of threads used to drive requests
-threads = 4
+connect_timeout = 10000
 # set a global ratelimit for requests
-ratelimit = 50
+request_ratelimit = 50
 # set the timeout in milliseconds
-timeout = 1000
+request_timeout = 1000
 
 [workload]
 # the number of threads that will be used to generate requests

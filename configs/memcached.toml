@@ -32,19 +32,17 @@ endpoints = [
 	"127.0.0.1:11211",
 ]
 
-[connection]
+[client]
+# number of threads used to drive client requests
+threads = 4
 # the total number of connections to each endpoint
 poolsize = 20
 # the connect timeout in milliseconds
-timeout = 10000
-
-[request]
-# number of threads used to drive requests
-threads = 4
+connect_timeout = 10000
 # set a global ratelimit for requests
-ratelimit = 10_000
+request_ratelimit = 10_000
 # set the timeout in milliseconds
-timeout = 1000
+request_timeout = 1000
 
 [workload]
 # the number of threads that will be used to generate requests

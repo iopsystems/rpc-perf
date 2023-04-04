@@ -6,20 +6,20 @@ use serde::Deserialize;
 use std::io::Read;
 use std::time::Duration;
 
-mod connection;
+mod client;
 mod debug;
 mod general;
 mod protocol;
-mod request;
+// mod request;
 mod target;
 mod tls;
 mod workload;
 
-pub use connection::Connection;
+pub use client::Client;
 pub use debug::Debug;
 pub use general::{General, OutputFormat};
 pub use protocol::Protocol;
-pub use request::Request;
+// pub use request::Request;
 pub use target::Target;
 pub use tls::Tls;
 pub use workload::{Command, Keyspace, ValueKind, Verb, Workload};
@@ -27,11 +27,11 @@ pub use workload::{Command, Keyspace, ValueKind, Verb, Workload};
 #[derive(Clone, Deserialize)]
 pub struct Config {
     general: General,
-    connection: Connection,
+    client: Client,
     debug: Debug,
     target: Target,
     tls: Tls,
-    request: Request,
+    // request: Request,
     workload: Workload,
 }
 
@@ -66,8 +66,8 @@ impl Config {
         &self.general
     }
 
-    pub fn connection(&self) -> &Connection {
-        &self.connection
+    pub fn client(&self) -> &Client {
+        &self.client
     }
 
     pub fn target(&self) -> &Target {
@@ -78,9 +78,9 @@ impl Config {
         &self.tls
     }
 
-    pub fn request(&self) -> &Request {
-        &self.request
-    }
+    // pub fn request(&self) -> &Request {
+    //     &self.request
+    // }
 
     pub fn workload(&self) -> &Workload {
         &self.workload
