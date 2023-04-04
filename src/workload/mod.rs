@@ -51,8 +51,8 @@ pub fn launch_workload(generator: Generator, config: &Config, client_sender: Sen
 #[derive(Clone)]
 pub struct Generator {
     ratelimiter: Option<Arc<Ratelimiter>>,
-    keyspaces: Vec<Keyspace>,
-    keyspace_dist: WeightedAliasIndex<usize>,
+    components: Vec<Component>,
+    component_dist: WeightedAliasIndex<usize>,
 }
 
 impl Generator {
@@ -62,18 +62,18 @@ impl Generator {
             .ratelimit()
             .map(|r| Arc::new(Ratelimiter::new(1000, 1, r.into())));
 
-        let mut keyspaces = Vec::new();
-        let mut keyspace_weights = Vec::new();
+        let mut components = Vec::new();
+        let mut component_weights = Vec::new();
 
         for keyspace in config.workload().keyspaces() {
-            keyspaces.push(Keyspace::new(keyspace));
-            keyspace_weights.push(keyspace.weight());
+            components.push(Component::Keyspace(Keyspace::new(keyspace)));
+            component_weights.push(keyspace.weight());
         }
 
         Self {
             ratelimiter,
-            keyspaces,
-            keyspace_dist: WeightedAliasIndex::new(keyspace_weights).unwrap(),
+            components,
+            component_dist: WeightedAliasIndex::new(component_weights).unwrap(),
         }
     }
 
@@ -92,7 +92,15 @@ impl Generator {
             }
         }
 
-        let keyspace = &self.keyspaces[self.keyspace_dist.sample(rng)];
+        match &self.components[self.component_dist.sample(rng)] {
+            Component::Keyspace(keyspace) => self.generate_request(keyspace, rng),
+        }
+
+
+
+    }
+
+    fn generate_request(&self, keyspace: &Keyspace, rng: &mut dyn RngCore) -> WorkItem {
         let command = &keyspace.commands[keyspace.command_dist.sample(rng)];
 
         match command.verb() {
@@ -261,6 +269,11 @@ impl Generator {
             },
         }
     }
+}
+
+#[derive(Clone)]
+enum Component {
+    Keyspace(Keyspace),
 }
 
 #[derive(Clone)]
