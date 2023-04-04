@@ -10,7 +10,7 @@ mod client;
 mod debug;
 mod general;
 mod protocol;
-// mod request;
+mod pubsub;
 mod target;
 mod tls;
 mod workload;
@@ -19,7 +19,7 @@ pub use client::Client;
 pub use debug::Debug;
 pub use general::{General, OutputFormat};
 pub use protocol::Protocol;
-// pub use request::Request;
+pub use pubsub::Pubsub;
 pub use target::Target;
 pub use tls::Tls;
 pub use workload::{Command, Keyspace, ValueKind, Verb, Workload};
@@ -29,9 +29,9 @@ pub struct Config {
     general: General,
     client: Client,
     debug: Debug,
+    pubsub: Option<Pubsub>,
     target: Target,
     tls: Tls,
-    // request: Request,
     workload: Workload,
 }
 
@@ -70,6 +70,10 @@ impl Config {
         &self.client
     }
 
+    pub fn pubsub(&self) -> Option<&Pubsub> {
+        self.pubsub.as_ref()
+    }
+
     pub fn target(&self) -> &Target {
         &self.target
     }
@@ -78,9 +82,6 @@ impl Config {
         &self.tls
     }
 
-    // pub fn request(&self) -> &Request {
-    //     &self.request
-    // }
 
     pub fn workload(&self) -> &Workload {
         &self.workload

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: (Apache-2.0)
 // Copyright Authors of rpc-perf
 
+use crate::clients::launch_clients;
 use metriken::Counter;
 use metriken::Gauge;
 use metriken::Heatmap;
@@ -24,6 +25,7 @@ mod clients;
 mod config;
 mod net;
 mod output;
+mod pubsub;
 mod stats;
 mod workload;
 
@@ -174,35 +176,7 @@ fn main() {
     let c = config.clone();
     rt.spawn_blocking(move || reconnect(work_sender, c));
 
-    debug!("Launching workload drivers");
-
-    // spawn the request drivers on their own runtime
-    let mut client_rt = Builder::new_multi_thread()
-        .enable_all()
-        .worker_threads(config.client().threads())
-        .build()
-        .expect("failed to initialize tokio runtime");
-
-    match config.general().protocol() {
-        Protocol::Http1 => {
-            clients::http1::launch_tasks(&mut client_rt, config.clone(), work_receiver)
-        }
-        Protocol::Http2 => {
-            clients::http2::launch_tasks(&mut client_rt, config.clone(), work_receiver)
-        }
-        Protocol::Memcache => {
-            clients::memcache::launch_tasks(&mut client_rt, config.clone(), work_receiver)
-        }
-        Protocol::Momento => {
-            clients::momento::launch_tasks(&mut client_rt, config.clone(), work_receiver)
-        }
-        Protocol::Ping => {
-            clients::ping::launch_tasks(&mut client_rt, config.clone(), work_receiver)
-        }
-        Protocol::Resp => {
-            clients::resp::launch_tasks(&mut client_rt, config.clone(), work_receiver)
-        }
-    }
+    let client_rt = launch_clients(&config, work_receiver);
 
     // provide output on cli and block until run is over
     match config.general().output_format() {
@@ -216,6 +190,8 @@ fn main() {
 
     // signal to other threads to shutdown
     RUNNING.store(false, Ordering::Relaxed);
+
+    client_rt.shutdown_timeout(std::time::Duration::from_millis(100));
 
     // delay before exiting
     std::thread::sleep(std::time::Duration::from_millis(100));
