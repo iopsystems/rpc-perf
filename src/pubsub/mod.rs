@@ -1,11 +1,14 @@
-use tokio::runtime::Runtime;
+
+use crate::*;
+use crate::clients::*;
 use crate::workload::WorkItem;
 use async_channel::Receiver;
-use super::*;
+use std::io::{Error, ErrorKind, Result};
+// use tokio::io::*;
+use tokio::runtime::Runtime;
+// use tokio::time::{timeout, Duration};
 
-mod publishers {
-
-}
+mod momento;
 
 pub fn launch_publishers(config: &Config, work_receiver: Receiver<WorkItem>) -> Option<Runtime> {
     if config.pubsub().is_none() {
@@ -24,8 +27,8 @@ pub fn launch_publishers(config: &Config, work_receiver: Receiver<WorkItem>) -> 
 
     match config.general().protocol() {
         Protocol::Momento => {
-            todo!("unimplemeted");
-            // publishers::momento::launch_tasks(&mut client_rt, config.clone(), work_receiver)
+            // todo!("unimplemeted");
+            momento::launch_publishers(&mut publisher_rt, config.clone(), work_receiver)
         }
         _ => todo!(),
     }

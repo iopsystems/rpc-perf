@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: (Apache-2.0)
 // Copyright Authors of rpc-perf
 
+use crate::workload::launch_workload;
+use crate::pubsub::launch_publishers;
 use crate::clients::launch_clients;
 use metriken::Counter;
 use metriken::Gauge;
@@ -10,7 +12,7 @@ use warp::Filter;
 #[macro_use]
 extern crate ringlog;
 
-use crate::workload::{reconnect, requests, Generator};
+use crate::workload::Generator;
 use async_channel::{bounded, Sender};
 use backtrace::Backtrace;
 use clap::{Arg, Command};
@@ -153,7 +155,8 @@ fn main() {
     });
 
     // TODO: figure out what a reasonable size is here
-    let (work_sender, work_receiver) = bounded(128);
+    let (client_sender, client_receiver) = bounded(128);
+    let (pubsub_sender, pubsub_receiver) = bounded(128);
 
     output!("Protocol: {:?}", config.general().protocol());
 
@@ -165,18 +168,22 @@ fn main() {
     // spawn the admin thread
     rt.spawn(admin::http(workload_ratelimit.clone()));
 
-    debug!("Launching workload generation");
-    // spawn the request generators on a blocking threads
-    for _ in 0..config.workload().threads() {
-        let work_sender = work_sender.clone();
-        let workload_generator = workload_generator.clone();
-        rt.spawn_blocking(move || requests(work_sender, workload_generator));
-    }
+    let workload_rt = launch_workload(workload_generator, &config, client_sender, pubsub_sender);
 
-    let c = config.clone();
-    rt.spawn_blocking(move || reconnect(work_sender, c));
+    // debug!("Launching workload generation");
+    // // spawn the request generators on a blocking threads
+    // for _ in 0..config.workload().threads() {
+    //     let client_sender = client_sender.clone();
+    //     let workload_generator = workload_generator.clone();
+    //     rt.spawn_blocking(move || requests(client_sender, workload_generator));
+    // }
 
-    let client_rt = launch_clients(&config, work_receiver);
+    // let c = config.clone();
+    // rt.spawn_blocking(move || reconnect(client_sender, c));
+
+    let client_rt = launch_clients(&config, client_receiver);
+
+    let publisher_rt = launch_publishers(&config, pubsub_receiver);
 
     // provide output on cli and block until run is over
     match config.general().output_format() {
@@ -192,6 +199,10 @@ fn main() {
     RUNNING.store(false, Ordering::Relaxed);
 
     client_rt.shutdown_timeout(std::time::Duration::from_millis(100));
+    if let Some(publisher_rt) = publisher_rt {
+        publisher_rt.shutdown_timeout(std::time::Duration::from_millis(100));
+    }
+    workload_rt.shutdown_timeout(std::time::Duration::from_millis(100));
 
     // delay before exiting
     std::thread::sleep(std::time::Duration::from_millis(100));

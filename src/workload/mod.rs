@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: (Apache-2.0)
 // Copyright Authors of rpc-perf
 
+use tokio::runtime::Runtime;
 use super::*;
 use config::{Command, ValueKind, Verb};
 use core::num::NonZeroU64;
@@ -22,6 +23,30 @@ use tokio::time::Interval;
 mod item;
 
 pub use item::WorkItem;
+
+
+pub fn launch_workload(generator: Generator, config: &Config, client_sender: Sender<WorkItem>, pubsub_sender: Sender<WorkItem>) -> Runtime {
+	debug!("Launching workload...");
+
+    // spawn the request drivers on their own runtime
+    let workload_rt = Builder::new_multi_thread()
+        .enable_all()
+        .worker_threads(1)
+        .build()
+        .expect("failed to initialize tokio runtime");
+
+    // spawn the request generators on a blocking threads
+    for _ in 0..config.workload().threads() {
+        let client_sender = client_sender.clone();
+        let generator = generator.clone();
+        workload_rt.spawn_blocking(move || requests(client_sender, generator));
+    }
+
+    let c = config.clone();
+    workload_rt.spawn_blocking(move || reconnect(client_sender, c));
+
+    workload_rt
+}
 
 #[derive(Clone)]
 pub struct Generator {

@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: (Apache-2.0)
 // Copyright Authors of rpc-perf
 
-pub mod http1;
-pub mod http2;
-pub mod memcache;
-pub mod momento;
-pub mod ping;
-pub mod resp;
+mod http1;
+mod http2;
+mod memcache;
+mod momento;
+mod ping;
+mod resp;
 
 use crate::workload::WorkItem;
 use crate::*;
