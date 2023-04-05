@@ -138,5 +138,5 @@ pub enum ClientWorkItem {
     Publish {
         topic: Arc<String>,
         message: Vec<u8>,
-    }
+    },
 }

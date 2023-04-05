@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: (Apache-2.0)
 // Copyright Authors of rpc-perf
 
-use tokio::runtime::Runtime;
 use super::*;
 use config::{Command, ValueKind, Verb};
 use core::num::NonZeroU64;
@@ -18,6 +17,7 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::io::Result;
 use std::sync::Arc;
+use tokio::runtime::Runtime;
 use tokio::time::Interval;
 
 mod client;
@@ -26,9 +26,13 @@ mod publisher;
 pub use client::ClientWorkItem;
 pub use publisher::PublisherWorkItem;
 
-
-pub fn launch_workload(generator: Generator, config: &Config, client_sender: Sender<ClientWorkItem>, pubsub_sender: Sender<PublisherWorkItem>) -> Runtime {
-	debug!("Launching workload...");
+pub fn launch_workload(
+    generator: Generator,
+    config: &Config,
+    client_sender: Sender<ClientWorkItem>,
+    pubsub_sender: Sender<PublisherWorkItem>,
+) -> Runtime {
+    debug!("Launching workload...");
 
     // spawn the request drivers on their own runtime
     let workload_rt = Builder::new_multi_thread()
@@ -87,6 +91,11 @@ impl Generator {
             component_weights.push(topics.weight());
         }
 
+        if components.is_empty() {
+            eprintln!("no workload components were specified in the config");
+            std::process::exit(1);
+        }
+
         Self {
             ratelimiter,
             components,
@@ -98,7 +107,12 @@ impl Generator {
         self.ratelimiter.clone()
     }
 
-    pub fn generate(&self, client_sender: &Sender<ClientWorkItem>, pubsub_sender: &Sender<PublisherWorkItem>, rng: &mut dyn RngCore) {
+    pub fn generate(
+        &self,
+        client_sender: &Sender<ClientWorkItem>,
+        pubsub_sender: &Sender<PublisherWorkItem>,
+        rng: &mut dyn RngCore,
+    ) {
         if let Some(ref ratelimiter) = self.ratelimiter {
             loop {
                 if ratelimiter.try_wait().is_ok() {
@@ -126,10 +140,7 @@ impl Generator {
         let mut message = vec![0_u8; topics.message_len];
         rng.fill(&mut message[32..topics.message_len]);
 
-        PublisherWorkItem::Publish {
-            topic,
-            message,
-        }
+        PublisherWorkItem::Publish { topic, message }
     }
 
     fn generate_request(&self, keyspace: &Keyspace, rng: &mut dyn RngCore) -> ClientWorkItem {
@@ -301,19 +312,25 @@ impl Generator {
             },
         }
     }
+
+    pub fn components(&self) -> &[Component] {
+        &self.components
+    }
 }
 
 #[derive(Clone)]
-enum Component {
+pub enum Component {
     Keyspace(Keyspace),
     Topics(Topics),
 }
 
 #[derive(Clone)]
-struct Topics {
+pub struct Topics {
     topics: Vec<Arc<String>>,
     topic_dist: KeyDistribution,
     message_len: usize,
+    subscriber_poolsize: usize,
+    subscriber_concurrency: usize,
 }
 
 impl Topics {
@@ -322,6 +339,8 @@ impl Topics {
         let ntopics = std::cmp::max(1, topics.topics());
         let topiclen = topics.topic_len();
         let message_len = topics.message_len();
+        let subscriber_poolsize = topics.subscriber_poolsize();
+        let subscriber_concurrency = topics.subscriber_concurrency();
 
         // we use a predictable seed to generate the topic names
         let mut rng = Xoshiro512PlusPlus::seed_from_u64(0);
@@ -342,12 +361,26 @@ impl Topics {
             topics,
             topic_dist,
             message_len,
+            subscriber_poolsize,
+            subscriber_concurrency,
         }
+    }
+
+    pub fn topics(&self) -> &[Arc<String>] {
+        &self.topics
+    }
+
+    pub fn subscriber_poolsize(&self) -> usize {
+        self.subscriber_poolsize
+    }
+
+    pub fn subscriber_concurrency(&self) -> usize {
+        self.subscriber_concurrency
     }
 }
 
 #[derive(Clone)]
-struct Keyspace {
+pub struct Keyspace {
     keys: Vec<Arc<[u8]>>,
     key_dist: KeyDistribution,
     commands: Vec<Command>,
@@ -501,7 +534,11 @@ impl Keyspace {
 }
 
 pub async fn reconnect(work_sender: Sender<ClientWorkItem>, config: Config) -> Result<()> {
-    let rate = config.client().reconnect_rate();
+    if config.client().is_none() {
+        return Ok(());
+    }
+
+    let rate = config.client().unwrap().reconnect_rate();
 
     let mut ratelimit_params = if rate.is_some() {
         Some(convert_ratelimit(rate.unwrap()))

@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: (Apache-2.0)
 // Copyright Authors of rpc-perf
 
-use crate::workload::launch_workload;
-use crate::pubsub::launch_publishers;
 use crate::clients::launch_clients;
+use crate::pubsub::launch_publishers;
+use crate::pubsub::launch_subscribers;
+use crate::workload::launch_workload;
 use metriken::Counter;
 use metriken::Gauge;
 use metriken::Heatmap;
@@ -165,6 +166,8 @@ fn main() {
 
     let workload_ratelimit = workload_generator.ratelimiter();
 
+    let workload_components = workload_generator.components().to_owned();
+
     // spawn the admin thread
     rt.spawn(admin::http(workload_ratelimit.clone()));
 
@@ -182,8 +185,8 @@ fn main() {
     // rt.spawn_blocking(move || reconnect(client_sender, c));
 
     let client_rt = launch_clients(&config, client_receiver);
-
     let publisher_rt = launch_publishers(&config, pubsub_receiver);
+    let subscriber_rt = launch_subscribers(&config, workload_components);
 
     // provide output on cli and block until run is over
     match config.general().output_format() {
@@ -198,9 +201,14 @@ fn main() {
     // signal to other threads to shutdown
     RUNNING.store(false, Ordering::Relaxed);
 
-    client_rt.shutdown_timeout(std::time::Duration::from_millis(100));
+    if let Some(client_rt) = client_rt {
+        client_rt.shutdown_timeout(std::time::Duration::from_millis(100));
+    }
     if let Some(publisher_rt) = publisher_rt {
         publisher_rt.shutdown_timeout(std::time::Duration::from_millis(100));
+    }
+    if let Some(subscriber_rt) = subscriber_rt {
+        subscriber_rt.shutdown_timeout(std::time::Duration::from_millis(100));
     }
     workload_rt.shutdown_timeout(std::time::Duration::from_millis(100));
 

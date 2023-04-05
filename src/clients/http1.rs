@@ -12,11 +12,11 @@ use hyper::{Request, Uri};
 pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiver<WorkItem>) {
     debug!("launching http1 protocol tasks");
 
-    if config.client().concurrency() > 1 {
+    if config.client().unwrap().concurrency() > 1 {
         error!("HTTP/1.1 does not support multiplexing sessions onto single streams. Ignoring the concurrency parameter.");
     }
 
-    for _ in 0..config.client().poolsize() {
+    for _ in 0..config.client().unwrap().poolsize() {
         for endpoint in config.target().endpoints() {
             runtime.spawn(task(
                 work_receiver.clone(),
@@ -43,20 +43,24 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                 SESSION_LIFECYCLE_REQUESTS.increment(stop, lifecycle_ns, 1);
             }
             CONNECT.increment();
-            let stream =
-                match timeout(config.client().connect_timeout(), connector.connect(&endpoint)).await {
-                    Ok(Ok(s)) => s,
-                    Ok(Err(_)) => {
-                        CONNECT_EX.increment();
-                        sleep(Duration::from_millis(100)).await;
-                        continue;
-                    }
-                    Err(_) => {
-                        CONNECT_TIMEOUT.increment();
-                        sleep(Duration::from_millis(100)).await;
-                        continue;
-                    }
-                };
+            let stream = match timeout(
+                config.client().unwrap().connect_timeout(),
+                connector.connect(&endpoint),
+            )
+            .await
+            {
+                Ok(Ok(s)) => s,
+                Ok(Err(_)) => {
+                    CONNECT_EX.increment();
+                    sleep(Duration::from_millis(100)).await;
+                    continue;
+                }
+                Err(_) => {
+                    CONNECT_TIMEOUT.increment();
+                    sleep(Duration::from_millis(100)).await;
+                    continue;
+                }
+            };
 
             let (s, conn) = match hyper::client::conn::http1::handshake(stream).await {
                 Ok((s, c)) => {
@@ -122,7 +126,11 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
 
         // send request
         let start = Instant::now();
-        let response = timeout(config.client().request_timeout(), s.send_request(request)).await;
+        let response = timeout(
+            config.client().unwrap().request_timeout(),
+            s.send_request(request),
+        )
+        .await;
         let stop = Instant::now();
 
         match response {

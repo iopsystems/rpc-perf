@@ -27,7 +27,7 @@ pub use workload::{Command, Keyspace, Topics, ValueKind, Verb, Workload};
 #[derive(Clone, Deserialize)]
 pub struct Config {
     general: General,
-    client: Client,
+    client: Option<Client>,
     debug: Debug,
     pubsub: Option<Pubsub>,
     target: Target,
@@ -66,8 +66,8 @@ impl Config {
         &self.general
     }
 
-    pub fn client(&self) -> &Client {
-        &self.client
+    pub fn client(&self) -> Option<&Client> {
+        self.client.as_ref()
     }
 
     pub fn pubsub(&self) -> Option<&Pubsub> {
@@ -81,7 +81,6 @@ impl Config {
     pub fn tls(&self) -> &Tls {
         &self.tls
     }
-
 
     pub fn workload(&self) -> &Workload {
         &self.workload

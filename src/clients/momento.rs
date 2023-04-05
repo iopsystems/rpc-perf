@@ -13,7 +13,7 @@ use std::collections::HashMap;
 pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiver<WorkItem>) {
     debug!("launching momento protocol tasks");
 
-    for _ in 0..config.client().poolsize() {
+    for _ in 0..config.client().unwrap().poolsize() {
         let client = {
             let _guard = runtime.enter();
 
@@ -22,8 +22,8 @@ pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiv
                 eprintln!("environment variable `MOMENTO_AUTHENTICATION` is not set");
                 std::process::exit(1);
             }
-            let auth_token =
-                std::env::var("MOMENTO_AUTHENTICATION").expect("MOMENTO_AUTHENTICATION must be set");
+            let auth_token = std::env::var("MOMENTO_AUTHENTICATION")
+                .expect("MOMENTO_AUTHENTICATION must be set");
             match SimpleCacheClientBuilder::new(auth_token, std::time::Duration::from_secs(600)) {
                 Ok(c) => c.build(),
                 Err(e) => {
@@ -37,7 +37,7 @@ pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiv
         CONNECT_CURR.add(1);
 
         // create one task per channel
-        for _ in 0..config.client().concurrency() {
+        for _ in 0..config.client().unwrap().concurrency() {
             runtime.spawn(task(config.clone(), client.clone(), work_receiver.clone()));
         }
     }
@@ -65,7 +65,12 @@ async fn task(
         let result = match work_item {
             WorkItem::Get { key } => {
                 GET.increment();
-                match timeout(config.client().request_timeout(), client.get(cache_name, &*key)).await {
+                match timeout(
+                    config.client().unwrap().request_timeout(),
+                    client.get(cache_name, &*key),
+                )
+                .await
+                {
                     Ok(Ok(r)) => match r.result {
                         MomentoGetStatus::HIT => {
                             GET_OK.increment();
@@ -97,7 +102,7 @@ async fn task(
             WorkItem::Set { key, value } => {
                 SET.increment();
                 match timeout(
-                    config.client().request_timeout(),
+                    config.client().unwrap().request_timeout(),
                     client.set(cache_name, (*key).to_owned(), (*value).to_owned(), None),
                 )
                 .await
@@ -119,7 +124,7 @@ async fn task(
             WorkItem::Delete { key } => {
                 DELETE.increment();
                 match timeout(
-                    config.client().request_timeout(),
+                    config.client().unwrap().request_timeout(),
                     client.delete(cache_name, (*key).to_owned()),
                 )
                 .await
@@ -145,7 +150,7 @@ async fn task(
             WorkItem::HashDelete { key, fields } => {
                 HASH_DELETE.increment();
                 match timeout(
-                    config.client().request_timeout(),
+                    config.client().unwrap().request_timeout(),
                     client.dictionary_delete(
                         cache_name,
                         &*key,
@@ -171,7 +176,7 @@ async fn task(
             WorkItem::HashGet { key, fields } => {
                 HASH_GET.increment();
                 match timeout(
-                    config.client().request_timeout(),
+                    config.client().unwrap().request_timeout(),
                     client.dictionary_get(cache_name, &*key, fields.iter().map(|f| &**f).collect()),
                 )
                 .await
@@ -212,7 +217,7 @@ async fn task(
             WorkItem::HashGetAll { key } => {
                 HASH_GET_ALL.increment();
                 match timeout(
-                    config.client().request_timeout(),
+                    config.client().unwrap().request_timeout(),
                     client.dictionary_fetch(cache_name, &*key),
                 )
                 .await
@@ -242,7 +247,7 @@ async fn task(
             WorkItem::HashIncrement { key, field, amount } => {
                 HASH_INCR.increment();
                 match timeout(
-                    config.client().request_timeout(),
+                    config.client().unwrap().request_timeout(),
                     client.dictionary_increment(
                         cache_name,
                         &*key,
@@ -280,7 +285,7 @@ async fn task(
                 let data: HashMap<Vec<u8>, Vec<u8>> =
                     data.iter().map(|(k, v)| (k.to_vec(), v.to_vec())).collect();
                 match timeout(
-                    config.client().request_timeout(),
+                    config.client().unwrap().request_timeout(),
                     client.dictionary_set(cache_name, &*key, data, CollectionTtl::new(None, false)),
                 )
                 .await
@@ -307,7 +312,7 @@ async fn task(
                 SET_ADD.increment();
                 let members: Vec<&[u8]> = members.iter().map(|v| v.borrow()).collect();
                 match timeout(
-                    config.client().request_timeout(),
+                    config.client().unwrap().request_timeout(),
                     client.set_add_elements(
                         cache_name,
                         &*key,
@@ -334,7 +339,7 @@ async fn task(
             WorkItem::SetMembers { key } => {
                 SET_MEMBERS.increment();
                 match timeout(
-                    config.client().request_timeout(),
+                    config.client().unwrap().request_timeout(),
                     client.set_fetch(cache_name, &*key),
                 )
                 .await
@@ -357,7 +362,7 @@ async fn task(
                 SET_REMOVE.increment();
                 let members: Vec<&[u8]> = members.iter().map(|v| v.borrow()).collect();
                 match timeout(
-                    config.client().request_timeout(),
+                    config.client().unwrap().request_timeout(),
                     client.set_remove_elements(cache_name, &*key, members),
                 )
                 .await
@@ -388,7 +393,7 @@ async fn task(
                 LIST_PUSH_FRONT.increment();
                 let result = if elements.len() == 1 {
                     match timeout(
-                        config.client().request_timeout(),
+                        config.client().unwrap().request_timeout(),
                         client.list_push_front(
                             cache_name,
                             &*key,
@@ -408,7 +413,7 @@ async fn task(
                     // concat do not match the redis push semantics
                     let elements: Vec<&[u8]> = elements.iter().map(|v| v.borrow()).rev().collect();
                     match timeout(
-                        config.client().request_timeout(),
+                        config.client().unwrap().request_timeout(),
                         client.list_concat_front(
                             cache_name,
                             &*key,
@@ -446,7 +451,7 @@ async fn task(
                 LIST_PUSH_BACK.increment();
                 let result = if elements.len() == 1 {
                     match timeout(
-                        config.client().request_timeout(),
+                        config.client().unwrap().request_timeout(),
                         client.list_push_back(
                             cache_name,
                             &*key,
@@ -466,7 +471,7 @@ async fn task(
                     // concat do not match the redis push semantics
                     let elements: Vec<&[u8]> = elements.iter().map(|v| v.borrow()).rev().collect();
                     match timeout(
-                        config.client().request_timeout(),
+                        config.client().unwrap().request_timeout(),
                         client.list_concat_back(
                             cache_name,
                             &*key,
@@ -499,7 +504,7 @@ async fn task(
             WorkItem::ListFetch { key } => {
                 LIST_FETCH.increment();
                 match timeout(
-                    config.client().request_timeout(),
+                    config.client().unwrap().request_timeout(),
                     client.list_fetch(cache_name, &*key),
                 )
                 .await
@@ -521,7 +526,7 @@ async fn task(
             WorkItem::ListLength { key } => {
                 LIST_LENGTH.increment();
                 match timeout(
-                    config.client().request_timeout(),
+                    config.client().unwrap().request_timeout(),
                     client.list_fetch(cache_name, &*key),
                 )
                 .await
@@ -543,7 +548,7 @@ async fn task(
             WorkItem::ListPopFront { key } => {
                 LIST_POP_FRONT.increment();
                 match timeout(
-                    config.client().request_timeout(),
+                    config.client().unwrap().request_timeout(),
                     client.list_pop_front(cache_name, &*key),
                 )
                 .await
@@ -565,7 +570,7 @@ async fn task(
             WorkItem::ListPopBack { key } => {
                 LIST_POP_BACK.increment();
                 match timeout(
-                    config.client().request_timeout(),
+                    config.client().unwrap().request_timeout(),
                     client.list_pop_back(cache_name, &*key),
                 )
                 .await
@@ -598,7 +603,7 @@ async fn task(
                     })
                     .collect();
                 match timeout(
-                    config.client().request_timeout(),
+                    config.client().unwrap().request_timeout(),
                     client.sorted_set_put(
                         cache_name,
                         &*key,
@@ -625,7 +630,7 @@ async fn task(
             WorkItem::SortedSetMembers { key } => {
                 SORTED_SET_MEMBERS.increment();
                 match timeout(
-                    config.client().request_timeout(),
+                    config.client().unwrap().request_timeout(),
                     client.sorted_set_fetch(
                         cache_name,
                         &*key,
@@ -657,7 +662,7 @@ async fn task(
             } => {
                 SORTED_SET_INCR.increment();
                 match timeout(
-                    config.client().request_timeout(),
+                    config.client().unwrap().request_timeout(),
                     client.sorted_set_increment(
                         cache_name,
                         &*key,
@@ -685,7 +690,7 @@ async fn task(
             WorkItem::SortedSetRank { key, member } => {
                 SORTED_SET_RANK.increment();
                 match timeout(
-                    config.client().request_timeout(),
+                    config.client().unwrap().request_timeout(),
                     client.sorted_set_get_rank(cache_name, &*key, &*member),
                 )
                 .await
@@ -708,7 +713,7 @@ async fn task(
                 SORTED_SET_REMOVE.increment();
                 let members: Vec<&[u8]> = members.iter().map(|v| v.borrow()).collect();
                 match timeout(
-                    config.client().request_timeout(),
+                    config.client().unwrap().request_timeout(),
                     client.sorted_set_remove(cache_name, &*key, members),
                 )
                 .await
@@ -731,7 +736,7 @@ async fn task(
                 SORTED_SET_SCORE.increment();
                 let members: Vec<&[u8]> = members.iter().map(|v| v.borrow()).collect();
                 match timeout(
-                    config.client().request_timeout(),
+                    config.client().unwrap().request_timeout(),
                     client.sorted_set_get_score(cache_name, &*key, members),
                 )
                 .await

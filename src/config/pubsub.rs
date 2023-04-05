@@ -13,6 +13,9 @@ pub struct Pubsub {
     publisher_threads: usize,
     // number of threads for subscriber tasks
     subscriber_threads: usize,
+
+    publisher_poolsize: usize,
+    publisher_concurrency: usize,
 }
 
 impl Pubsub {
@@ -30,5 +33,13 @@ impl Pubsub {
 
     pub fn subscriber_threads(&self) -> usize {
         self.subscriber_threads
+    }
+
+    pub fn publisher_poolsize(&self) -> usize {
+        self.publisher_poolsize
+    }
+
+    pub fn publisher_concurrency(&self) -> usize {
+        self.publisher_concurrency
     }
 }

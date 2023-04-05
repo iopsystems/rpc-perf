@@ -34,44 +34,33 @@ endpoints = []
 # specify the name of the target cache
 cache_name = "preview-cache"
 
-[client]
-# number of threads used to drive requests
-threads = 4
-# the total number of TCP connections
-poolsize = 1
-# the number of gRPC sessions per TCP connection
-concurrency = 20
+[pubsub]
 # the connect timeout in milliseconds
 connect_timeout = 10000
-# the request timeout in milliseconds
-request_timeout = 1000
-
-[subscribers]
-# the number of subscriber worker threads
-threads = 4
-# the connect timeout in milliseconds
-connect_timeout = 10000
+publish_timeout = 1000
+publisher_threads = 4
+subscriber_threads = 4
+publisher_poolsize = 1
+publisher_concurrency = 20
 
 [workload]
 # the number of threads that will be used to generate requests
 threads = 1
 # the global ratelimit
-ratelimit = 50
+ratelimit = 10
 
 [[workload.topics]]
 # the weight relative to other workload components
 weight = 1
 # the total number of Momento clients for subscribers to this set of topics
-subscriber_poolsize = 10
+subscriber_poolsize = 1
 # the total number of gRPC sessions per Momento client for this set of topics
-subscriber_concurrency = 100
+subscriber_concurrency = 1
 # sets the number of topics
-ntopics = 32
+topics = 4
 # set the length of the topic names, in bytes
-topiclen = 64
+topic_len = 64
 # sets the value length, in bytes
-vlen = 128
-# use random bytes for the values
-vkind = "bytes"
+message_len = 128
 
 [tls]

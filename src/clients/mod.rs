@@ -17,13 +17,17 @@ use tokio::io::*;
 use tokio::runtime::Runtime;
 use tokio::time::{timeout, Duration};
 
-pub fn launch_clients(config: &Config, work_receiver: Receiver<WorkItem>) -> Runtime {
+pub fn launch_clients(config: &Config, work_receiver: Receiver<WorkItem>) -> Option<Runtime> {
     debug!("Launching clients...");
+
+    if config.client().is_none() {
+        return None;
+    }
 
     // spawn the request drivers on their own runtime
     let mut client_rt = Builder::new_multi_thread()
         .enable_all()
-        .worker_threads(config.client().threads())
+        .worker_threads(config.client().unwrap().threads())
         .build()
         .expect("failed to initialize tokio runtime");
 
@@ -48,7 +52,7 @@ pub fn launch_clients(config: &Config, work_receiver: Receiver<WorkItem>) -> Run
         }
     }
 
-    client_rt
+    Some(client_rt)
 }
 
 pub enum ResponseError {

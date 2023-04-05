@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: (Apache-2.0)
 // Copyright Authors of rpc-perf
 
-use hyper::client::conn::http2::SendRequest;
-use hyper::rt::Executor;
-use std::future::Future;
 use super::*;
 use crate::net::Connector;
 use bytes::Bytes;
 use http_body_util::Empty;
+use hyper::client::conn::http2::SendRequest;
 use hyper::header::{HeaderName, HeaderValue};
+use hyper::rt::Executor;
 use hyper::{Request, Uri};
+use std::future::Future;
 
 #[derive(Clone)]
 struct Queue<T> {
@@ -21,10 +21,7 @@ impl<T> Queue<T> {
     pub fn new(size: usize) -> Self {
         let (tx, rx) = async_channel::bounded::<T>(size);
 
-        Self {
-            tx,
-            rx,
-        }
+        Self { tx, rx }
     }
 
     pub async fn send(&self, item: T) -> std::result::Result<(), async_channel::SendError<T>> {
@@ -41,17 +38,21 @@ impl<T> Queue<T> {
 pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiver<WorkItem>) {
     debug!("launching http2 protocol tasks");
 
-    for _ in 0..config.client().poolsize() {
+    for _ in 0..config.client().unwrap().poolsize() {
         for endpoint in config.target().endpoints() {
             // for each endpoint have poolsize # of pool_managers, each managing
             // a single TCP stream
 
             let queue = Queue::new(1);
-            runtime.spawn(pool_manager(endpoint.clone(), config.clone(), queue.clone()));
+            runtime.spawn(pool_manager(
+                endpoint.clone(),
+                config.clone(),
+                queue.clone(),
+            ));
 
             // since HTTP/2.0 allows muxing several sessions onto a single TCP
             // stream, we launch one task for each session on this TCP stream
-            for _ in 0..config.client().concurrency() {
+            for _ in 0..config.client().unwrap().concurrency() {
                 runtime.spawn(task(
                     work_receiver.clone(),
                     endpoint.clone(),
@@ -82,29 +83,34 @@ async fn pool_manager(endpoint: String, config: Config, queue: Queue<SendRequest
     while RUNNING.load(Ordering::Relaxed) {
         if sender.is_none() {
             CONNECT.increment();
-            let stream =
-                match timeout(config.client().connect_timeout(), connector.connect(&endpoint)).await {
-                    Ok(Ok(s)) => s,
-                    Ok(Err(_)) => {
-                        CONNECT_EX.increment();
-                        sleep(Duration::from_millis(100)).await;
-                        continue;
-                    }
-                    Err(_) => {
-                        CONNECT_TIMEOUT.increment();
-                        sleep(Duration::from_millis(100)).await;
-                        continue;
-                    }
-                };
-
-            let (s, conn) = match hyper::client::conn::http2::handshake(TokioExecutor{}, stream).await {
-                Ok((s, c)) => (s, c),
-                Err(_e) => {
+            let stream = match timeout(
+                config.client().unwrap().connect_timeout(),
+                connector.connect(&endpoint),
+            )
+            .await
+            {
+                Ok(Ok(s)) => s,
+                Ok(Err(_)) => {
                     CONNECT_EX.increment();
                     sleep(Duration::from_millis(100)).await;
                     continue;
                 }
+                Err(_) => {
+                    CONNECT_TIMEOUT.increment();
+                    sleep(Duration::from_millis(100)).await;
+                    continue;
+                }
             };
+
+            let (s, conn) =
+                match hyper::client::conn::http2::handshake(TokioExecutor {}, stream).await {
+                    Ok((s, c)) => (s, c),
+                    Err(_e) => {
+                        CONNECT_EX.increment();
+                        sleep(Duration::from_millis(100)).await;
+                        continue;
+                    }
+                };
 
             SESSION.increment();
 
@@ -133,13 +139,21 @@ async fn pool_manager(endpoint: String, config: Config, queue: Queue<SendRequest
 
 // a task for http/2.0
 #[allow(clippy::slow_vector_initialization)]
-async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Config, queue: Queue<SendRequest<Empty<Bytes>>>) -> Result<()> {
+async fn task(
+    work_receiver: Receiver<WorkItem>,
+    endpoint: String,
+    config: Config,
+    queue: Queue<SendRequest<Empty<Bytes>>>,
+) -> Result<()> {
     // let connector = Connector::new(&config)?;
     let mut sender = None;
 
     while RUNNING.load(Ordering::Relaxed) {
         if sender.is_none() {
-            let s = queue.recv().await.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+            let s = queue
+                .recv()
+                .await
+                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
             sender = Some(s);
         }
 
@@ -179,7 +193,11 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
 
         // send request
         let start = Instant::now();
-        let response = timeout(config.client().request_timeout(), s.send_request(request)).await;
+        let response = timeout(
+            config.client().unwrap().request_timeout(),
+            s.send_request(request),
+        )
+        .await;
         let stop = Instant::now();
 
         match response {

@@ -1,7 +1,7 @@
-
-use crate::*;
 use crate::clients::*;
+use crate::workload::Component;
 use crate::workload::PublisherWorkItem as WorkItem;
+use crate::*;
 use async_channel::Receiver;
 use std::io::{Error, ErrorKind, Result};
 // use tokio::io::*;
@@ -32,13 +32,13 @@ pub fn launch_publishers(config: &Config, work_receiver: Receiver<WorkItem>) -> 
         _ => {
             error!("pubsub is not supported for the selected protocol");
             std::process::exit(1);
-        },
+        }
     }
 
     Some(publisher_rt)
 }
 
-pub fn launch_subscribers(config: &Config) -> Option<Runtime> {
+pub fn launch_subscribers(config: &Config, workload_components: Vec<Component>) -> Option<Runtime> {
     if config.pubsub().is_none() {
         debug!("No pubsub configuration specified");
         return None;
@@ -55,12 +55,12 @@ pub fn launch_subscribers(config: &Config) -> Option<Runtime> {
 
     match config.general().protocol() {
         Protocol::Momento => {
-            momento::launch_subscribers(&mut subscriber_rt, config.clone());
+            momento::launch_subscribers(&mut subscriber_rt, config.clone(), workload_components);
         }
         _ => {
             error!("pubsub is not supported for the selected protocol");
             std::process::exit(1);
-        },
+        }
     }
 
     Some(subscriber_rt)

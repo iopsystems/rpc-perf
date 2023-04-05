@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: (Apache-2.0)
 // Copyright Authors of rpc-perf
 
-use std::collections::HashMap;
 use std::sync::Arc;
 
 #[allow(dead_code)]
@@ -10,5 +9,5 @@ pub enum PublisherWorkItem {
     Publish {
         topic: Arc<String>,
         message: Vec<u8>,
-    }
+    },
 }

@@ -9,6 +9,7 @@ fn one() -> usize {
 
 #[derive(Clone, Deserialize)]
 pub struct Workload {
+    #[serde(default)]
     keyspace: Vec<Keyspace>,
     #[serde(default)]
     topics: Vec<Topics>,
