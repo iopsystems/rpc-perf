@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 #[allow(dead_code)]
 #[derive(Debug, PartialEq)]
-pub enum WorkItem {
+pub enum ClientWorkItem {
     Add {
         key: Arc<[u8]>,
         value: Arc<[u8]>,

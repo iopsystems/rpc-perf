@@ -1,7 +1,7 @@
 
 use crate::*;
 use crate::clients::*;
-use crate::workload::WorkItem;
+use crate::workload::PublisherWorkItem as WorkItem;
 use async_channel::Receiver;
 use std::io::{Error, ErrorKind, Result};
 // use tokio::io::*;
@@ -16,7 +16,7 @@ pub fn launch_publishers(config: &Config, work_receiver: Receiver<WorkItem>) -> 
         return None;
     }
 
-    debug!("Launching clients...");
+    debug!("Launching publishers...");
 
     // spawn the request drivers on their own runtime
     let mut publisher_rt = Builder::new_multi_thread()
@@ -27,11 +27,41 @@ pub fn launch_publishers(config: &Config, work_receiver: Receiver<WorkItem>) -> 
 
     match config.general().protocol() {
         Protocol::Momento => {
-            // todo!("unimplemeted");
-            momento::launch_publishers(&mut publisher_rt, config.clone(), work_receiver)
+            momento::launch_publishers(&mut publisher_rt, config.clone(), work_receiver);
         }
-        _ => todo!(),
+        _ => {
+            error!("pubsub is not supported for the selected protocol");
+            std::process::exit(1);
+        },
     }
 
     Some(publisher_rt)
+}
+
+pub fn launch_subscribers(config: &Config) -> Option<Runtime> {
+    if config.pubsub().is_none() {
+        debug!("No pubsub configuration specified");
+        return None;
+    }
+
+    debug!("Launching subscribers...");
+
+    // spawn the request drivers on their own runtime
+    let mut subscriber_rt = Builder::new_multi_thread()
+        .enable_all()
+        .worker_threads(config.pubsub().unwrap().publisher_threads())
+        .build()
+        .expect("failed to initialize tokio runtime");
+
+    match config.general().protocol() {
+        Protocol::Momento => {
+            momento::launch_subscribers(&mut subscriber_rt, config.clone());
+        }
+        _ => {
+            error!("pubsub is not supported for the selected protocol");
+            std::process::exit(1);
+        },
+    }
+
+    Some(subscriber_rt)
 }

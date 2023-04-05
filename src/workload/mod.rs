@@ -20,12 +20,14 @@ use std::io::Result;
 use std::sync::Arc;
 use tokio::time::Interval;
 
-mod item;
+mod client;
+mod publisher;
 
-pub use item::WorkItem;
+pub use client::ClientWorkItem;
+pub use publisher::PublisherWorkItem;
 
 
-pub fn launch_workload(generator: Generator, config: &Config, client_sender: Sender<WorkItem>, pubsub_sender: Sender<WorkItem>) -> Runtime {
+pub fn launch_workload(generator: Generator, config: &Config, client_sender: Sender<ClientWorkItem>, pubsub_sender: Sender<PublisherWorkItem>) -> Runtime {
 	debug!("Launching workload...");
 
     // spawn the request drivers on their own runtime
@@ -96,7 +98,7 @@ impl Generator {
         self.ratelimiter.clone()
     }
 
-    pub fn generate(&self, client_sender: &Sender<WorkItem>, pubsub_sender: &Sender<WorkItem>, rng: &mut dyn RngCore) {
+    pub fn generate(&self, client_sender: &Sender<ClientWorkItem>, pubsub_sender: &Sender<PublisherWorkItem>, rng: &mut dyn RngCore) {
         if let Some(ref ratelimiter) = self.ratelimiter {
             loop {
                 if ratelimiter.try_wait().is_ok() {
@@ -117,31 +119,31 @@ impl Generator {
         }
     }
 
-    fn generate_pubsub(&self, topics: &Topics, rng: &mut dyn RngCore) -> WorkItem {
+    fn generate_pubsub(&self, topics: &Topics, rng: &mut dyn RngCore) -> PublisherWorkItem {
         let index = topics.topic_dist.inner.sample(rng);
         let topic = topics.topics[index].clone();
 
         let mut message = vec![0_u8; topics.message_len];
         rng.fill(&mut message[32..topics.message_len]);
 
-        WorkItem::Publish {
+        PublisherWorkItem::Publish {
             topic,
             message,
         }
     }
 
-    fn generate_request(&self, keyspace: &Keyspace, rng: &mut dyn RngCore) -> WorkItem {
+    fn generate_request(&self, keyspace: &Keyspace, rng: &mut dyn RngCore) -> ClientWorkItem {
         let command = &keyspace.commands[keyspace.command_dist.sample(rng)];
 
         match command.verb() {
-            Verb::Get => WorkItem::Get {
+            Verb::Get => ClientWorkItem::Get {
                 key: keyspace.sample(rng),
             },
-            Verb::Set => WorkItem::Set {
+            Verb::Set => ClientWorkItem::Set {
                 key: keyspace.sample(rng),
                 value: keyspace.gen_value(rng),
             },
-            Verb::Delete => WorkItem::Delete {
+            Verb::Delete => ClientWorkItem::Delete {
                 key: keyspace.sample(rng),
             },
             Verb::HashGet => {
@@ -151,12 +153,12 @@ impl Generator {
                     fields.push(keyspace.sample_inner(rng));
                 }
 
-                WorkItem::HashGet {
+                ClientWorkItem::HashGet {
                     key: keyspace.sample(rng),
                     fields,
                 }
             }
-            Verb::HashGetAll => WorkItem::HashGetAll {
+            Verb::HashGetAll => ClientWorkItem::HashGetAll {
                 key: keyspace.sample(rng),
             },
             Verb::HashDelete => {
@@ -166,16 +168,16 @@ impl Generator {
                     fields.push(keyspace.sample_inner(rng));
                 }
 
-                WorkItem::HashDelete {
+                ClientWorkItem::HashDelete {
                     key: keyspace.sample(rng),
                     fields,
                 }
             }
-            Verb::HashExists => WorkItem::HashExists {
+            Verb::HashExists => ClientWorkItem::HashExists {
                 key: keyspace.sample(rng),
                 field: keyspace.sample_inner(rng),
             },
-            Verb::HashIncrement => WorkItem::HashIncrement {
+            Verb::HashIncrement => ClientWorkItem::HashIncrement {
                 key: keyspace.sample(rng),
                 field: keyspace.sample_inner(rng),
                 amount: rng.gen(),
@@ -185,7 +187,7 @@ impl Generator {
                 while data.len() < command.cardinality() {
                     data.insert(keyspace.sample_inner(rng), keyspace.gen_value(rng));
                 }
-                WorkItem::HashSet {
+                ClientWorkItem::HashSet {
                     key: keyspace.sample(rng),
                     data,
                 }
@@ -196,7 +198,7 @@ impl Generator {
                 for _ in 0..cardinality {
                     elements.push(keyspace.sample_inner(rng));
                 }
-                WorkItem::ListPushFront {
+                ClientWorkItem::ListPushFront {
                     key: keyspace.sample(rng),
                     elements,
                     truncate: command.truncate(),
@@ -208,37 +210,37 @@ impl Generator {
                 for _ in 0..cardinality {
                     elements.push(keyspace.sample_inner(rng));
                 }
-                WorkItem::ListPushBack {
+                ClientWorkItem::ListPushBack {
                     key: keyspace.sample(rng),
                     elements,
                     truncate: command.truncate(),
                 }
             }
-            Verb::ListFetch => WorkItem::ListFetch {
+            Verb::ListFetch => ClientWorkItem::ListFetch {
                 key: keyspace.sample(rng),
             },
-            Verb::ListLength => WorkItem::ListLength {
+            Verb::ListLength => ClientWorkItem::ListLength {
                 key: keyspace.sample(rng),
             },
-            Verb::ListPopFront => WorkItem::ListPopFront {
+            Verb::ListPopFront => ClientWorkItem::ListPopFront {
                 key: keyspace.sample(rng),
             },
-            Verb::ListPopBack => WorkItem::ListPopBack {
+            Verb::ListPopBack => ClientWorkItem::ListPopBack {
                 key: keyspace.sample(rng),
             },
-            Verb::Ping => WorkItem::Ping {},
+            Verb::Ping => ClientWorkItem::Ping {},
             Verb::SetAdd => {
                 let mut members = HashSet::new();
                 while members.len() < command.cardinality() {
                     members.insert(keyspace.sample_inner(rng));
                 }
                 let members = members.drain().collect();
-                WorkItem::SetAdd {
+                ClientWorkItem::SetAdd {
                     key: keyspace.sample(rng),
                     members,
                 }
             }
-            Verb::SetMembers => WorkItem::SetMembers {
+            Verb::SetMembers => ClientWorkItem::SetMembers {
                 key: keyspace.sample(rng),
             },
             Verb::SetRemove => {
@@ -247,7 +249,7 @@ impl Generator {
                     members.insert(keyspace.sample_inner(rng));
                 }
                 let members = members.drain().collect();
-                WorkItem::SetRemove {
+                ClientWorkItem::SetRemove {
                     key: keyspace.sample(rng),
                     members,
                 }
@@ -258,12 +260,12 @@ impl Generator {
                     members.insert(keyspace.sample_inner(rng));
                 }
                 let members = members.drain().map(|m| (m, rng.gen())).collect();
-                WorkItem::SortedSetAdd {
+                ClientWorkItem::SortedSetAdd {
                     key: keyspace.sample(rng),
                     members,
                 }
             }
-            Verb::SortedSetMembers => WorkItem::SortedSetMembers {
+            Verb::SortedSetMembers => ClientWorkItem::SortedSetMembers {
                 key: keyspace.sample(rng),
             },
             Verb::SortedSetRemove => {
@@ -272,12 +274,12 @@ impl Generator {
                     members.insert(keyspace.sample_inner(rng));
                 }
                 let members = members.drain().collect();
-                WorkItem::SortedSetRemove {
+                ClientWorkItem::SortedSetRemove {
                     key: keyspace.sample(rng),
                     members,
                 }
             }
-            Verb::SortedSetIncrement => WorkItem::SortedSetIncrement {
+            Verb::SortedSetIncrement => ClientWorkItem::SortedSetIncrement {
                 key: keyspace.sample(rng),
                 member: keyspace.sample_inner(rng),
                 amount: rng.gen(),
@@ -288,12 +290,12 @@ impl Generator {
                     members.insert(keyspace.sample_inner(rng));
                 }
                 let members = members.drain().collect();
-                WorkItem::SortedSetScore {
+                ClientWorkItem::SortedSetScore {
                     key: keyspace.sample(rng),
                     members,
                 }
             }
-            Verb::SortedSetRank => WorkItem::SortedSetRank {
+            Verb::SortedSetRank => ClientWorkItem::SortedSetRank {
                 key: keyspace.sample(rng),
                 member: keyspace.sample_inner(rng),
             },
@@ -498,7 +500,7 @@ impl Keyspace {
     }
 }
 
-pub async fn reconnect(work_sender: Sender<WorkItem>, config: Config) -> Result<()> {
+pub async fn reconnect(work_sender: Sender<ClientWorkItem>, config: Config) -> Result<()> {
     let rate = config.client().reconnect_rate();
 
     let mut ratelimit_params = if rate.is_some() {
@@ -519,7 +521,7 @@ pub async fn reconnect(work_sender: Sender<WorkItem>, config: Config) -> Result<
         };
 
         for _ in 0..quanta {
-            let _ = work_sender.send(WorkItem::Reconnect).await;
+            let _ = work_sender.send(ClientWorkItem::Reconnect).await;
         }
     }
 

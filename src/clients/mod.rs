@@ -8,7 +8,7 @@ mod momento;
 mod ping;
 mod resp;
 
-use crate::workload::WorkItem;
+use crate::workload::ClientWorkItem as WorkItem;
 use crate::*;
 use ::momento::MomentoError;
 use async_channel::Receiver;
