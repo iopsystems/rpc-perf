@@ -346,9 +346,7 @@ impl Topics {
         let subscriber_poolsize = topics.subscriber_poolsize();
         let subscriber_concurrency = topics.subscriber_concurrency();
         let topic_dist = match topics.topic_distribution() {
-            config::Distribution::Uniform => {
-                Distribution::Uniform(Uniform::new(0, ntopics))
-            }
+            config::Distribution::Uniform => Distribution::Uniform(Uniform::new(0, ntopics)),
             config::Distribution::Zipf => {
                 Distribution::Zipf(ZipfDistribution::new(ntopics, 1.0).unwrap())
             }
@@ -365,7 +363,6 @@ impl Topics {
             let _ = topics.insert(unsafe { std::str::from_utf8_unchecked(&topic) }.to_string());
         }
         let topics = topics.drain().map(|k| k.into()).collect();
-        
 
         Self {
             topics,
@@ -434,9 +431,7 @@ impl Keyspace {
         }
         let keys = keys.drain().map(|k| k.into()).collect();
         let key_dist = match keyspace.key_distribution() {
-            config::Distribution::Uniform => {
-                Distribution::Uniform(Uniform::new(0, nkeys))
-            }
+            config::Distribution::Uniform => Distribution::Uniform(Uniform::new(0, nkeys)),
             config::Distribution::Zipf => {
                 Distribution::Zipf(ZipfDistribution::new(nkeys, 1.0).unwrap())
             }

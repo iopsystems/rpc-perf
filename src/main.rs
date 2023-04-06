@@ -8,10 +8,9 @@ use crate::workload::launch_workload;
 use metriken::Counter;
 use metriken::Gauge;
 use metriken::Heatmap;
+use ringlog::*;
 use std::collections::HashMap;
 use warp::Filter;
-#[macro_use]
-extern crate ringlog;
 
 use crate::workload::Generator;
 use async_channel::{bounded, Sender};
@@ -49,28 +48,6 @@ type Instant = clocksource::Instant<clocksource::Nanoseconds<u64>>;
 type UnixInstant = clocksource::UnixInstant<clocksource::Nanoseconds<u64>>;
 
 static RUNNING: AtomicBool = AtomicBool::new(true);
-
-heatmap!(
-    REQUEST_LATENCY,
-    60_000_000_000_u64,
-    "distribution of request latencies in nanoseconds. incremented at time of requests disbatch."
-);
-
-heatmap!(
-    RESPONSE_LATENCY,
-    60_000_000_000_u64,
-    "distribution of response latencies in nanoseconds. incremented at time of response receipt."
-);
-
-heatmap!(
-    SESSION_LIFECYCLE_REQUESTS,
-    1_000_000_000,
-    "distribution of requests per session lifecycle. incremented at time of session close."
-);
-
-gauge!(CONNECT_CURR);
-counter!(CONNECT_OK);
-counter!(CONNECT_TIMEOUT);
 
 fn main() {
     // custom panic hook to terminate whole process after unwinding
