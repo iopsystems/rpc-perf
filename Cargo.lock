@@ -1763,6 +1763,7 @@ dependencies = [
 name = "rpc-perf"
 version = "6.0.0-alpha.0"
 dependencies = [
+ "ahash",
  "async-channel",
  "backtrace",
  "boring",

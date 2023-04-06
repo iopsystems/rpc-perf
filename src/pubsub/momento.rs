@@ -2,7 +2,8 @@
 // Copyright Authors of rpc-perf
 
 use super::*;
-use ::momento::preview::topics::TopicClient;
+use ::momento::preview::topics::{SubscriptionItem, TopicClient, ValueKind};
+use ahash::RandomState;
 use std::sync::Arc;
 use tokio::time::timeout;
 
@@ -69,13 +70,70 @@ async fn subscriber_task(client: Arc<TopicClient>, cache_name: String, topic: St
         .await
     {
         PUBSUB_SUBSCRIBE_OK.increment();
+
+        // Create a new hasher state to validate the integrity of received
+        // messages. Deterministic seeds are used so that multiple processes can
+        // verify the messages.
+        let hash_builder = RandomState::with_seeds(
+            0xd5b96f9126d61cee,
+            0x50af85c9d1b6de70,
+            0xbd7bdf2fee6d15b2,
+            0x3dbe88bb183ac6f4,
+        );
+
         while RUNNING.load(Ordering::Relaxed) {
             match subscription.item().await {
-                Ok(Some(_)) => {
-                    RESPONSE_OK.increment();
-                    PUBSUB_RECEIVE.increment();
-                    PUBSUB_RECEIVE_OK.increment();
-                    // got some item
+                Ok(Some(SubscriptionItem::Value(v))) => {
+                    if let ValueKind::Binary(mut v) = v.kind {
+                        let now = Instant::now();
+                        let now_unix = UnixInstant::now();
+
+                        if [v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7]]
+                            != [0x54, 0x45, 0x53, 0x54, 0x49, 0x4E, 0x47, 0x21]
+                        {
+                            error!("non rpc-perf message in topic");
+                            RESPONSE_EX.increment();
+                            PUBSUB_RECEIVE.increment();
+                            PUBSUB_RECEIVE_EX.increment();
+                            // unexpected message
+                            continue;
+                        }
+
+                        // grab the checksum and zero it in the message
+                        let csum = [v[8], v[9], v[10], v[11], v[12], v[13], v[14], v[15]];
+
+                        [v[8], v[9], v[10], v[11], v[12], v[13], v[14], v[15]] = [0; 8];
+
+                        if csum != hash_builder.hash_one(&v).to_be_bytes() {
+                            // corrupted message!
+                            error!("corruption detected!");
+                            RESPONSE_EX.increment();
+                            PUBSUB_RECEIVE.increment();
+                            PUBSUB_RECEIVE_EX.increment();
+                        }
+
+                        let ts = u64::from_be_bytes([
+                            v[16], v[17], v[18], v[19], v[20], v[21], v[22], v[23],
+                        ]);
+
+                        let latency = now_unix - UnixInstant::from_nanos(ts);
+                        let then = now - latency;
+
+                        RESPONSE_LATENCY.increment(then, latency.as_nanos(), 1);
+
+                        RESPONSE_OK.increment();
+                        PUBSUB_RECEIVE.increment();
+                        PUBSUB_RECEIVE_OK.increment();
+                    } else {
+                        error!("there was a string in the topic");
+                        // unexpected message
+                        RESPONSE_EX.increment();
+                        PUBSUB_RECEIVE.increment();
+                        PUBSUB_RECEIVE_EX.increment();
+                    }
+                }
+                Ok(Some(SubscriptionItem::Discontinuity(_))) => {
+                    // todo: do something about discontinuities?
                 }
                 Ok(None) => {
                     PUBSUB_RECEIVE.increment();
@@ -147,6 +205,16 @@ async fn publisher_task(
         })
         .to_string();
 
+    // Create a new hasher state to validate the integrity of received
+    // messages. Deterministic seeds are used so that multiple processes can
+    // verify the messages.
+    let hash_builder = RandomState::with_seeds(
+        0xd5b96f9126d61cee,
+        0x50af85c9d1b6de70,
+        0xbd7bdf2fee6d15b2,
+        0x3dbe88bb183ac6f4,
+    );
+
     while RUNNING.load(Ordering::Relaxed) {
         let work_item = work_receiver
             .recv()
@@ -156,9 +224,40 @@ async fn publisher_task(
         REQUEST.increment();
         let start = Instant::now();
         let result = match work_item {
-            WorkItem::Publish { topic, message } => {
-                // todo!();
+            WorkItem::Publish { topic, mut message } => {
+                let now_unix = UnixInstant::now();
+                let ts = (now_unix - UnixInstant::from_nanos(0))
+                    .as_nanos()
+                    .to_be_bytes();
+
+                // write the current unix time into the message
+                [
+                    message[16],
+                    message[17],
+                    message[18],
+                    message[19],
+                    message[20],
+                    message[21],
+                    message[22],
+                    message[23],
+                ] = ts;
+
+                // todo, write a sequence number into the message
+
+                // checksum the message and put the checksum into the message
+                [
+                    message[8],
+                    message[9],
+                    message[10],
+                    message[11],
+                    message[12],
+                    message[13],
+                    message[14],
+                    message[15],
+                ] = hash_builder.hash_one(&message).to_be_bytes();
+
                 PUBSUB_PUBLISH.increment();
+
                 match timeout(
                     config.pubsub().unwrap().publish_timeout(),
                     client.publish(cache_name.clone(), topic.to_string(), message),
@@ -190,24 +289,24 @@ async fn publisher_task(
 
         match result {
             Ok(_) => {
-                RESPONSE_OK.increment();
+                // RESPONSE_OK.increment();
 
                 let latency = stop.duration_since(start).as_nanos();
 
                 REQUEST_LATENCY.increment(start, latency, 1);
-                RESPONSE_LATENCY.increment(stop, latency, 1);
+                // RESPONSE_LATENCY.increment(stop, latency, 1);
             }
             Err(ResponseError::Exception) => {
-                RESPONSE_EX.increment();
+                // RESPONSE_EX.increment();
             }
             Err(ResponseError::Timeout) => {
-                RESPONSE_TIMEOUT.increment();
+                // RESPONSE_TIMEOUT.increment();
             }
             Err(ResponseError::Ratelimited) => {
-                RESPONSE_RATELIMITED.increment();
+                // RESPONSE_RATELIMITED.increment();
             }
             Err(ResponseError::BackendTimeout) => {
-                RESPONSE_BACKEND_TIMEOUT.increment();
+                // RESPONSE_BACKEND_TIMEOUT.increment();
             }
         }
     }

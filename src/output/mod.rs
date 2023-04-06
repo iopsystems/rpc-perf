@@ -34,10 +34,10 @@ pub fn log(config: &Config, traffic_ratelimit: Option<Arc<Ratelimiter>>) {
     let mut windows_under_target_rate = 0;
 
     while duration > 0 {
-        std::thread::sleep(Duration::from_millis(10));
+        std::thread::sleep(Duration::from_millis(1));
 
-        interval = interval.saturating_sub(10);
-        duration = duration.saturating_sub(10);
+        interval = interval.saturating_sub(1);
+        duration = duration.saturating_sub(1);
 
         if interval == 0 {
             let now = Instant::now();
@@ -112,7 +112,7 @@ pub fn log(config: &Config, traffic_ratelimit: Option<Arc<Ratelimiter>>) {
                 response_timeout as f64 / elapsed,
             );
 
-            let mut latencies = "response latency (us):".to_owned();
+            let mut latencies = "Response latency (us):".to_owned();
             for (label, percentile) in PERCENTILES {
                 let value = RESPONSE_LATENCY
                     .percentile(*percentile)

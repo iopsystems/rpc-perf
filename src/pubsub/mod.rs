@@ -49,7 +49,7 @@ pub fn launch_subscribers(config: &Config, workload_components: Vec<Component>) 
     // spawn the request drivers on their own runtime
     let mut subscriber_rt = Builder::new_multi_thread()
         .enable_all()
-        .worker_threads(config.pubsub().unwrap().publisher_threads())
+        .worker_threads(config.pubsub().unwrap().subscriber_threads())
         .build()
         .expect("failed to initialize tokio runtime");
 

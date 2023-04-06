@@ -3,13 +3,22 @@
 
 use crate::*;
 use ratelimit::Ratelimiter;
+use std::net::ToSocketAddrs;
 use std::sync::Arc;
 
 /// The HTTP admin server.
-pub async fn http(ratelimit: Option<Arc<Ratelimiter>>) {
+pub async fn http(config: Config, ratelimit: Option<Arc<Ratelimiter>>) {
     let admin = filters::admin(ratelimit);
 
-    warp::serve(admin).run(([0, 0, 0, 0], 9091)).await;
+    let addr = config
+        .general()
+        .admin()
+        .to_socket_addrs()
+        .expect("bad listen address")
+        .next()
+        .expect("couldn't determine listen address");
+
+    warp::serve(admin).run(addr).await;
 }
 
 mod filters {

@@ -14,6 +14,8 @@ pub struct General {
     /// The output type: log or json
     #[serde(default)]
     output_format: OutputFormat,
+    /// The admin listen address
+    admin: String,
 }
 
 impl General {
@@ -31,6 +33,10 @@ impl General {
 
     pub fn output_format(&self) -> OutputFormat {
         self.output_format
+    }
+
+    pub fn admin(&self) -> String {
+        self.admin.clone()
     }
 }
 

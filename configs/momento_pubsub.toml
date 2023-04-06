@@ -49,17 +49,33 @@ threads = 1
 # the global ratelimit
 ratelimit = 10
 
+# An example set of topics using a low number of subscribers per topic.
 [[workload.topics]]
 # the weight relative to other workload components
 weight = 1
 # the total number of Momento clients for subscribers to this set of topics
 subscriber_poolsize = 1
 # the total number of gRPC sessions per Momento client for this set of topics
-subscriber_concurrency = 1
+subscriber_concurrency = 2
 # sets the number of topics
-topics = 4
+topics = 10
 # set the length of the topic names, in bytes
 topic_len = 64
+# sets the value length, in bytes
+message_len = 128
+
+# An example set of topics using a high number of subscribers per topic.
+[[workload.topics]]
+# the weight relative to other workload components
+weight = 1
+# the total number of Momento clients for subscribers to this set of topics
+subscriber_poolsize = 1
+# the total number of gRPC sessions per Momento client for this set of topics
+subscriber_concurrency = 20
+# sets the number of topics
+topics = 1
+# set the length of the topic names, in bytes
+topic_len = 32
 # sets the value length, in bytes
 message_len = 128
 

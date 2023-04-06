@@ -137,10 +137,13 @@ impl Generator {
         let index = topics.topic_dist.inner.sample(rng);
         let topic = topics.topics[index].clone();
 
-        let mut message = vec![0_u8; topics.message_len];
-        rng.fill(&mut message[32..topics.message_len]);
+        let mut m = vec![0_u8; topics.message_len];
+        // add a header
+        [m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7]] =
+            [0x54, 0x45, 0x53, 0x54, 0x49, 0x4E, 0x47, 0x21];
+        rng.fill(&mut m[32..topics.message_len]);
 
-        PublisherWorkItem::Publish { topic, message }
+        PublisherWorkItem::Publish { topic, message: m }
     }
 
     fn generate_request(&self, keyspace: &Keyspace, rng: &mut dyn RngCore) -> ClientWorkItem {

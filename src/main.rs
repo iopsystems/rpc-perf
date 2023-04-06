@@ -46,18 +46,19 @@ pub static PERCENTILES: &[(&str, f64)] = &[
 ];
 
 type Instant = clocksource::Instant<clocksource::Nanoseconds<u64>>;
+type UnixInstant = clocksource::UnixInstant<clocksource::Nanoseconds<u64>>;
 
 static RUNNING: AtomicBool = AtomicBool::new(true);
 
 heatmap!(
     REQUEST_LATENCY,
-    1_000_000_000,
+    60_000_000_000_u64,
     "distribution of request latencies in nanoseconds. incremented at time of requests disbatch."
 );
 
 heatmap!(
     RESPONSE_LATENCY,
-    1_000_000_000,
+    60_000_000_000_u64,
     "distribution of response latencies in nanoseconds. incremented at time of response receipt."
 );
 
@@ -169,7 +170,7 @@ fn main() {
     let workload_components = workload_generator.components().to_owned();
 
     // spawn the admin thread
-    rt.spawn(admin::http(workload_ratelimit.clone()));
+    rt.spawn(admin::http(config.clone(), workload_ratelimit.clone()));
 
     let workload_rt = launch_workload(workload_generator, &config, client_sender, pubsub_sender);
 
