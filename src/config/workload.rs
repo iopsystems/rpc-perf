@@ -54,6 +54,8 @@ pub struct Topics {
     subscriber_poolsize: usize,
     #[serde(default = "one")]
     subscriber_concurrency: usize,
+    #[serde(default)]
+    topic_distribution: Distribution,
 }
 
 impl Topics {
@@ -80,6 +82,23 @@ impl Topics {
     pub fn subscriber_concurrency(&self) -> usize {
         self.subscriber_concurrency
     }
+
+    pub fn topic_distribution(&self) -> Distribution {
+        self.topic_distribution
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Distribution {
+    Uniform,
+    Zipf,
+}
+
+impl Default for Distribution {
+    fn default() -> Self {
+        Self::Uniform
+    }
 }
 
 #[derive(Clone, Deserialize)]
@@ -88,6 +107,8 @@ pub struct Keyspace {
     nkeys: usize,
     #[serde(default)]
     klen: usize,
+    #[serde(default)]
+    key_distribution: Distribution,
     #[serde(default = "one")]
     weight: usize,
     #[serde(default)]
@@ -108,6 +129,10 @@ impl Keyspace {
 
     pub fn klen(&self) -> usize {
         self.klen
+    }
+
+    pub fn key_distribution(&self) -> Distribution {
+        self.key_distribution
     }
 
     pub fn weight(&self) -> usize {

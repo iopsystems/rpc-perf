@@ -9,7 +9,7 @@ use rand::distributions::Uniform;
 use rand::Rng;
 use rand::RngCore;
 use rand::SeedableRng;
-use rand_distr::Distribution;
+use rand_distr::Distribution as RandomDistribution;
 use rand_distr::WeightedAliasIndex;
 use rand_xoshiro::Xoshiro512PlusPlus;
 use ratelimit::Ratelimiter;
@@ -19,6 +19,7 @@ use std::io::Result;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 use tokio::time::Interval;
+use zipf::ZipfDistribution;
 
 mod client;
 mod publisher;
@@ -134,7 +135,7 @@ impl Generator {
     }
 
     fn generate_pubsub(&self, topics: &Topics, rng: &mut dyn RngCore) -> PublisherWorkItem {
-        let index = topics.topic_dist.inner.sample(rng);
+        let index = topics.topic_dist.sample(rng);
         let topic = topics.topics[index].clone();
 
         let mut m = vec![0_u8; topics.message_len];
@@ -330,7 +331,7 @@ pub enum Component {
 #[derive(Clone)]
 pub struct Topics {
     topics: Vec<Arc<String>>,
-    topic_dist: KeyDistribution,
+    topic_dist: Distribution,
     message_len: usize,
     subscriber_poolsize: usize,
     subscriber_concurrency: usize,
@@ -344,6 +345,14 @@ impl Topics {
         let message_len = topics.message_len();
         let subscriber_poolsize = topics.subscriber_poolsize();
         let subscriber_concurrency = topics.subscriber_concurrency();
+        let topic_dist = match topics.topic_distribution() {
+            config::Distribution::Uniform => {
+                Distribution::Uniform(Uniform::new(0, ntopics))
+            }
+            config::Distribution::Zipf => {
+                Distribution::Zipf(ZipfDistribution::new(ntopics, 1.0).unwrap())
+            }
+        };
 
         // we use a predictable seed to generate the topic names
         let mut rng = Xoshiro512PlusPlus::seed_from_u64(0);
@@ -356,9 +365,7 @@ impl Topics {
             let _ = topics.insert(unsafe { std::str::from_utf8_unchecked(&topic) }.to_string());
         }
         let topics = topics.drain().map(|k| k.into()).collect();
-        let topic_dist = KeyDistribution {
-            inner: Uniform::new(0, ntopics),
-        };
+        
 
         Self {
             topics,
@@ -385,18 +392,28 @@ impl Topics {
 #[derive(Clone)]
 pub struct Keyspace {
     keys: Vec<Arc<[u8]>>,
-    key_dist: KeyDistribution,
+    key_dist: Distribution,
     commands: Vec<Command>,
     command_dist: WeightedAliasIndex<usize>,
     inner_keys: Vec<Arc<[u8]>>,
-    inner_key_dist: KeyDistribution,
+    inner_key_dist: Distribution,
     vlen: usize,
     vkind: ValueKind,
 }
 
 #[derive(Clone)]
-pub struct KeyDistribution {
-    inner: rand::distributions::Uniform<usize>,
+pub enum Distribution {
+    Uniform(rand::distributions::Uniform<usize>),
+    Zipf(zipf::ZipfDistribution),
+}
+
+impl Distribution {
+    pub fn sample(&self, rng: &mut dyn RngCore) -> usize {
+        match self {
+            Self::Uniform(dist) => dist.sample(rng),
+            Self::Zipf(dist) => dist.sample(rng),
+        }
+    }
 }
 
 impl Keyspace {
@@ -416,8 +433,13 @@ impl Keyspace {
             let _ = keys.insert(key);
         }
         let keys = keys.drain().map(|k| k.into()).collect();
-        let key_dist = KeyDistribution {
-            inner: Uniform::new(0, nkeys),
+        let key_dist = match keyspace.key_distribution() {
+            config::Distribution::Uniform => {
+                Distribution::Uniform(Uniform::new(0, nkeys))
+            }
+            config::Distribution::Zipf => {
+                Distribution::Zipf(ZipfDistribution::new(nkeys, 1.0).unwrap())
+            }
         };
 
         let nkeys = keyspace.inner_keys_nkeys().unwrap_or(1);
@@ -434,9 +456,7 @@ impl Keyspace {
             let _ = inner_keys.insert(key);
         }
         let inner_keys: Vec<Arc<[u8]>> = inner_keys.drain().map(|k| k.into()).collect();
-        let inner_key_dist = KeyDistribution {
-            inner: Uniform::new(0, nkeys),
-        };
+        let inner_key_dist = Distribution::Uniform(Uniform::new(0, nkeys));
 
         let mut commands = Vec::new();
         let mut command_weights = Vec::new();
@@ -515,12 +535,12 @@ impl Keyspace {
     }
 
     pub fn sample(&self, rng: &mut dyn RngCore) -> Arc<[u8]> {
-        let index = self.key_dist.inner.sample(rng);
+        let index = self.key_dist.sample(rng);
         self.keys[index].clone()
     }
 
     pub fn sample_inner(&self, rng: &mut dyn RngCore) -> Arc<[u8]> {
-        let index = self.inner_key_dist.inner.sample(rng);
+        let index = self.inner_key_dist.sample(rng);
         self.inner_keys[index].clone()
     }
 
