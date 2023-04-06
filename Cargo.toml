@@ -41,7 +41,7 @@ tokio = { version = "1.21.2", features = ["full"] }
 tokio-boring = "2.1.5"
 toml = "0.7.2"
 zipf = "7.0.0"
-warp = "0.3.3"
+warp = "0.3.4"
 
 [profile.release]
 opt-level = 3
