@@ -24,6 +24,7 @@ momento = "0.26.2"
 metriken = "0.1.3"
 mio = "0.8.5"
 net = { git = "https://github.com/pelikan-io/pelikan" }
+paste = "1.0.12"
 protocol-memcache = { git = "https://github.com/pelikan-io/pelikan" }
 protocol-ping = { git = "https://github.com/pelikan-io/pelikan" }
 rand = "0.8.5"

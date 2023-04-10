@@ -5,10 +5,58 @@
 pub use protocol_memcache::*;
 
 use metriken::Lazy;
-use metriken::counter;
-use metriken::gauge;
+use paste::paste;
+use std::concat;
+// use metriken::counter;
+// use metriken::gauge;
 
 type Duration = clocksource::Duration<clocksource::Nanoseconds<u64>>;
+
+#[macro_export]
+#[rustfmt::skip]
+macro_rules! counter {
+    ($ident:ident, $name:tt) => {
+        #[metriken::metric(
+            name = $name,
+            crate = metriken
+        )]
+        pub static $ident: Lazy<metriken::Counter> = metriken::Lazy::new(|| {
+            metriken::Counter::new()
+        });
+    };
+    ($ident:ident, $name:tt, $description:tt) => {
+        #[metriken::metric(
+            name = $name,
+            crate = metriken
+        )]
+        pub static $ident: Lazy<metriken::Counter> = metriken::Lazy::new(|| {
+            metriken::Counter::new()
+        });
+    };
+}
+
+#[macro_export]
+#[rustfmt::skip]
+macro_rules! gauge {
+    ($ident:ident, $name:tt) => {
+        #[metriken::metric(
+            name = $name,
+            crate = metriken
+        )]
+        pub static $ident: Lazy<metriken::Gauge> = metriken::Lazy::new(|| {
+            metriken::Gauge::new()
+        });
+    };
+    ($ident:ident, $name:tt, $description:tt) => {
+        #[metriken::metric(
+            name = $name,
+            crate = metriken
+        )]
+        pub static $ident: Lazy<metriken::Gauge> = metriken::Lazy::new(|| {
+            metriken::Gauge::new()
+        });
+    };
+}
 
 #[macro_export]
 #[rustfmt::skip]
@@ -34,6 +82,50 @@ macro_rules! heatmap {
     };
 }
 
+#[macro_export]
+#[rustfmt::skip]
+macro_rules! request {
+    ($ident:ident, $name:tt) => {
+        #[metriken::metric(
+            name = concat!($name, "/total"),
+            crate = metriken
+        )]
+        pub static $ident: Lazy<metriken::Counter> = metriken::Lazy::new(|| {
+            metriken::Counter::new()
+        });
+
+        paste! {
+            #[metriken::metric(
+                name = concat!($name, "/exception"),
+                crate = metriken
+            )]
+            pub static [<$ident _EX>]: Lazy<metriken::Counter> = metriken::Lazy::new(|| {
+                metriken::Counter::new()
+            });
+        }
+
+        paste! {
+            #[metriken::metric(
+                name = concat!($name, "/ok"),
+                crate = metriken
+            )]
+            pub static [<$ident _OK>]: Lazy<metriken::Counter> = metriken::Lazy::new(|| {
+                metriken::Counter::new()
+            });
+        }
+
+        paste! {
+            #[metriken::metric(
+                name = concat!($name, "/timeout"),
+                crate = metriken
+            )]
+            pub static [<$ident _TIMEOUT>]: Lazy<metriken::Counter> = metriken::Lazy::new(|| {
+                metriken::Counter::new()
+            });
+        }
+    }
+}
+
 heatmap!(
     REQUEST_LATENCY,
     "request_latency",
@@ -52,34 +144,46 @@ heatmap!(
     "distribution of requests per session lifecycle. incremented at time of session close."
 );
 
-gauge!(CONNECT_CURR);
-counter!(CONNECT_OK);
-counter!(CONNECT_TIMEOUT);
+gauge!(CONNECT_CURR, "client/connections/current");
+counter!(CONNECT_OK, "client/connect/ok");
+counter!(CONNECT_TIMEOUT, "client/connect/timeout");
 
-counter!(REQUEST, "total requests dequeued");
+counter!(REQUEST, "client/request/total", "total requests dequeued");
 counter!(
     REQUEST_OK,
     "requests that were successfully generated and sent"
 );
-counter!(REQUEST_RECONNECT, "requests to reconnect");
+counter!(
+    REQUEST_RECONNECT,
+    "client/connect/reconnect",
+    "requests to reconnect"
+);
 counter!(
     REQUEST_UNSUPPORTED,
+    "client/request/unsupported",
     "skipped requests due to protocol incompatibility"
 );
 
 counter!(
     RESPONSE_EX,
+    "client/response/exception",
     "responses which encountered some exception while processing"
 );
 counter!(
     RESPONSE_RATELIMITED,
+    "client/response/ratelimited",
     "backend indicated that we were ratelimited"
 );
 counter!(
     RESPONSE_BACKEND_TIMEOUT,
+    "client/response/backend_timeout",
     "responses indicating the backend timedout"
 );
-counter!(RESPONSE_OK, "responses which were successful");
+counter!(
+    RESPONSE_OK,
+    "client/response/ok",
+    "responses which were successful"
+);
 counter!(RESPONSE_TIMEOUT, "responses not received due to timeout");
 counter!(
     RESPONSE_INVALID,
@@ -100,158 +204,93 @@ counter!(SET_TIMEOUT, "set requests that resulted in timeout");
 counter!(DELETE_OK, "delete requests that were successful");
 counter!(DELETE_TIMEOUT, "delete requests that resulted in timeout");
 
-counter!(HASH_GET);
-counter!(HASH_GET_EX);
-counter!(HASH_GET_FIELD_HIT);
-counter!(HASH_GET_FIELD_MISS);
-counter!(HASH_GET_OK);
-counter!(HASH_GET_TIMEOUT);
+request!(HASH_GET, "client/request/hash_get");
+counter!(HASH_GET_FIELD_HIT, "client/request/hash_get/field_hit");
+counter!(HASH_GET_FIELD_MISS, "client/request/hash_get/field_miss");
 
-counter!(HASH_GET_ALL, "requests to get all fields from a hash");
-counter!(
-    HASH_GET_ALL_EX,
-    "requests to get all fields from a hash that resulted in an exception"
-);
-counter!(
-    HASH_GET_ALL_HIT,
-    "requests to get all fields from a hash where the hash was found"
-);
-counter!(
-    HASH_GET_ALL_MISS,
-    "requests to get all fields from a hash where the hash was not found"
-);
-counter!(
-    HASH_GET_ALL_OK,
-    "requests to get all fields from a hash that were successful"
-);
-counter!(
-    HASH_GET_ALL_TIMEOUT,
-    "requests to get all fields from a hash that timed out"
-);
+request!(HASH_GET_ALL, "client/request/hash_get_all");
+counter!(HASH_GET_ALL_HIT, "client/request/hash_get_all/hit");
+counter!(HASH_GET_ALL_MISS, "client/request/hash_get_all/miss");
 
-// `PING` counter comes from protocol-ping for now
-counter!(PING);
-counter!(PING_EX);
-counter!(PING_OK);
+counter!(CONNECT, "client/connect/total");
+counter!(CONNECT_EX, "client/connect/exception");
 
-counter!(CONNECT);
-counter!(CONNECT_EX);
+counter!(SESSION, "client/session/total");
+counter!(SESSION_CLOSED_CLIENT, "client/session/client_closed");
+counter!(SESSION_CLOSED_SERVER, "client/session/server_closed");
 
-counter!(SESSION);
-counter!(SESSION_CLOSED_CLIENT);
-counter!(SESSION_CLOSED_SERVER);
+/*
+ * PING
+ */
+request!(PING, "client/request/ping");
 
 /*
  * HASHES (DICTIONARIES)
  */
-counter!(HASH_SET);
-counter!(HASH_SET_EX);
-counter!(HASH_SET_OK);
-counter!(HASH_SET_TIMEOUT);
 
-counter!(HASH_DELETE);
-counter!(HASH_DELETE_EX);
-counter!(HASH_DELETE_OK);
-counter!(HASH_DELETE_TIMEOUT);
+request!(HASH_DELETE, "client/request/hash_delete");
 
-counter!(HASH_INCR);
-counter!(HASH_INCR_EX);
-counter!(HASH_INCR_HIT);
-counter!(HASH_INCR_MISS);
-counter!(HASH_INCR_OK);
-counter!(HASH_INCR_TIMEOUT);
+request!(HASH_EXISTS, "client/request/hash_exists");
+counter!(HASH_EXISTS_HIT, "client/request/hash_exists/hit");
+counter!(HASH_EXISTS_MISS, "client/request/hash_exists/miss");
 
-counter!(HASH_EXISTS);
-counter!(HASH_EXISTS_EX);
-counter!(HASH_EXISTS_HIT);
-counter!(HASH_EXISTS_MISS);
+request!(HASH_INCR, "client/request/hash_incr");
+counter!(HASH_INCR_HIT, "client/request/hash_incr/hit");
+counter!(HASH_INCR_MISS, "client/request/hash_incr/miss");
+
+request!(HASH_SET, "client/request/hash_set");
 
 /*
  * LISTS
  */
-counter!(LIST_FETCH);
-counter!(LIST_FETCH_EX);
-counter!(LIST_FETCH_OK);
-counter!(LIST_FETCH_TIMEOUT);
-counter!(LIST_LENGTH);
-counter!(LIST_LENGTH_EX);
-counter!(LIST_LENGTH_OK);
-counter!(LIST_LENGTH_TIMEOUT);
-counter!(LIST_POP_BACK);
-counter!(LIST_POP_BACK_EX);
-counter!(LIST_POP_BACK_OK);
-counter!(LIST_POP_BACK_TIMEOUT);
-counter!(LIST_POP_FRONT);
-counter!(LIST_POP_FRONT_EX);
-counter!(LIST_POP_FRONT_OK);
-counter!(LIST_POP_FRONT_TIMEOUT);
-counter!(LIST_PUSH_BACK);
-counter!(LIST_PUSH_BACK_EX);
-counter!(LIST_PUSH_BACK_OK);
-counter!(LIST_PUSH_BACK_TIMEOUT);
-counter!(LIST_PUSH_FRONT);
-counter!(LIST_PUSH_FRONT_EX);
-counter!(LIST_PUSH_FRONT_OK);
-counter!(LIST_PUSH_FRONT_TIMEOUT);
+
+request!(LIST_FETCH, "client/request/list_fetch");
+
+request!(LIST_LENGTH, "client/request/list_length");
+
+request!(LIST_POP_BACK, "client/request/list_pop_back");
+
+request!(LIST_POP_FRONT, "client/request/list_pop_front");
+
+request!(LIST_PUSH_BACK, "client/request/list_push_back");
+
+request!(LIST_PUSH_FRONT, "client/request/list_push_front");
 
 /*
  * SETS
  */
 
-counter!(SET_ADD);
-counter!(SET_ADD_EX);
-counter!(SET_ADD_OK);
-counter!(SET_ADD_TIMEOUT);
-counter!(SET_MEMBERS);
-counter!(SET_MEMBERS_EX);
-counter!(SET_MEMBERS_OK);
-counter!(SET_MEMBERS_TIMEOUT);
-counter!(SET_REMOVE);
-counter!(SET_REMOVE_EX);
-counter!(SET_REMOVE_OK);
-counter!(SET_REMOVE_TIMEOUT);
+request!(SET_ADD, "client/request/set_add");
+
+request!(SET_MEMBERS, "client/request/set_members");
+
+request!(SET_REMOVE, "client/request/set_remove");
 
 /*
  * SORTED SETS
  */
 
-counter!(SORTED_SET_ADD);
-counter!(SORTED_SET_ADD_EX);
-counter!(SORTED_SET_ADD_OK);
-counter!(SORTED_SET_ADD_TIMEOUT);
-counter!(SORTED_SET_INCR);
-counter!(SORTED_SET_INCR_EX);
-counter!(SORTED_SET_INCR_OK);
-counter!(SORTED_SET_INCR_TIMEOUT);
-counter!(SORTED_SET_MEMBERS);
-counter!(SORTED_SET_MEMBERS_EX);
-counter!(SORTED_SET_MEMBERS_OK);
-counter!(SORTED_SET_MEMBERS_TIMEOUT);
-counter!(SORTED_SET_RANK);
-counter!(SORTED_SET_RANK_EX);
-counter!(SORTED_SET_RANK_OK);
-counter!(SORTED_SET_RANK_TIMEOUT);
-counter!(SORTED_SET_REMOVE);
-counter!(SORTED_SET_REMOVE_EX);
-counter!(SORTED_SET_REMOVE_OK);
-counter!(SORTED_SET_REMOVE_TIMEOUT);
-counter!(SORTED_SET_SCORE);
-counter!(SORTED_SET_SCORE_EX);
-counter!(SORTED_SET_SCORE_OK);
-counter!(SORTED_SET_SCORE_TIMEOUT);
+request!(SORTED_SET_ADD, "client/request/sorted_set_add");
+
+request!(SORTED_SET_INCR, "client/request/sorted_set_incr");
+
+request!(SORTED_SET_MEMBERS, "client/request/sorted_set_members");
+
+request!(SORTED_SET_RANK, "client/request/sorted_set_rank");
+
+request!(SORTED_SET_REMOVE, "client/request/sorted_set_remove");
+
+request!(SORTED_SET_SCORE, "client/request/sorted_set_score");
 
 /*
  * PUBSUB
  */
 
-counter!(PUBSUB_PUBLISH);
-counter!(PUBSUB_PUBLISH_EX);
-counter!(PUBSUB_PUBLISH_OK);
-counter!(PUBSUB_PUBLISH_TIMEOUT);
-counter!(PUBSUB_SUBSCRIBE);
-counter!(PUBSUB_SUBSCRIBE_EX);
-counter!(PUBSUB_SUBSCRIBE_OK);
-counter!(PUBSUB_RECEIVE);
-counter!(PUBSUB_RECEIVE_EX);
-counter!(PUBSUB_RECEIVE_CLOSED);
-counter!(PUBSUB_RECEIVE_OK);
+request!(PUBSUB_PUBLISH, "publisher/publish");
+
+request!(PUBSUB_SUBSCRIBE, "subscriber/subscribe");
+
+counter!(PUBSUB_RECEIVE, "subscriber/receive/total");
+counter!(PUBSUB_RECEIVE_EX, "subscriber/receive/exception");
+counter!(PUBSUB_RECEIVE_CLOSED, "subscriber/receive/closed");
+counter!(PUBSUB_RECEIVE_OK, "subscriber/receive/ok");
