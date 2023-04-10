@@ -19,7 +19,7 @@ macro_rules! heatmap {
             crate = metriken
         )]
         pub static $ident: Lazy<metriken::Heatmap> = metriken::Lazy::new(|| {
-            metriken::Heatmap::new(0, 8, 64, Duration::from_secs(1), Duration::from_millis(100)).unwrap()
+            metriken::Heatmap::new(0, 8, 64, Duration::from_secs(60), Duration::from_secs(1)).unwrap()
         });
     };
     ($ident:ident, $name:tt, $description:tt) => {
@@ -29,7 +29,7 @@ macro_rules! heatmap {
             crate = metriken
         )]
         pub static $ident: Lazy<metriken::Heatmap> = metriken::Lazy::new(|| {
-            metriken::Heatmap::new(0, 8, 64, Duration::from_secs(1), Duration::from_millis(100)).unwrap()
+            metriken::Heatmap::new(0, 8, 64, Duration::from_secs(60), Duration::from_secs(1)).unwrap()
         });
     };
 }
@@ -51,52 +51,6 @@ heatmap!(
     "session_lifecycle_requests",
     "distribution of requests per session lifecycle. incremented at time of session close."
 );
-
-// #[macro_export]
-// #[rustfmt::skip]
-// macro_rules! gauge {
-//     ($ident:ident, $name:tt) => {
-//         #[metriken::metric(
-//             name = $name,
-//             crate = metriken
-//         )]
-//         pub static $ident: Lazy<metriken::Gauge> = metriken::Lazy::new(|| {
-//             metriken::Gauge::new()
-//         });
-//     };
-//     ($ident:ident, $name:tt, $description:tt) => {
-//         #[metriken::metric(
-//             name = $name,
-//             crate = metriken
-//         )]
-//         pub static $ident: Lazy<metriken::Gauge> = metriken::Lazy::new(|| {
-//             metriken::Gauge::new()
-//         });
-//     };
-// }
-
-// #[macro_export]
-// #[rustfmt::skip]
-// macro_rules! counter {
-//     ($ident:ident, $name:tt) => {
-//         #[metriken::metric(
-//             name = $name,
-//             crate = metriken
-//         )]
-//         pub static $ident: Lazy<metriken::Counter> = metriken::Lazy::new(|| {
-//             metriken::Counter::new()
-//         });
-//     };
-//     ($ident:ident, $name:tt, $description:tt) => {
-//         #[metriken::metric(
-//             name = $name,
-//             crate = metriken
-//         )]
-//         pub static $ident: Lazy<metriken::Counter> = metriken::Lazy::new(|| {
-//             metriken::Counter::new()
-//         });
-//     };
-// }
 
 gauge!(CONNECT_CURR);
 counter!(CONNECT_OK);
