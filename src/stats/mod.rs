@@ -144,6 +144,16 @@ heatmap!(
     "distribution of requests per session lifecycle. incremented at time of session close."
 );
 
+heatmap!(
+    PUBSUB_LATENCY,
+    "pubsub_latency"
+);
+
+heatmap!(
+    PUBSUB_PUBLISH_LATENCY,
+    "pubsub_publish_latency"
+);
+
 gauge!(CONNECT_CURR, "client/connections/current");
 counter!(CONNECT_OK, "client/connect/ok");
 counter!(CONNECT_TIMEOUT, "client/connect/timeout");
@@ -293,4 +303,6 @@ request!(PUBSUB_SUBSCRIBE, "subscriber/subscribe");
 counter!(PUBSUB_RECEIVE, "subscriber/receive/total");
 counter!(PUBSUB_RECEIVE_EX, "subscriber/receive/exception");
 counter!(PUBSUB_RECEIVE_CLOSED, "subscriber/receive/closed");
+counter!(PUBSUB_RECEIVE_CORRUPT, "subscriber/receive/corrupt");
+counter!(PUBSUB_RECEIVE_INVALID, "subscriber/receive/invalid");
 counter!(PUBSUB_RECEIVE_OK, "subscriber/receive/ok");

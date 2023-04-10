@@ -213,6 +213,15 @@ enum Stat {
     ResponseTimeout,
     ResponseHit,
     ResponseMiss,
+    PubsubTx,
+    PubsubTxEx,
+    PubsubTxOk,
+    PubsubTxTimeout,
+    PubsubRx,
+    PubsubRxEx,
+    PubsubRxOk,
+    PubsubRxCorrupt,
+    PubsubRxInvalid,
 }
 
 impl Stat {
@@ -231,6 +240,15 @@ impl Stat {
             Self::ResponseTimeout => &RESPONSE_TIMEOUT,
             Self::ResponseHit => &RESPONSE_HIT,
             Self::ResponseMiss => &RESPONSE_MISS,
+            Self::PubsubTx => &PUBSUB_PUBLISH,
+            Self::PubsubTxEx => &PUBSUB_PUBLISH_EX,
+            Self::PubsubTxOk => &PUBSUB_PUBLISH_OK,
+            Self::PubsubTxTimeout => &PUBSUB_PUBLISH_TIMEOUT,
+            Self::PubsubRx => &PUBSUB_RECEIVE,
+            Self::PubsubRxEx => &PUBSUB_RECEIVE_EX,
+            Self::PubsubRxOk => &PUBSUB_RECEIVE_OK,
+            Self::PubsubRxCorrupt => &PUBSUB_RECEIVE_CORRUPT,
+            Self::PubsubRxInvalid => &PUBSUB_RECEIVE_INVALID,
         }
     }
 

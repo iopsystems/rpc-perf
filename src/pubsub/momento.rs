@@ -91,25 +91,23 @@ async fn subscriber_task(client: Arc<TopicClient>, cache_name: String, topic: St
                         if [v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7]]
                             != [0x54, 0x45, 0x53, 0x54, 0x49, 0x4E, 0x47, 0x21]
                         {
-                            error!("non rpc-perf message in topic");
-                            RESPONSE_EX.increment();
-                            PUBSUB_RECEIVE.increment();
-                            PUBSUB_RECEIVE_EX.increment();
                             // unexpected message
+                            error!("pubsub: invalid message received");
+                            RESPONSE_EX.increment();
+                            PUBSUB_RECEIVE_INVALID.increment();
                             continue;
                         }
 
                         // grab the checksum and zero it in the message
                         let csum = [v[8], v[9], v[10], v[11], v[12], v[13], v[14], v[15]];
-
                         [v[8], v[9], v[10], v[11], v[12], v[13], v[14], v[15]] = [0; 8];
 
                         if csum != hash_builder.hash_one(&v).to_be_bytes() {
-                            // corrupted message!
-                            error!("corruption detected!");
-                            RESPONSE_EX.increment();
+                            // corrupted message
+                            error!("pubsub: corrupt message received");
                             PUBSUB_RECEIVE.increment();
-                            PUBSUB_RECEIVE_EX.increment();
+                            PUBSUB_RECEIVE_CORRUPT.increment();
+                            continue;
                         }
 
                         let ts = u64::from_be_bytes([
@@ -119,15 +117,13 @@ async fn subscriber_task(client: Arc<TopicClient>, cache_name: String, topic: St
                         let latency = now_unix - UnixInstant::from_nanos(ts);
                         let then = now - latency;
 
-                        RESPONSE_LATENCY.increment(then, latency.as_nanos(), 1);
+                        PUBSUB_LATENCY.increment(then, latency.as_nanos(), 1);
 
-                        RESPONSE_OK.increment();
                         PUBSUB_RECEIVE.increment();
                         PUBSUB_RECEIVE_OK.increment();
                     } else {
                         error!("there was a string in the topic");
                         // unexpected message
-                        RESPONSE_EX.increment();
                         PUBSUB_RECEIVE.increment();
                         PUBSUB_RECEIVE_EX.increment();
                     }
@@ -265,7 +261,6 @@ async fn publisher_task(
                 .await
                 {
                     Ok(Ok(_)) => {
-                        PUBSUB_PUBLISH_OK.increment();
                         Ok(())
                     }
                     Ok(Err(e)) => {
@@ -273,34 +268,26 @@ async fn publisher_task(
                         Err(e.into())
                     }
                     Err(_) => {
-                        PUBSUB_PUBLISH_TIMEOUT.increment();
                         Err(ResponseError::Timeout)
                     }
                 }
-            } // _ => {
-              //     REQUEST_UNSUPPORTED.increment();
-              //     continue;
-              // }
+            }
         };
-
-        REQUEST_OK.increment();
 
         let stop = Instant::now();
 
         match result {
             Ok(_) => {
-                // RESPONSE_OK.increment();
-
                 let latency = stop.duration_since(start).as_nanos();
 
-                REQUEST_LATENCY.increment(start, latency, 1);
-                // RESPONSE_LATENCY.increment(stop, latency, 1);
+                PUBSUB_PUBLISH_OK.increment();
+                PUBSUB_PUBLISH_LATENCY.increment(start, latency, 1);
             }
             Err(ResponseError::Exception) => {
                 // RESPONSE_EX.increment();
             }
             Err(ResponseError::Timeout) => {
-                // RESPONSE_TIMEOUT.increment();
+                PUBSUB_PUBLISH_TIMEOUT.increment();
             }
             Err(ResponseError::Ratelimited) => {
                 // RESPONSE_RATELIMITED.increment();
