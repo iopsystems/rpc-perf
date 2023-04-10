@@ -144,15 +144,9 @@ heatmap!(
     "distribution of requests per session lifecycle. incremented at time of session close."
 );
 
-heatmap!(
-    PUBSUB_LATENCY,
-    "pubsub_latency"
-);
+heatmap!(PUBSUB_LATENCY, "pubsub_latency");
 
-heatmap!(
-    PUBSUB_PUBLISH_LATENCY,
-    "pubsub_publish_latency"
-);
+heatmap!(PUBSUB_PUBLISH_LATENCY, "pubsub_publish_latency");
 
 gauge!(CONNECT_CURR, "client/connections/current");
 counter!(CONNECT_OK, "client/connect/ok");

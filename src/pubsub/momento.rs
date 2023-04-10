@@ -219,9 +219,9 @@ async fn publisher_task(
 
         REQUEST.increment();
         let start = Instant::now();
+        let now_unix = UnixInstant::now();
         let result = match work_item {
             WorkItem::Publish { topic, mut message } => {
-                let now_unix = UnixInstant::now();
                 let ts = (now_unix - UnixInstant::from_nanos(0))
                     .as_nanos()
                     .to_be_bytes();
@@ -260,16 +260,12 @@ async fn publisher_task(
                 )
                 .await
                 {
-                    Ok(Ok(_)) => {
-                        Ok(())
-                    }
+                    Ok(Ok(_)) => Ok(()),
                     Ok(Err(e)) => {
                         PUBSUB_PUBLISH_EX.increment();
                         Err(e.into())
                     }
-                    Err(_) => {
-                        Err(ResponseError::Timeout)
-                    }
+                    Err(_) => Err(ResponseError::Timeout),
                 }
             }
         };
