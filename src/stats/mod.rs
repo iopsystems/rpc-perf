@@ -199,15 +199,35 @@ counter!(RESPONSE_HIT, "client/response/hit");
 counter!(RESPONSE_MISS, "client/response/miss");
 
 // augment the get stats
-counter!(GET_OK, "client/request/get/ok", "get requests that were successful");
-counter!(GET_TIMEOUT, "client/request/get/timeout", "get requests that resulted in timeout");
+counter!(
+    GET_OK,
+    "client/request/get/ok",
+    "get requests that were successful"
+);
+counter!(
+    GET_TIMEOUT,
+    "client/request/get/timeout",
+    "get requests that resulted in timeout"
+);
 
 // augment the set stats
-counter!(SET_TIMEOUT, "client/request/set/timeout", "set requests that resulted in timeout");
+counter!(
+    SET_TIMEOUT,
+    "client/request/set/timeout",
+    "set requests that resulted in timeout"
+);
 
 // augment the delete stats
-counter!(DELETE_OK, "client/request/delete/ok", "delete requests that were successful");
-counter!(DELETE_TIMEOUT, "client/request/delete/timeout", "delete requests that resulted in timeout");
+counter!(
+    DELETE_OK,
+    "client/request/delete/ok",
+    "delete requests that were successful"
+);
+counter!(
+    DELETE_TIMEOUT,
+    "client/request/delete/timeout",
+    "delete requests that resulted in timeout"
+);
 
 request!(HASH_GET, "client/request/hash_get");
 counter!(HASH_GET_FIELD_HIT, "client/request/hash_get/field_hit");

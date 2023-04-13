@@ -176,7 +176,6 @@ pub fn launch_publishers(runtime: &mut Runtime, config: Config, work_receiver: R
         };
 
         PUBSUB_PUBLISHER_CONNECT.increment();
-        PUBSUB_PUBLISHER_CURR.add(1);
 
         // create one task per channel
         for _ in 0..config.pubsub().unwrap().publisher_concurrency() {
@@ -195,6 +194,8 @@ async fn publisher_task(
     client: Arc<TopicClient>,
     work_receiver: Receiver<WorkItem>,
 ) -> Result<()> {
+    PUBSUB_PUBLISHER_CURR.add(1);
+
     let cache_name = config
         .target()
         .cache_name()
@@ -293,6 +294,8 @@ async fn publisher_task(
             }
         }
     }
+
+    PUBSUB_PUBLISHER_CURR.sub(1);
 
     Ok(())
 }
