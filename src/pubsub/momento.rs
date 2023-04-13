@@ -69,6 +69,7 @@ async fn subscriber_task(client: Arc<TopicClient>, cache_name: String, topic: St
         .subscribe(cache_name.clone(), topic.to_string(), None)
         .await
     {
+        PUBSUB_SUBSCRIBER_CURR.add(1);
         PUBSUB_SUBSCRIBE_OK.increment();
 
         // Create a new hasher state to validate the integrity of received
@@ -134,11 +135,13 @@ async fn subscriber_task(client: Arc<TopicClient>, cache_name: String, topic: St
                 Ok(None) => {
                     PUBSUB_RECEIVE.increment();
                     PUBSUB_RECEIVE_CLOSED.increment();
+                    PUBSUB_SUBSCRIBER_CURR.sub(1);
                     break;
                 }
                 Err(_) => {
                     PUBSUB_RECEIVE.increment();
                     PUBSUB_RECEIVE_EX.increment();
+                    PUBSUB_SUBSCRIBER_CURR.sub(1);
                     break;
                 }
             }
@@ -172,8 +175,8 @@ pub fn launch_publishers(runtime: &mut Runtime, config: Config, work_receiver: R
             }
         };
 
-        CONNECT.increment();
-        CONNECT_CURR.add(1);
+        PUBSUB_PUBLISHER_CONNECT.increment();
+        PUBSUB_PUBLISHER_CURR.add(1);
 
         // create one task per channel
         for _ in 0..config.pubsub().unwrap().publisher_concurrency() {
@@ -280,16 +283,13 @@ async fn publisher_task(
                 PUBSUB_PUBLISH_LATENCY.increment(start, latency, 1);
             }
             Err(ResponseError::Exception) => {
-                // RESPONSE_EX.increment();
+                PUBSUB_PUBLISH_EX.increment();
             }
-            Err(ResponseError::Timeout) => {
+            Err(ResponseError::Timeout) | Err(ResponseError::BackendTimeout) => {
                 PUBSUB_PUBLISH_TIMEOUT.increment();
             }
             Err(ResponseError::Ratelimited) => {
-                // RESPONSE_RATELIMITED.increment();
-            }
-            Err(ResponseError::BackendTimeout) => {
-                // RESPONSE_BACKEND_TIMEOUT.increment();
+                PUBSUB_PUBLISH_RATELIMITED.increment();
             }
         }
     }

@@ -291,8 +291,14 @@ request!(SORTED_SET_SCORE, "client/request/sorted_set_score");
  */
 
 request!(PUBSUB_PUBLISH, "publisher/publish");
+counter!(PUBSUB_PUBLISH_RATELIMITED, "publisher/publish/ratelimiter");
 
 request!(PUBSUB_SUBSCRIBE, "subscriber/subscribe");
+
+counter!(PUBSUB_PUBLISHER_CONNECT, "publisher/connect");
+gauge!(PUBSUB_PUBLISHER_CURR, "publisher/current");
+
+gauge!(PUBSUB_SUBSCRIBER_CURR, "subscriber/current");
 
 counter!(PUBSUB_RECEIVE, "subscriber/receive/total");
 counter!(PUBSUB_RECEIVE_EX, "subscriber/receive/exception");

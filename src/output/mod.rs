@@ -33,6 +33,9 @@ pub fn log(config: &Config, traffic_ratelimit: Option<Arc<Ratelimiter>>) {
 
     let mut windows_under_target_rate = 0;
 
+    let client = !config.workload().keyspaces().is_empty();
+    let pubsub = !config.workload().topics().is_empty();
+
     while duration > 0 {
         std::thread::sleep(Duration::from_millis(1));
 
@@ -44,157 +47,32 @@ pub fn log(config: &Config, traffic_ratelimit: Option<Arc<Ratelimiter>>) {
             let elapsed = now.duration_since(prev).as_secs_f64();
             prev = now;
 
-            /*
-             * client stats
-             */
-
-            let connect_ok = Stat::ConnectOk.delta(&mut snapshot);
-            let connect_ex = Stat::ConnectEx.delta(&mut snapshot);
-            let connect_timeout = Stat::ConnectTimeout.delta(&mut snapshot);
-            let connect_total = Stat::Connect.delta(&mut snapshot);
-
-            let request_reconnect = Stat::RequestReconnect.delta(&mut snapshot);
-            let request_ok = Stat::RequestOk.delta(&mut snapshot);
-            let request_unsupported = Stat::RequestUnsupported.delta(&mut snapshot);
-            let request_total = Stat::Request.delta(&mut snapshot);
-
-            let response_ok = Stat::ResponseOk.delta(&mut snapshot);
-            let response_ex = Stat::ResponseEx.delta(&mut snapshot);
-            let response_timeout = Stat::ResponseTimeout.delta(&mut snapshot);
-            let response_hit = Stat::ResponseHit.delta(&mut snapshot);
-            let response_miss = Stat::ResponseMiss.delta(&mut snapshot);
-
-            /*
-             * pubsub stats
-             */
-            let pubsub_tx_ex = Stat::PubsubTxEx.delta(&mut snapshot);
-            let pubsub_tx_ok = Stat::PubsubTxOk.delta(&mut snapshot);
-            let pubsub_tx_timeout = Stat::PubsubTxTimeout.delta(&mut snapshot);
-            let pubsub_tx_total = Stat::PubsubTx.delta(&mut snapshot);
-
-            let pubsub_rx_ok = Stat::PubsubRxOk.delta(&mut snapshot);
-            let pubsub_rx_ex = Stat::PubsubRxEx.delta(&mut snapshot);
-            let pubsub_rx_corrupt = Stat::PubsubRxCorrupt.delta(&mut snapshot);
-            let pubsub_rx_invalid = Stat::PubsubRxInvalid.delta(&mut snapshot);
-            let pubsub_rx_total = Stat::PubsubRx.delta(&mut snapshot);
-
             output!("-----");
             output!("Window: {}", window_id);
 
-            let connect_sr = 100.0 * connect_ok as f64 / connect_total as f64;
+            // output the client stats and retrieve the number of client
+            // requests sent since last snapshot
+            let client_ok = if client {
+                client_stats(&mut snapshot, elapsed)
+            } else {
+                0
+            };
 
-            output!(
-                "Connection: Open: {} Success Rate: {:.2} %",
-                CONNECT_CURR.value(),
-                connect_sr
-            );
-            output!(
-                "Connection Rates (/s): Attempt: {:.2} Opened: {:.2} Errors: {:.2} Timeout: {:.2} Closed: {:.2}",
-                connect_total as f64 / elapsed,
-                connect_ok as f64 / elapsed,
-                connect_ex as f64 / elapsed,
-                connect_timeout as f64 / elapsed,
-                request_reconnect as f64 / elapsed,
-            );
+            // output the pubsusb stats and retrieve the number of messages
+            // published since last snapshot
+            let publish_ok = if pubsub {
+                pubsub_stats(&mut snapshot, elapsed)
+            } else {
+                0
+            };
 
-            let request_sr = 100.0 * request_ok as f64 / request_total as f64;
-            let request_ur = 100.0 * request_unsupported as f64 / request_total as f64;
+            // the total number of requests + publishes
+            let total_ok = client_ok + publish_ok;
 
-            output!(
-                "Client Request: Success: {:.2} % Unsupported: {:.2} %",
-                request_sr,
-                request_ur,
-            );
-            output!(
-                "Client Request Rate (/s): Ok: {:.2} Unsupported: {:.2}",
-                request_ok as f64 / elapsed,
-                request_unsupported as f64 / elapsed,
-            );
-
-            let response_total = response_ok + response_ex + response_timeout;
-
-            let response_sr = 100.0 * response_ok as f64 / response_total as f64;
-            let response_to = 100.0 * response_timeout as f64 / response_total as f64;
-            let response_hr = 100.0 * response_hit as f64 / (response_hit + response_miss) as f64;
-
-            output!(
-                "Client Response: Success: {:.2} % Timeout: {:.2} % Hit: {:.2} %",
-                response_sr,
-                response_to,
-                response_hr,
-            );
-            output!(
-                "Client Response Rate (/s): Ok: {:.2} Error: {:.2} Timeout: {:.2}",
-                response_ok as f64 / elapsed,
-                response_ex as f64 / elapsed,
-                response_timeout as f64 / elapsed,
-            );
-
-            let mut latencies = "Client Response Latency (us):".to_owned();
-            for (label, percentile) in PERCENTILES {
-                let value = RESPONSE_LATENCY
-                    .percentile(*percentile)
-                    .map(|b| format!("{}", b.high() / 1000))
-                    .unwrap_or_else(|_| "ERR".to_string());
-                latencies.push_str(&format!(" {label}: {value}"))
-            }
-
-            output!("{latencies}");
-
-            let pubsub_tx_sr = 100.0 * pubsub_tx_ok as f64 / pubsub_tx_total as f64;
-            let pubsub_tx_to = 100.0 * pubsub_tx_timeout as f64 / pubsub_tx_total as f64;
-            output!(
-                "Publisher Publish: Success: {:.2} % Timeout: {:.2} %",
-                pubsub_tx_sr,
-                pubsub_tx_to
-            );
-
-            output!(
-                "Publisher Publish Rate (/s): Ok: {:.2} Error: {:.2} Timeout: {:.2}",
-                pubsub_tx_ok as f64 / elapsed,
-                pubsub_tx_ex as f64 / elapsed,
-                pubsub_tx_timeout as f64 / elapsed,
-            );
-
-            let pubsub_rx_sr = 100.0 * pubsub_rx_ok as f64 / pubsub_rx_total as f64;
-            let pubsub_rx_cr = 100.0 * pubsub_rx_corrupt as f64 / pubsub_rx_total as f64;
-            output!(
-                "Subscriber Receive: Success: {:.2} % Corrupted: {:.2} %",
-                pubsub_rx_sr,
-                pubsub_rx_cr
-            );
-
-            output!("Subscriber Receive Rate (/s): Ok: {:.2} Error: {:.2} Corrupt: {:.2} Invalid: {:.2}",
-                pubsub_rx_ok as f64 / elapsed,
-                pubsub_rx_ex as f64 / elapsed,
-                pubsub_rx_corrupt as f64 / elapsed,
-                pubsub_rx_invalid as f64 / elapsed,
-            );
-
-            let mut latencies = "Pubsub Publish Latency (us):".to_owned();
-            for (label, percentile) in PERCENTILES {
-                let value = PUBSUB_PUBLISH_LATENCY
-                    .percentile(*percentile)
-                    .map(|b| format!("{}", b.high() / 1000))
-                    .unwrap_or_else(|_| "ERR".to_string());
-                latencies.push_str(&format!(" {label}: {value}"))
-            }
-
-            output!("{latencies}");
-
-            let mut latencies = "Pubsub End-to-End Latency (us):".to_owned();
-            for (label, percentile) in PERCENTILES {
-                let value = PUBSUB_LATENCY
-                    .percentile(*percentile)
-                    .map(|b| format!("{}", b.high() / 1000))
-                    .unwrap_or_else(|_| "ERR".to_string());
-                latencies.push_str(&format!(" {label}: {value}"))
-            }
-
-            output!("{latencies}");
-
+            // a check to determine if we're approximately hitting our target
+            // ratelimit. If not, this will terminate the run.
             if let Some(rate) = traffic_ratelimit.as_ref().map(|v| v.rate()) {
-                if request_ok as f64 / elapsed < 0.95 * rate as f64 {
+                if total_ok as f64 / elapsed < 0.95 * rate as f64 {
                     windows_under_target_rate += 1;
                 } else {
                     windows_under_target_rate = 0;
@@ -209,6 +87,157 @@ pub fn log(config: &Config, traffic_ratelimit: Option<Arc<Ratelimiter>>) {
             window_id += 1;
         }
     }
+}
+
+/// Outputs client stats and returns the number of requests successfully sent
+fn client_stats(snapshot: &mut Snapshot, elapsed: f64) -> u64 {
+    let connect_ok = Stat::ConnectOk.delta(snapshot);
+    let connect_ex = Stat::ConnectEx.delta(snapshot);
+    let connect_timeout = Stat::ConnectTimeout.delta(snapshot);
+    let connect_total = Stat::Connect.delta(snapshot);
+
+    let request_reconnect = Stat::RequestReconnect.delta(snapshot);
+    let request_ok = Stat::RequestOk.delta(snapshot);
+    let request_unsupported = Stat::RequestUnsupported.delta(snapshot);
+    let request_total = Stat::Request.delta(snapshot);
+
+    let response_ok = Stat::ResponseOk.delta(snapshot);
+    let response_ex = Stat::ResponseEx.delta(snapshot);
+    let response_timeout = Stat::ResponseTimeout.delta(snapshot);
+    let response_hit = Stat::ResponseHit.delta(snapshot);
+    let response_miss = Stat::ResponseMiss.delta(snapshot);
+
+    let connect_sr = 100.0 * connect_ok as f64 / connect_total as f64;
+
+    output!(
+        "Client Connection: Open: {} Success Rate: {:.2} %",
+        CONNECT_CURR.value(),
+        connect_sr
+    );
+    output!(
+        "Client Connection Rates (/s): Attempt: {:.2} Opened: {:.2} Errors: {:.2} Timeout: {:.2} Closed: {:.2}",
+        connect_total as f64 / elapsed,
+        connect_ok as f64 / elapsed,
+        connect_ex as f64 / elapsed,
+        connect_timeout as f64 / elapsed,
+        request_reconnect as f64 / elapsed,
+    );
+
+    let request_sr = 100.0 * request_ok as f64 / request_total as f64;
+    let request_ur = 100.0 * request_unsupported as f64 / request_total as f64;
+
+    output!(
+        "Client Request: Success: {:.2} % Unsupported: {:.2} %",
+        request_sr,
+        request_ur,
+    );
+    output!(
+        "Client Request Rate (/s): Ok: {:.2} Unsupported: {:.2}",
+        request_ok as f64 / elapsed,
+        request_unsupported as f64 / elapsed,
+    );
+
+    let response_total = response_ok + response_ex + response_timeout;
+
+    let response_sr = 100.0 * response_ok as f64 / response_total as f64;
+    let response_to = 100.0 * response_timeout as f64 / response_total as f64;
+    let response_hr = 100.0 * response_hit as f64 / (response_hit + response_miss) as f64;
+
+    output!(
+        "Client Response: Success: {:.2} % Timeout: {:.2} % Hit: {:.2} %",
+        response_sr,
+        response_to,
+        response_hr,
+    );
+    output!(
+        "Client Response Rate (/s): Ok: {:.2} Error: {:.2} Timeout: {:.2}",
+        response_ok as f64 / elapsed,
+        response_ex as f64 / elapsed,
+        response_timeout as f64 / elapsed,
+    );
+
+    let mut latencies = "Client Response Latency (us):".to_owned();
+    for (label, percentile) in PERCENTILES {
+        let value = RESPONSE_LATENCY
+            .percentile(*percentile)
+            .map(|b| format!("{}", b.high() / 1000))
+            .unwrap_or_else(|_| "ERR".to_string());
+        latencies.push_str(&format!(" {label}: {value}"))
+    }
+
+    output!("{latencies}");
+
+    request_ok
+}
+
+/// Output pubsub metrics and return the number of successful publish operations
+fn pubsub_stats(snapshot: &mut Snapshot, elapsed: f64) -> u64 {
+    // publisher stats
+    let pubsub_tx_ex = Stat::PubsubTxEx.delta(snapshot);
+    let pubsub_tx_ok = Stat::PubsubTxOk.delta(snapshot);
+    let pubsub_tx_timeout = Stat::PubsubTxTimeout.delta(snapshot);
+    let pubsub_tx_total = Stat::PubsubTx.delta(snapshot);
+
+    // subscriber stats
+    let pubsub_rx_ok = Stat::PubsubRxOk.delta(snapshot);
+    let pubsub_rx_ex = Stat::PubsubRxEx.delta(snapshot);
+    let pubsub_rx_corrupt = Stat::PubsubRxCorrupt.delta(snapshot);
+    let pubsub_rx_invalid = Stat::PubsubRxInvalid.delta(snapshot);
+    let pubsub_rx_total = Stat::PubsubRx.delta(snapshot);
+
+    let pubsub_tx_sr = 100.0 * pubsub_tx_ok as f64 / pubsub_tx_total as f64;
+    let pubsub_tx_to = 100.0 * pubsub_tx_timeout as f64 / pubsub_tx_total as f64;
+    output!(
+        "Publisher Publish: Success: {:.2} % Timeout: {:.2} %",
+        pubsub_tx_sr,
+        pubsub_tx_to
+    );
+
+    output!(
+        "Publisher Publish Rate (/s): Ok: {:.2} Error: {:.2} Timeout: {:.2}",
+        pubsub_tx_ok as f64 / elapsed,
+        pubsub_tx_ex as f64 / elapsed,
+        pubsub_tx_timeout as f64 / elapsed,
+    );
+
+    let pubsub_rx_sr = 100.0 * pubsub_rx_ok as f64 / pubsub_rx_total as f64;
+    let pubsub_rx_cr = 100.0 * pubsub_rx_corrupt as f64 / pubsub_rx_total as f64;
+    output!(
+        "Subscriber Receive: Success: {:.2} % Corrupted: {:.2} %",
+        pubsub_rx_sr,
+        pubsub_rx_cr
+    );
+
+    output!("Subscriber Receive Rate (/s): Ok: {:.2} Error: {:.2} Corrupt: {:.2} Invalid: {:.2}",
+        pubsub_rx_ok as f64 / elapsed,
+        pubsub_rx_ex as f64 / elapsed,
+        pubsub_rx_corrupt as f64 / elapsed,
+        pubsub_rx_invalid as f64 / elapsed,
+    );
+
+    let mut latencies = "Pubsub Publish Latency (us):".to_owned();
+    for (label, percentile) in PERCENTILES {
+        let value = PUBSUB_PUBLISH_LATENCY
+            .percentile(*percentile)
+            .map(|b| format!("{}", b.high() / 1000))
+            .unwrap_or_else(|_| "ERR".to_string());
+        latencies.push_str(&format!(" {label}: {value}"))
+    }
+
+    output!("{latencies}");
+
+    let mut latencies = "Pubsub End-to-End Latency (us):".to_owned();
+    for (label, percentile) in PERCENTILES {
+        let value = PUBSUB_LATENCY
+            .percentile(*percentile)
+            .map(|b| format!("{}", b.high() / 1000))
+            .unwrap_or_else(|_| "ERR".to_string());
+        latencies.push_str(&format!(" {label}: {value}"))
+    }
+
+    output!("{latencies}");
+
+    pubsub_tx_ok
 }
 
 #[derive(Serialize)]
@@ -258,15 +287,29 @@ struct Responses {
 }
 
 #[derive(Serialize)]
-struct JsonSnapshot {
-    window: u64,
-    elapsed: f64,
+struct Client {
     connections: Connections,
     requests: Requests,
     responses: Responses,
-
-    // connect: Vec<Bucket>,
     request_latency: Vec<Bucket>,
+}
+
+#[derive(Serialize)]
+struct Pubsub {
+    publishers: Publishers,
+}
+
+#[derive(Serialize)]
+struct Publishers {
+    // current number of publishers
+    current: i64,
+}
+
+#[derive(Serialize)]
+struct JsonSnapshot {
+    window: u64,
+    elapsed: f64,
+    client: Client,
 }
 
 // gets the non-zero buckets for the most recent window in the heatmap
@@ -351,10 +394,12 @@ pub fn json(config: &Config, traffic_ratelimit: Option<Arc<Ratelimiter>>) {
             let json = JsonSnapshot {
                 window: window_id,
                 elapsed,
-                connections,
-                requests,
-                responses,
-                request_latency: heatmap_to_buckets(&REQUEST_LATENCY),
+                client: Client {
+                    connections,
+                    requests,
+                    responses,
+                    request_latency: heatmap_to_buckets(&REQUEST_LATENCY),
+                }
             };
 
             println!(
