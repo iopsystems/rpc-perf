@@ -185,6 +185,11 @@ fn pubsub_stats(snapshot: &mut Snapshot, elapsed: f64) -> u64 {
     let pubsub_rx_invalid = Stat::PubsubRxInvalid.delta(snapshot);
     let pubsub_rx_total = Stat::PubsubRx.delta(snapshot);
 
+    output!(
+        "Publishers: Current: {}",
+        PUBSUB_PUBLISHER_CURR.value(),
+    );
+
     let pubsub_tx_sr = 100.0 * pubsub_tx_ok as f64 / pubsub_tx_total as f64;
     let pubsub_tx_to = 100.0 * pubsub_tx_timeout as f64 / pubsub_tx_total as f64;
     output!(
@@ -198,6 +203,11 @@ fn pubsub_stats(snapshot: &mut Snapshot, elapsed: f64) -> u64 {
         pubsub_tx_ok as f64 / elapsed,
         pubsub_tx_ex as f64 / elapsed,
         pubsub_tx_timeout as f64 / elapsed,
+    );
+
+    output!(
+        "Subscribers: Current: {}",
+        PUBSUB_SUBSCRIBER_CURR.value(),
     );
 
     let pubsub_rx_sr = 100.0 * pubsub_rx_ok as f64 / pubsub_rx_total as f64;
