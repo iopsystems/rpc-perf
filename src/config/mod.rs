@@ -1,6 +1,3 @@
-// SPDX-License-Identifier: (Apache-2.0)
-// Copyright Authors of rpc-perf
-
 use core::num::NonZeroU64;
 use serde::Deserialize;
 use std::io::Read;
@@ -17,7 +14,7 @@ mod workload;
 
 pub use client::Client;
 pub use debug::Debug;
-pub use general::{General, OutputFormat};
+pub use general::General;
 pub use protocol::Protocol;
 pub use pubsub::Pubsub;
 pub use target::Target;
@@ -31,7 +28,7 @@ pub struct Config {
     debug: Debug,
     pubsub: Option<Pubsub>,
     target: Target,
-    tls: Tls,
+    tls: Option<Tls>,
     workload: Workload,
 }
 
@@ -78,8 +75,8 @@ impl Config {
         &self.target
     }
 
-    pub fn tls(&self) -> &Tls {
-        &self.tls
+    pub fn tls(&self) -> Option<&Tls> {
+        self.tls.as_ref()
     }
 
     pub fn workload(&self) -> &Workload {

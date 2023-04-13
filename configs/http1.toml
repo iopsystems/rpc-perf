@@ -1,46 +1,80 @@
-# An example configuration for benchmarking memcached with an 80/20 read/write
-# mix in a keyspace of 1M keys using 32B keys and 128B values.
+# An example configuration for benchmarking a HTTP/1.1 backend. It includes a
+# mix of requests to the web root and to some simple URIs with random 8
+# character paths. To enable HTTPS see the comments in the `[tls]` section.
+
+
+# The `[general]` section controls protocol selection and general behavior of
+# rpc-perf.
 
 [general]
+
 # specify the protocol to be used
 protocol = "http1"
+
 # the interval for stats integration and reporting
 interval = 1
+
 # the number of intervals to run the test for
 duration = 300
-# output is reported using the logging format on stdout. `json` output can also
-# be used here
-output_format = "log"
+
+# optionally, we can write some detailed stats to a file during the run
+#json_output = "stats.json"
+
 # run the admin thread with a HTTP listener at the address provided, this allows
 # stats exposition via HTTP
 admin = "127.0.0.1:9090"
 
+
+# The `[debug]` section controls debug logging.
+
 [debug]
+
 # choose from: error, warn, info, debug, trace
 log_level = "info"
+
 # optionally, log to the file below instead of standard out
-# log_file = "rpc-perf.log"
+#log_file = "rpc-perf.log"
+
 # backup file name for use with log rotation
 log_backup = "rpc-perf.log.old"
+
 # trigger log rotation when the file grows beyond this size (in bytes). Set this
 # option to '0' to disable log rotation.
 log_max_size = 1073741824
 
+
+# The `[target]` section is where we specify what endpoints will be used in the
+# test.
+
 [target]
+
 # specify one or more endpoints as IP:PORT pairs
 endpoints = [
-	"192.168.0.101:80",
+	"127.0.0.1:80",
 ]
 
+
+# The `[client]` section controls the thread and connection pool parameters for
+# the client.
+
 [client]
+
 # number of threads used to drive client requests
 threads = 4
+
 # the total number of connections to each endpoint
 poolsize = 20
+
 # the connect timeout in milliseconds
 connect_timeout = 10000
+
 # set the timeout in milliseconds
 request_timeout = 1000
+
+
+# The `[workload]` section controls the thread pool for generating requests and
+# ratelimit parameters. Additional sections are used to specify what type of
+# requests will be generated.
 
 [workload]
 # the number of threads that will be used to generate the workload
@@ -48,27 +82,48 @@ threads = 1
 # set a global ratelimit for the workload
 ratelimit = 10_000
 
-# [[workload.keyspace]]
-# # sets the relative weight of this keyspace: defaults to 1
-# weight = 1
-# # controls what commands will be used in this keyspace
-# commands = [
-# 	# get /
-# 	{ verb = "get", weight = 80 },
-# ]
 
 [[workload.keyspace]]
+
 # sets the relative weight of this keyspace: defaults to 1
 weight = 1
+
+# controls what commands will be used in this keyspace
+commands = [
+	# get /
+	{ verb = "get", weight = 1 },
+]
+
+
+[[workload.keyspace]]
+
+# sets the relative weight of this keyspace: defaults to 1
+weight = 1
+
 # set the key length
-klen = 32
+klen = 8
+
 # set the number of keys
 nkeys = 100
+
 # controls what commands will be used in this keyspace
 commands = [
 	# get /[key]
-	{ verb = "get", weight = 80 },
+	{ verb = "get", weight = 1 },
 ]
 
-[tls]
 
+# Uncomment the `[tls]` section to enable HTTPS. Be sure to set the port(s) to
+# the SSL listening port in the `[target]` section.
+
+#[tls]
+
+# set a path to a Root CA PEM. If the CA for the server certificate is not in
+#   the system store, you will need to provide the path here.
+#ca_file = "path/to/root_ca.crt"
+
+# require that the server certificate and hostname match
+#verify_hostname = true
+
+# enable TLS Server Name Identification
+#use_sni = true

@@ -1,6 +1,3 @@
-// SPDX-License-Identifier: (Apache-2.0)
-// Copyright Authors of rpc-perf
-
 use super::*;
 
 #[derive(Clone, Deserialize)]
@@ -11,9 +8,9 @@ pub struct General {
     interval: u64,
     /// The test duration in seconds.
     duration: u64,
-    /// The output type: log or json
+    /// Optional path to output JSON metrics
     #[serde(default)]
-    output_format: OutputFormat,
+    json_output: Option<String>,
     /// The admin listen address
     admin: String,
 }
@@ -31,8 +28,8 @@ impl General {
         Duration::from_secs(self.duration)
     }
 
-    pub fn output_format(&self) -> OutputFormat {
-        self.output_format
+    pub fn json_output(&self) -> Option<String> {
+        self.json_output.clone()
     }
 
     pub fn admin(&self) -> String {
@@ -40,16 +37,16 @@ impl General {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Deserialize)]
-#[serde(rename_all = "snake_case")]
-#[serde(deny_unknown_fields)]
-pub enum OutputFormat {
-    Log,
-    Json,
-}
+// #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Deserialize)]
+// #[serde(rename_all = "snake_case")]
+// #[serde(deny_unknown_fields)]
+// pub enum OutputFormat {
+//     Log,
+//     Json,
+// }
 
-impl Default for OutputFormat {
-    fn default() -> Self {
-        Self::Log
-    }
-}
+// impl Default for OutputFormat {
+//     fn default() -> Self {
+//         Self::Log
+//     }
+// }

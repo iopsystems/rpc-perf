@@ -1,6 +1,3 @@
-// SPDX-License-Identifier: (Apache-2.0)
-// Copyright Authors of rpc-perf
-
 use super::*;
 use crate::net::Connector;
 
@@ -192,49 +189,52 @@ impl TryFrom<&WorkItem> for Request {
     type Error = ();
     fn try_from(other: &WorkItem) -> std::result::Result<protocol_memcache::Request, ()> {
         match other {
-            WorkItem::Add { key, value } => {
-                ADD.increment();
-                Ok(Request::add(
-                    (**key).to_owned().into_boxed_slice(),
-                    (**value).to_owned().into_boxed_slice(),
-                    0,
-                    Ttl::none(),
-                    false,
-                ))
-            }
-            WorkItem::Get { key } => {
-                GET.increment();
-                Ok(Request::get(
-                    vec![(**key).to_owned().into_boxed_slice()].into_boxed_slice(),
-                ))
-            }
-            WorkItem::Delete { key } => {
-                DELETE.increment();
-                Ok(Request::delete(
-                    (**key).to_owned().into_boxed_slice(),
-                    false,
-                ))
-            }
-            WorkItem::Replace { key, value } => {
-                REPLACE.increment();
-                Ok(Request::replace(
-                    (**key).to_owned().into_boxed_slice(),
-                    (**value).to_owned().into_boxed_slice(),
-                    0,
-                    Ttl::none(),
-                    false,
-                ))
-            }
-            WorkItem::Set { key, value } => {
-                SET.increment();
-                Ok(Request::set(
-                    (**key).to_owned().into_boxed_slice(),
-                    (**value).to_owned().into_boxed_slice(),
-                    0,
-                    Ttl::none(),
-                    false,
-                ))
-            }
+            WorkItem::Request { request, .. } => match request {
+                ClientRequest::Add { key, value } => {
+                    ADD.increment();
+                    Ok(Request::add(
+                        (**key).to_owned().into_boxed_slice(),
+                        (**value).to_owned().into_boxed_slice(),
+                        0,
+                        Ttl::none(),
+                        false,
+                    ))
+                }
+                ClientRequest::Get { key } => {
+                    GET.increment();
+                    Ok(Request::get(
+                        vec![(**key).to_owned().into_boxed_slice()].into_boxed_slice(),
+                    ))
+                }
+                ClientRequest::Delete { key } => {
+                    DELETE.increment();
+                    Ok(Request::delete(
+                        (**key).to_owned().into_boxed_slice(),
+                        false,
+                    ))
+                }
+                ClientRequest::Replace { key, value } => {
+                    REPLACE.increment();
+                    Ok(Request::replace(
+                        (**key).to_owned().into_boxed_slice(),
+                        (**value).to_owned().into_boxed_slice(),
+                        0,
+                        Ttl::none(),
+                        false,
+                    ))
+                }
+                ClientRequest::Set { key, value } => {
+                    SET.increment();
+                    Ok(Request::set(
+                        (**key).to_owned().into_boxed_slice(),
+                        (**value).to_owned().into_boxed_slice(),
+                        0,
+                        Ttl::none(),
+                        false,
+                    ))
+                }
+                _ => Err(()),
+            },
             _ => Err(()),
         }
     }
@@ -243,43 +243,49 @@ impl TryFrom<&WorkItem> for Request {
 fn validate_response(work_item: &WorkItem, response: &Response) -> std::result::Result<(), ()> {
     // validate response
     match &work_item {
-        WorkItem::Get { .. } => match response {
-            Response::Values(values) => {
-                if values.values().is_empty() {
-                    RESPONSE_MISS.increment();
-                    GET_KEY_MISS.increment();
-                } else {
-                    RESPONSE_HIT.increment();
-                    GET_KEY_HIT.increment();
+        WorkItem::Request { request, .. } => match request {
+            ClientRequest::Get { .. } => match response {
+                Response::Values(values) => {
+                    if values.values().is_empty() {
+                        RESPONSE_MISS.increment();
+                        GET_KEY_MISS.increment();
+                    } else {
+                        RESPONSE_HIT.increment();
+                        GET_KEY_HIT.increment();
+                    }
                 }
-            }
+                _ => {
+                    GET_EX.increment();
+                    return Err(());
+                }
+            },
+            ClientRequest::Replace { .. } => match response {
+                Response::Stored(_) => {
+                    REPLACE_STORED.increment();
+                }
+                Response::NotStored(_) => {
+                    REPLACE_NOT_STORED.increment();
+                }
+                _ => {
+                    REPLACE_EX.increment();
+                    return Err(());
+                }
+            },
+            ClientRequest::Set { .. } => match response {
+                Response::Stored(_) => {
+                    SET_STORED.increment();
+                }
+                Response::NotStored(_) => {
+                    SET_NOT_STORED.increment();
+                }
+                _ => {
+                    SET_EX.increment();
+                    return Err(());
+                }
+            },
             _ => {
-                GET_EX.increment();
-                return Err(());
-            }
-        },
-        WorkItem::Replace { .. } => match response {
-            Response::Stored(_) => {
-                REPLACE_STORED.increment();
-            }
-            Response::NotStored(_) => {
-                REPLACE_NOT_STORED.increment();
-            }
-            _ => {
-                REPLACE_EX.increment();
-                return Err(());
-            }
-        },
-        WorkItem::Set { .. } => match response {
-            Response::Stored(_) => {
-                SET_STORED.increment();
-            }
-            Response::NotStored(_) => {
-                SET_NOT_STORED.increment();
-            }
-            _ => {
-                SET_EX.increment();
-                return Err(());
+                error!("unexpected request");
+                unimplemented!();
             }
         },
         _ => {

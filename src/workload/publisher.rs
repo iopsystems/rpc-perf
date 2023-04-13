@@ -1,6 +1,3 @@
-// SPDX-License-Identifier: (Apache-2.0)
-// Copyright Authors of rpc-perf
-
 use std::sync::Arc;
 
 #[allow(dead_code)]

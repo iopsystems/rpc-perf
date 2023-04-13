@@ -4,13 +4,38 @@ use crate::workload::PublisherWorkItem as WorkItem;
 use crate::*;
 use async_channel::Receiver;
 use std::io::{Error, ErrorKind, Result};
-// use tokio::io::*;
 use tokio::runtime::Runtime;
-// use tokio::time::{timeout, Duration};
 
 mod momento;
 
-pub fn launch_publishers(config: &Config, work_receiver: Receiver<WorkItem>) -> Option<Runtime> {
+pub struct PubsubRuntimes {
+    publisher_rt: Option<Runtime>,
+    subscriber_rt: Option<Runtime>,
+}
+
+impl PubsubRuntimes {
+    pub fn shutdown_timeout(&mut self, duration: Duration) {
+        if let Some(rt) = self.publisher_rt.take() {
+            rt.shutdown_timeout(duration);
+        }
+        if let Some(rt) = self.subscriber_rt.take() {
+            rt.shutdown_timeout(duration);
+        }
+    }
+}
+
+pub fn launch_pubsub(
+    config: &Config,
+    work_receiver: Receiver<WorkItem>,
+    workload_components: Vec<Component>,
+) -> PubsubRuntimes {
+    PubsubRuntimes {
+        publisher_rt: launch_publishers(config, work_receiver),
+        subscriber_rt: launch_subscribers(config, workload_components),
+    }
+}
+
+fn launch_publishers(config: &Config, work_receiver: Receiver<WorkItem>) -> Option<Runtime> {
     if config.pubsub().is_none() {
         debug!("No pubsub configuration specified");
         return None;
@@ -38,7 +63,7 @@ pub fn launch_publishers(config: &Config, work_receiver: Receiver<WorkItem>) -> 
     Some(publisher_rt)
 }
 
-pub fn launch_subscribers(config: &Config, workload_components: Vec<Component>) -> Option<Runtime> {
+fn launch_subscribers(config: &Config, workload_components: Vec<Component>) -> Option<Runtime> {
     if config.pubsub().is_none() {
         debug!("No pubsub configuration specified");
         return None;

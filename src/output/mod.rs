@@ -1,8 +1,9 @@
-// SPDX-License-Identifier: (Apache-2.0)
-// Copyright Authors of rpc-perf
-
 use crate::*;
+use ahash::HashMap;
+use ahash::HashMapExt;
 use ratelimit::Ratelimiter;
+use std::io::BufWriter;
+use std::io::Write;
 use std::sync::Arc;
 
 use serde::Serialize;
@@ -32,6 +33,7 @@ pub fn log(config: &Config, traffic_ratelimit: Option<Arc<Ratelimiter>>) {
     let mut prev = Instant::now();
 
     let mut windows_under_target_rate = 0;
+    let mut windows_over_p999_slo = 0;
 
     let client = !config.workload().keyspaces().is_empty();
     let pubsub = !config.workload().topics().is_empty();
@@ -71,15 +73,35 @@ pub fn log(config: &Config, traffic_ratelimit: Option<Arc<Ratelimiter>>) {
 
             // a check to determine if we're approximately hitting our target
             // ratelimit. If not, this will terminate the run.
-            if let Some(rate) = traffic_ratelimit.as_ref().map(|v| v.rate()) {
-                if total_ok as f64 / elapsed < 0.95 * rate as f64 {
-                    windows_under_target_rate += 1;
-                } else {
-                    windows_under_target_rate = 0;
-                }
+            if config.workload().strict_ratelimit() {
+                if let Some(rate) = traffic_ratelimit.as_ref().map(|v| v.rate()) {
+                    if total_ok as f64 / elapsed < 0.95 * rate as f64 {
+                        windows_under_target_rate += 1;
+                    } else {
+                        windows_under_target_rate = 0;
+                    }
 
-                if windows_under_target_rate > 5 {
-                    break;
+                    if windows_under_target_rate > 5 {
+                        break;
+                    }
+                }
+            }
+
+            // a check to determine if we're achieving our p999 SLO (if set). If
+            // not, this will terminate the run.
+            if config.workload().p999_slo() > 0 {
+                if let Ok(p999_latency) =
+                    RESPONSE_LATENCY.percentile(0.999).map(|b| b.high() / 1000)
+                {
+                    if p999_latency > config.workload().p999_slo() {
+                        windows_over_p999_slo += 1;
+                    } else {
+                        windows_over_p999_slo = 0;
+                    }
+
+                    if windows_over_p999_slo > 5 {
+                        break;
+                    }
                 }
             }
 
@@ -302,6 +324,7 @@ struct Client {
 #[derive(Serialize)]
 struct Pubsub {
     publishers: Publishers,
+    subscribers: Subscribers,
 }
 
 #[derive(Serialize)]
@@ -311,10 +334,17 @@ struct Publishers {
 }
 
 #[derive(Serialize)]
+struct Subscribers {
+    // current number of subscribers
+    current: i64,
+}
+
+#[derive(Serialize)]
 struct JsonSnapshot {
     window: u64,
     elapsed: f64,
     client: Client,
+    pubsub: Pubsub,
 }
 
 // gets the non-zero buckets for the most recent window in the heatmap
@@ -338,7 +368,19 @@ fn heatmap_to_buckets(heatmap: &Heatmap) -> Vec<Bucket> {
     }
 }
 
-pub fn json(config: &Config, traffic_ratelimit: Option<Arc<Ratelimiter>>) {
+pub fn json(config: Config, traffic_ratelimit: Option<Arc<Ratelimiter>>) {
+    if config.general().json_output().is_none() {
+        return;
+    }
+
+    let file = std::fs::File::create(config.general().json_output().unwrap());
+
+    if file.is_err() {
+        return;
+    }
+
+    let mut writer = BufWriter::new(file.unwrap());
+
     let mut now = std::time::Instant::now();
 
     let mut prev = now;
@@ -405,12 +447,22 @@ pub fn json(config: &Config, traffic_ratelimit: Option<Arc<Ratelimiter>>) {
                     responses,
                     request_latency: heatmap_to_buckets(&REQUEST_LATENCY),
                 },
+                pubsub: Pubsub {
+                    publishers: Publishers {
+                        current: PUBSUB_PUBLISHER_CURR.value(),
+                    },
+                    subscribers: Subscribers {
+                        current: PUBSUB_SUBSCRIBER_CURR.value(),
+                    },
+                },
             };
 
-            println!(
-                "{}",
-                serde_json::to_string(&json).expect("Failed to output to stdout")
+            let _ = writer.write_all(
+                serde_json::to_string(&json)
+                    .expect("failed to serialize")
+                    .as_bytes(),
             );
+            let _ = writer.write_all(b"\n");
 
             if let Some(rate) = traffic_ratelimit.as_ref().map(|v| v.rate()) {
                 if requests.ok as f64 / elapsed < 0.95 * rate as f64 {

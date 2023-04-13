@@ -1,12 +1,7 @@
-// SPDX-License-Identifier: (Apache-2.0)
-// Copyright Authors of rpc-perf
-
 use super::*;
 
 #[derive(Clone, Deserialize)]
 pub struct Pubsub {
-    /// Connection timeout.
-    connect_timeout: u64,
     /// Publish timeout
     publish_timeout: u64,
     // number of threads for publisher tasks
@@ -19,10 +14,6 @@ pub struct Pubsub {
 }
 
 impl Pubsub {
-    pub fn connect_timeout(&self) -> Duration {
-        Duration::from_millis(self.connect_timeout)
-    }
-
     pub fn publish_timeout(&self) -> Duration {
         Duration::from_millis(self.publish_timeout)
     }

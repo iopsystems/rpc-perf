@@ -1,12 +1,12 @@
 [package]
 name = "rpc-perf"
-version = "6.0.0-alpha.0"
+version = "5.0.0-alpha.0"
 authors = ["Brian Martin <brian@iop.systems>"]
 edition = "2021"
 description = "RPC Performance Testing"
 homepage = "https://github.com/iopsystems/rpc-perf"
 repository = "https://github.com/iopsystems/rpc-perf"
-license = "Apache-2.0"
+license = "MIT OR Apache-2.0"
 
 [dependencies]
 ahash = "0.8.3"

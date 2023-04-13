@@ -1,6 +1,3 @@
-// SPDX-License-Identifier: (Apache-2.0)
-// Copyright Authors of rpc-perf
-
 use super::*;
 use ::momento::preview::topics::{SubscriptionItem, TopicClient, ValueKind};
 use ahash::RandomState;

@@ -1,6 +1,3 @@
-// SPDX-License-Identifier: (Apache-2.0)
-// Copyright Authors of rpc-perf
-
 mod http1;
 mod http2;
 mod memcache;
@@ -8,6 +5,7 @@ mod momento;
 mod ping;
 mod resp;
 
+use crate::workload::ClientRequest;
 use crate::workload::ClientWorkItem as WorkItem;
 use crate::*;
 use ::momento::MomentoError;
@@ -20,9 +18,7 @@ use tokio::time::{timeout, Duration};
 pub fn launch_clients(config: &Config, work_receiver: Receiver<WorkItem>) -> Option<Runtime> {
     debug!("Launching clients...");
 
-    if config.client().is_none() {
-        return None;
-    }
+    config.client()?;
 
     // spawn the request drivers on their own runtime
     let mut client_rt = Builder::new_multi_thread()

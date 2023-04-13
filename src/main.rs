@@ -1,9 +1,5 @@
-// SPDX-License-Identifier: (Apache-2.0)
-// Copyright Authors of rpc-perf
-
 use crate::clients::launch_clients;
-use crate::pubsub::launch_publishers;
-use crate::pubsub::launch_subscribers;
+use crate::pubsub::launch_pubsub;
 use crate::workload::launch_workload;
 use metriken::Counter;
 use metriken::Gauge;
@@ -33,16 +29,6 @@ mod workload;
 
 use config::*;
 use stats::*;
-
-pub static PERCENTILES: &[(&str, f64)] = &[
-    ("p25", 25.0),
-    ("p50", 50.0),
-    ("p75", 75.0),
-    ("p90", 90.0),
-    ("p99", 99.0),
-    ("p999", 99.9),
-    ("p9999", 99.99),
-];
 
 type Instant = clocksource::Instant<clocksource::Nanoseconds<u64>>;
 type UnixInstant = clocksource::UnixInstant<clocksource::Nanoseconds<u64>>;
@@ -151,30 +137,19 @@ fn main() {
 
     let workload_rt = launch_workload(workload_generator, &config, client_sender, pubsub_sender);
 
-    // debug!("Launching workload generation");
-    // // spawn the request generators on a blocking threads
-    // for _ in 0..config.workload().threads() {
-    //     let client_sender = client_sender.clone();
-    //     let workload_generator = workload_generator.clone();
-    //     rt.spawn_blocking(move || requests(client_sender, workload_generator));
-    // }
-
-    // let c = config.clone();
-    // rt.spawn_blocking(move || reconnect(client_sender, c));
-
     let client_rt = launch_clients(&config, client_receiver);
-    let publisher_rt = launch_publishers(&config, pubsub_receiver);
-    let subscriber_rt = launch_subscribers(&config, workload_components);
+
+    let mut pubsub_runtimes = launch_pubsub(&config, pubsub_receiver, workload_components);
+
+    // launch json log output
+    {
+        let config = config.clone();
+        let workload_ratelimit = workload_ratelimit.clone();
+        rt.spawn_blocking(move || output::json(config, workload_ratelimit));
+    }
 
     // provide output on cli and block until run is over
-    match config.general().output_format() {
-        OutputFormat::Log => {
-            output::log(&config, workload_ratelimit);
-        }
-        OutputFormat::Json => {
-            output::json(&config, workload_ratelimit);
-        }
-    }
+    output::log(&config, workload_ratelimit);
 
     // signal to other threads to shutdown
     RUNNING.store(false, Ordering::Relaxed);
@@ -182,79 +157,11 @@ fn main() {
     if let Some(client_rt) = client_rt {
         client_rt.shutdown_timeout(std::time::Duration::from_millis(100));
     }
-    if let Some(publisher_rt) = publisher_rt {
-        publisher_rt.shutdown_timeout(std::time::Duration::from_millis(100));
-    }
-    if let Some(subscriber_rt) = subscriber_rt {
-        subscriber_rt.shutdown_timeout(std::time::Duration::from_millis(100));
-    }
+
+    pubsub_runtimes.shutdown_timeout(std::time::Duration::from_millis(100));
+
     workload_rt.shutdown_timeout(std::time::Duration::from_millis(100));
 
     // delay before exiting
     std::thread::sleep(std::time::Duration::from_millis(100));
-}
-
-struct Snapshot {
-    prev: HashMap<Stat, u64>,
-}
-
-#[derive(Eq, Hash, PartialEq, Copy, Clone)]
-enum Stat {
-    Connect,
-    ConnectOk,
-    ConnectEx,
-    ConnectTimeout,
-    Request,
-    RequestOk,
-    RequestReconnect,
-    RequestUnsupported,
-    ResponseOk,
-    ResponseEx,
-    ResponseTimeout,
-    ResponseHit,
-    ResponseMiss,
-    PubsubTx,
-    PubsubTxEx,
-    PubsubTxOk,
-    PubsubTxTimeout,
-    PubsubRx,
-    PubsubRxEx,
-    PubsubRxOk,
-    PubsubRxCorrupt,
-    PubsubRxInvalid,
-}
-
-impl Stat {
-    pub fn metric(&self) -> &metriken::Counter {
-        match self {
-            Self::Connect => &CONNECT,
-            Self::ConnectOk => &CONNECT_OK,
-            Self::ConnectEx => &CONNECT_EX,
-            Self::ConnectTimeout => &CONNECT_TIMEOUT,
-            Self::Request => &REQUEST,
-            Self::RequestOk => &REQUEST_OK,
-            Self::RequestReconnect => &REQUEST_RECONNECT,
-            Self::RequestUnsupported => &REQUEST_UNSUPPORTED,
-            Self::ResponseEx => &RESPONSE_EX,
-            Self::ResponseOk => &RESPONSE_OK,
-            Self::ResponseTimeout => &RESPONSE_TIMEOUT,
-            Self::ResponseHit => &RESPONSE_HIT,
-            Self::ResponseMiss => &RESPONSE_MISS,
-            Self::PubsubTx => &PUBSUB_PUBLISH,
-            Self::PubsubTxEx => &PUBSUB_PUBLISH_EX,
-            Self::PubsubTxOk => &PUBSUB_PUBLISH_OK,
-            Self::PubsubTxTimeout => &PUBSUB_PUBLISH_TIMEOUT,
-            Self::PubsubRx => &PUBSUB_RECEIVE,
-            Self::PubsubRxEx => &PUBSUB_RECEIVE_EX,
-            Self::PubsubRxOk => &PUBSUB_RECEIVE_OK,
-            Self::PubsubRxCorrupt => &PUBSUB_RECEIVE_CORRUPT,
-            Self::PubsubRxInvalid => &PUBSUB_RECEIVE_INVALID,
-        }
-    }
-
-    pub fn delta(&self, snapshot: &mut Snapshot) -> u64 {
-        let curr = self.metric().value();
-        let prev = snapshot.prev.insert(*self, curr).unwrap_or(0);
-        curr.wrapping_sub(prev)
-    }
 }

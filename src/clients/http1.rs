@@ -1,6 +1,3 @@
-// SPDX-License-Identifier: (Apache-2.0)
-// Copyright Authors of rpc-perf
-
 use super::*;
 use crate::net::Connector;
 use bytes::Bytes;
@@ -99,25 +96,36 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
 
         // compose request into buffer
         let request = match &work_item {
-            WorkItem::Get { key } => {
-                let key = unsafe { std::str::from_utf8_unchecked(key) };
-                let url: Uri = format!("http://{endpoint}/{key}").parse().unwrap();
-                let authority = url.authority().unwrap().clone();
-                Request::builder()
-                    .uri(url)
-                    .header(hyper::header::HOST, authority.as_str())
-                    .body(Empty::<Bytes>::new())
-                    .expect("failed to build request")
-            }
+            WorkItem::Request { request, sequence } => match request {
+                ClientRequest::Get { key } => {
+                    let key = unsafe { std::str::from_utf8_unchecked(key) };
+                    let url: Uri = if config.tls().is_none() {
+                        format!("http://{endpoint}/{key}").parse().unwrap()
+                    } else {
+                        format!("https://{endpoint}/{key}").parse().unwrap()
+                    };
+                    let authority = url.authority().unwrap().clone();
+
+                    Request::builder()
+                        .uri(url)
+                        .header(hyper::header::HOST, authority.as_str())
+                        .header(
+                            hyper::header::USER_AGENT,
+                            &format!("rpc-perf/5.0.0-alpha (request; seq:{sequence})"),
+                        )
+                        .body(Empty::<Bytes>::new())
+                        .expect("failed to build request")
+                }
+                _ => {
+                    REQUEST_UNSUPPORTED.increment();
+                    sender = Some(s);
+                    continue;
+                }
+            },
             WorkItem::Reconnect => {
                 SESSION_CLOSED_CLIENT.increment();
                 REQUEST_RECONNECT.increment();
                 CONNECT_CURR.sub(1);
-                continue;
-            }
-            _ => {
-                REQUEST_UNSUPPORTED.increment();
-                sender = Some(s);
                 continue;
             }
         };
@@ -136,10 +144,16 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
         match response {
             Ok(Ok(response)) => {
                 // validate response
-                match work_item {
-                    WorkItem::Get { .. } => {
-                        GET_OK.increment();
-                    }
+                match &work_item {
+                    WorkItem::Request { request, .. } => match request {
+                        ClientRequest::Get { .. } => {
+                            GET_OK.increment();
+                        }
+                        _ => {
+                            error!("unexpected request");
+                            unimplemented!();
+                        }
+                    },
                     _ => {
                         error!("unexpected work item");
                         unimplemented!();
@@ -163,11 +177,19 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                 }
             }
             Ok(Err(_e)) => {
+                RESPONSE_EX.increment();
+
                 // record execption
                 match work_item {
-                    WorkItem::Get { .. } => {
-                        GET_EX.increment();
-                    }
+                    WorkItem::Request { request, .. } => match request {
+                        ClientRequest::Get { .. } => {
+                            GET_EX.increment();
+                        }
+                        _ => {
+                            error!("unexpected request");
+                            unimplemented!();
+                        }
+                    },
                     _ => {
                         error!("unexpected work item");
                         unimplemented!();

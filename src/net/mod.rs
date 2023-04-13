@@ -1,6 +1,3 @@
-// SPDX-License-Identifier: (Apache-2.0)
-// Copyright Authors of rpc-perf
-
 use crate::Config;
 use boring::ssl::{SslFiletype, SslMethod};
 use boring::x509::X509;
@@ -14,14 +11,26 @@ pub struct Connector {
 
 impl Connector {
     pub fn new(config: &Config) -> Result<Self> {
-        let private_key = config.tls().private_key();
-        let certificate = config.tls().certificate();
-        let certificate_chain = config.tls().certificate_chain();
-        let _ca_file = config.tls().ca_file();
+        if config.tls().is_none() {
+            return Ok(Connector {
+                inner: ConnectorImpl::Tcp,
+            });
+        }
 
+        let tls_config = config.tls().unwrap();
+
+        let private_key = tls_config.private_key();
+        let certificate = tls_config.certificate();
+        let certificate_chain = tls_config.certificate_chain();
+
+        let mut ssl_connector = boring::ssl::SslConnector::builder(SslMethod::tls_client())?;
+
+        if let Some(ca_file) = tls_config.ca_file() {
+            ssl_connector.set_ca_file(ca_file)?;
+        }
+
+        // mTLS configuration
         if private_key.is_some() && (certificate.is_some() || certificate_chain.is_some()) {
-            let mut ssl_connector = boring::ssl::SslConnector::builder(SslMethod::tls_client())?;
-
             ssl_connector.set_private_key_file(private_key.unwrap(), SslFiletype::PEM)?;
 
             match (certificate, certificate_chain) {
@@ -46,21 +55,17 @@ impl Connector {
                 }
                 (None, None) => unreachable!(),
             }
-
-            let ssl_connector = ssl_connector.build();
-
-            Ok(Connector {
-                inner: ConnectorImpl::TlsTcp(TlsTcpConnector {
-                    inner: ssl_connector,
-                    verify_hostname: config.tls().verify_hostname(),
-                    use_sni: config.tls().use_sni(),
-                }),
-            })
-        } else {
-            Ok(Connector {
-                inner: ConnectorImpl::Tcp,
-            })
         }
+
+        let ssl_connector = ssl_connector.build();
+
+        Ok(Connector {
+            inner: ConnectorImpl::TlsTcp(TlsTcpConnector {
+                inner: ssl_connector,
+                verify_hostname: tls_config.verify_hostname(),
+                use_sni: tls_config.use_sni(),
+            }),
+        })
     }
 
     pub async fn connect(&self, addr: &str) -> Result<Stream> {

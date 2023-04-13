@@ -1,6 +1,3 @@
-// SPDX-License-Identifier: (Apache-2.0)
-// Copyright Authors of rpc-perf
-
 use super::*;
 use config::{Command, ValueKind, Verb};
 use core::num::NonZeroU64;
@@ -16,6 +13,7 @@ use ratelimit::Ratelimiter;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::io::Result;
+use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 use tokio::time::Interval;
@@ -24,8 +22,10 @@ use zipf::ZipfDistribution;
 mod client;
 mod publisher;
 
-pub use client::ClientWorkItem;
+pub use client::{ClientRequest, ClientWorkItem};
 pub use publisher::PublisherWorkItem;
+
+static SEQUENCE_NUMBER: AtomicU64 = AtomicU64::new(0);
 
 pub fn launch_workload(
     generator: Generator,
@@ -150,15 +150,15 @@ impl Generator {
     fn generate_request(&self, keyspace: &Keyspace, rng: &mut dyn RngCore) -> ClientWorkItem {
         let command = &keyspace.commands[keyspace.command_dist.sample(rng)];
 
-        match command.verb() {
-            Verb::Get => ClientWorkItem::Get {
+        let request = match command.verb() {
+            Verb::Get => ClientRequest::Get {
                 key: keyspace.sample(rng),
             },
-            Verb::Set => ClientWorkItem::Set {
+            Verb::Set => ClientRequest::Set {
                 key: keyspace.sample(rng),
                 value: keyspace.gen_value(rng),
             },
-            Verb::Delete => ClientWorkItem::Delete {
+            Verb::Delete => ClientRequest::Delete {
                 key: keyspace.sample(rng),
             },
             Verb::HashGet => {
@@ -168,12 +168,12 @@ impl Generator {
                     fields.push(keyspace.sample_inner(rng));
                 }
 
-                ClientWorkItem::HashGet {
+                ClientRequest::HashGet {
                     key: keyspace.sample(rng),
                     fields,
                 }
             }
-            Verb::HashGetAll => ClientWorkItem::HashGetAll {
+            Verb::HashGetAll => ClientRequest::HashGetAll {
                 key: keyspace.sample(rng),
             },
             Verb::HashDelete => {
@@ -183,16 +183,16 @@ impl Generator {
                     fields.push(keyspace.sample_inner(rng));
                 }
 
-                ClientWorkItem::HashDelete {
+                ClientRequest::HashDelete {
                     key: keyspace.sample(rng),
                     fields,
                 }
             }
-            Verb::HashExists => ClientWorkItem::HashExists {
+            Verb::HashExists => ClientRequest::HashExists {
                 key: keyspace.sample(rng),
                 field: keyspace.sample_inner(rng),
             },
-            Verb::HashIncrement => ClientWorkItem::HashIncrement {
+            Verb::HashIncrement => ClientRequest::HashIncrement {
                 key: keyspace.sample(rng),
                 field: keyspace.sample_inner(rng),
                 amount: rng.gen(),
@@ -202,7 +202,7 @@ impl Generator {
                 while data.len() < command.cardinality() {
                     data.insert(keyspace.sample_inner(rng), keyspace.gen_value(rng));
                 }
-                ClientWorkItem::HashSet {
+                ClientRequest::HashSet {
                     key: keyspace.sample(rng),
                     data,
                 }
@@ -213,7 +213,7 @@ impl Generator {
                 for _ in 0..cardinality {
                     elements.push(keyspace.sample_inner(rng));
                 }
-                ClientWorkItem::ListPushFront {
+                ClientRequest::ListPushFront {
                     key: keyspace.sample(rng),
                     elements,
                     truncate: command.truncate(),
@@ -225,37 +225,37 @@ impl Generator {
                 for _ in 0..cardinality {
                     elements.push(keyspace.sample_inner(rng));
                 }
-                ClientWorkItem::ListPushBack {
+                ClientRequest::ListPushBack {
                     key: keyspace.sample(rng),
                     elements,
                     truncate: command.truncate(),
                 }
             }
-            Verb::ListFetch => ClientWorkItem::ListFetch {
+            Verb::ListFetch => ClientRequest::ListFetch {
                 key: keyspace.sample(rng),
             },
-            Verb::ListLength => ClientWorkItem::ListLength {
+            Verb::ListLength => ClientRequest::ListLength {
                 key: keyspace.sample(rng),
             },
-            Verb::ListPopFront => ClientWorkItem::ListPopFront {
+            Verb::ListPopFront => ClientRequest::ListPopFront {
                 key: keyspace.sample(rng),
             },
-            Verb::ListPopBack => ClientWorkItem::ListPopBack {
+            Verb::ListPopBack => ClientRequest::ListPopBack {
                 key: keyspace.sample(rng),
             },
-            Verb::Ping => ClientWorkItem::Ping {},
+            Verb::Ping => ClientRequest::Ping {},
             Verb::SetAdd => {
                 let mut members = HashSet::new();
                 while members.len() < command.cardinality() {
                     members.insert(keyspace.sample_inner(rng));
                 }
                 let members = members.drain().collect();
-                ClientWorkItem::SetAdd {
+                ClientRequest::SetAdd {
                     key: keyspace.sample(rng),
                     members,
                 }
             }
-            Verb::SetMembers => ClientWorkItem::SetMembers {
+            Verb::SetMembers => ClientRequest::SetMembers {
                 key: keyspace.sample(rng),
             },
             Verb::SetRemove => {
@@ -264,7 +264,7 @@ impl Generator {
                     members.insert(keyspace.sample_inner(rng));
                 }
                 let members = members.drain().collect();
-                ClientWorkItem::SetRemove {
+                ClientRequest::SetRemove {
                     key: keyspace.sample(rng),
                     members,
                 }
@@ -275,12 +275,12 @@ impl Generator {
                     members.insert(keyspace.sample_inner(rng));
                 }
                 let members = members.drain().map(|m| (m, rng.gen())).collect();
-                ClientWorkItem::SortedSetAdd {
+                ClientRequest::SortedSetAdd {
                     key: keyspace.sample(rng),
                     members,
                 }
             }
-            Verb::SortedSetMembers => ClientWorkItem::SortedSetMembers {
+            Verb::SortedSetMembers => ClientRequest::SortedSetMembers {
                 key: keyspace.sample(rng),
             },
             Verb::SortedSetRemove => {
@@ -289,12 +289,12 @@ impl Generator {
                     members.insert(keyspace.sample_inner(rng));
                 }
                 let members = members.drain().collect();
-                ClientWorkItem::SortedSetRemove {
+                ClientRequest::SortedSetRemove {
                     key: keyspace.sample(rng),
                     members,
                 }
             }
-            Verb::SortedSetIncrement => ClientWorkItem::SortedSetIncrement {
+            Verb::SortedSetIncrement => ClientRequest::SortedSetIncrement {
                 key: keyspace.sample(rng),
                 member: keyspace.sample_inner(rng),
                 amount: rng.gen(),
@@ -305,15 +305,20 @@ impl Generator {
                     members.insert(keyspace.sample_inner(rng));
                 }
                 let members = members.drain().collect();
-                ClientWorkItem::SortedSetScore {
+                ClientRequest::SortedSetScore {
                     key: keyspace.sample(rng),
                     members,
                 }
             }
-            Verb::SortedSetRank => ClientWorkItem::SortedSetRank {
+            Verb::SortedSetRank => ClientRequest::SortedSetRank {
                 key: keyspace.sample(rng),
                 member: keyspace.sample_inner(rng),
             },
+        };
+
+        ClientWorkItem::Request {
+            request,
+            sequence: SEQUENCE_NUMBER.fetch_add(1, Ordering::Relaxed),
         }
     }
 
@@ -588,7 +593,7 @@ pub fn convert_ratelimit(rate: NonZeroU64) -> (u64, Interval) {
 
     // TODO: this gives approximate rates
     //
-    // timer granulcardinality should be millisecond level on most platforms
+    // timer granulularity should be millisecond level on most platforms
     // for higher rates, we can insert multiple work items every interval
     let (quanta, interval) = if rate <= 1000 {
         (1, 1000 / rate)
