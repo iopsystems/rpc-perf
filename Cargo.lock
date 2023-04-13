@@ -1111,6 +1111,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "metriken"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "af0a70e90189b46fa6b104f52d68566059d5dc34f55cd314755249a60727dc34"
+dependencies = [
+ "clocksource",
+ "heatmap",
+ "linkme",
+ "metriken-derive",
+ "once_cell",
+ "parking_lot",
+]
+
+[[package]]
+name = "metriken-derive"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3e58941ebb3d827378ea64a769df9cf65e47f75d78227969d70431c19578e5dc"
+dependencies = [
+ "proc-macro-crate",
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "minimal-lexical"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1737,6 +1763,19 @@ name = "ringlog"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "82db4b27000bac41d738972779f440ed6176ebe82c935b736594eff989aa60f1"
+dependencies = [
+ "ahash",
+ "clocksource",
+ "log",
+ "metriken",
+ "mpmc",
+]
+
+[[package]]
+name = "ringlog"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a481f46b429f20e0dc310ddee227e5e35b86acaff897bfc5db9e37aa35c828be"
 dependencies = [
  "ahash",
  "clocksource",
