@@ -8,9 +8,8 @@ protocol = "memcache"
 interval = 60
 # the number of intervals to run the test for
 duration = 300
-# output is reported using the logging format on stdout. `json` output can also
-# be used here
-output_format = "log"
+# optionally, we can write some detailed stats to a file during the run
+#json_output = "stats.json"
 # run the admin thread with a HTTP listener at the address provided, this allows
 # stats exposition via HTTP
 admin = "127.0.0.1:9090"

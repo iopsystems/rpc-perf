@@ -17,6 +17,9 @@ pub struct Workload {
     // zero is treated as unlimited
     #[serde(default)]
     ratelimit: u64,
+    /// An optional p999 SLO in microseconds. Zero means no SLO enforcement.
+    #[serde(default)]
+    p999_slo: u64,
 }
 
 #[derive(Clone, Deserialize, Copy, Debug, Ord, Eq, PartialOrd, PartialEq, Hash)]
@@ -41,6 +44,10 @@ impl Workload {
 
     pub fn ratelimit(&self) -> Option<NonZeroU64> {
         NonZeroU64::new(self.ratelimit)
+    }
+
+    pub fn p999_slo(&self) -> u64 {
+        self.p999_slo
     }
 }
 

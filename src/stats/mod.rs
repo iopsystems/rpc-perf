@@ -2,15 +2,89 @@
 // Copyright Authors of rpc-perf
 
 // for now, we use some of the stats defined in the protocol crates
+use ahash::HashMap;
 pub use protocol_memcache::*;
 
 use metriken::Lazy;
 use paste::paste;
 use std::concat;
-// use metriken::counter;
-// use metriken::gauge;
 
 type Duration = clocksource::Duration<clocksource::Nanoseconds<u64>>;
+
+pub static PERCENTILES: &[(&str, f64)] = &[
+    ("p25", 25.0),
+    ("p50", 50.0),
+    ("p75", 75.0),
+    ("p90", 90.0),
+    ("p99", 99.0),
+    ("p999", 99.9),
+    ("p9999", 99.99),
+];
+
+pub struct Snapshot {
+    pub prev: HashMap<Stat, u64>,
+}
+
+#[derive(Eq, Hash, PartialEq, Copy, Clone)]
+pub enum Stat {
+    Connect,
+    ConnectOk,
+    ConnectEx,
+    ConnectTimeout,
+    Request,
+    RequestOk,
+    RequestReconnect,
+    RequestUnsupported,
+    ResponseOk,
+    ResponseEx,
+    ResponseTimeout,
+    ResponseHit,
+    ResponseMiss,
+    PubsubTx,
+    PubsubTxEx,
+    PubsubTxOk,
+    PubsubTxTimeout,
+    PubsubRx,
+    PubsubRxEx,
+    PubsubRxOk,
+    PubsubRxCorrupt,
+    PubsubRxInvalid,
+}
+
+impl Stat {
+    pub fn metric(&self) -> &metriken::Counter {
+        match self {
+            Self::Connect => &CONNECT,
+            Self::ConnectOk => &CONNECT_OK,
+            Self::ConnectEx => &CONNECT_EX,
+            Self::ConnectTimeout => &CONNECT_TIMEOUT,
+            Self::Request => &REQUEST,
+            Self::RequestOk => &REQUEST_OK,
+            Self::RequestReconnect => &REQUEST_RECONNECT,
+            Self::RequestUnsupported => &REQUEST_UNSUPPORTED,
+            Self::ResponseEx => &RESPONSE_EX,
+            Self::ResponseOk => &RESPONSE_OK,
+            Self::ResponseTimeout => &RESPONSE_TIMEOUT,
+            Self::ResponseHit => &RESPONSE_HIT,
+            Self::ResponseMiss => &RESPONSE_MISS,
+            Self::PubsubTx => &PUBSUB_PUBLISH,
+            Self::PubsubTxEx => &PUBSUB_PUBLISH_EX,
+            Self::PubsubTxOk => &PUBSUB_PUBLISH_OK,
+            Self::PubsubTxTimeout => &PUBSUB_PUBLISH_TIMEOUT,
+            Self::PubsubRx => &PUBSUB_RECEIVE,
+            Self::PubsubRxEx => &PUBSUB_RECEIVE_EX,
+            Self::PubsubRxOk => &PUBSUB_RECEIVE_OK,
+            Self::PubsubRxCorrupt => &PUBSUB_RECEIVE_CORRUPT,
+            Self::PubsubRxInvalid => &PUBSUB_RECEIVE_INVALID,
+        }
+    }
+
+    pub fn delta(&self, snapshot: &mut Snapshot) -> u64 {
+        let curr = self.metric().value();
+        let prev = snapshot.prev.insert(*self, curr).unwrap_or(0);
+        curr.wrapping_sub(prev)
+    }
+}
 
 #[macro_export]
 #[rustfmt::skip]

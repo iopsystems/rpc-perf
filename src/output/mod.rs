@@ -2,7 +2,11 @@
 // Copyright Authors of rpc-perf
 
 use crate::*;
+use ahash::HashMap;
+use ahash::HashMapExt;
 use ratelimit::Ratelimiter;
+use std::io::BufWriter;
+use std::io::Write;
 use std::sync::Arc;
 
 use serde::Serialize;
@@ -32,6 +36,7 @@ pub fn log(config: &Config, traffic_ratelimit: Option<Arc<Ratelimiter>>) {
     let mut prev = Instant::now();
 
     let mut windows_under_target_rate = 0;
+    let mut windows_over_p999_slo = 0;
 
     let client = !config.workload().keyspaces().is_empty();
     let pubsub = !config.workload().topics().is_empty();
@@ -80,6 +85,23 @@ pub fn log(config: &Config, traffic_ratelimit: Option<Arc<Ratelimiter>>) {
 
                 if windows_under_target_rate > 5 {
                     break;
+                }
+            }
+
+            // a check to determine if we're achieving our p999 SLO (if set)
+            if config.workload().p999_slo() > 0 {
+                if let Ok(p999_latency) =
+                    RESPONSE_LATENCY.percentile(0.999).map(|b| b.high() / 1000)
+                {
+                    if p999_latency > config.workload().p999_slo() {
+                        windows_over_p999_slo += 1;
+                    } else {
+                        windows_over_p999_slo = 0;
+                    }
+
+                    if windows_over_p999_slo > 5 {
+                        break;
+                    }
                 }
             }
 
@@ -338,7 +360,19 @@ fn heatmap_to_buckets(heatmap: &Heatmap) -> Vec<Bucket> {
     }
 }
 
-pub fn json(config: &Config, traffic_ratelimit: Option<Arc<Ratelimiter>>) {
+pub fn json(config: Config, traffic_ratelimit: Option<Arc<Ratelimiter>>) {
+    if config.general().json_output().is_none() {
+        return;
+    }
+
+    let file = std::fs::File::create(config.general().json_output().unwrap());
+
+    if file.is_err() {
+        return;
+    }
+
+    let mut writer = BufWriter::new(file.unwrap());
+
     let mut now = std::time::Instant::now();
 
     let mut prev = now;
@@ -407,10 +441,12 @@ pub fn json(config: &Config, traffic_ratelimit: Option<Arc<Ratelimiter>>) {
                 },
             };
 
-            println!(
-                "{}",
-                serde_json::to_string(&json).expect("Failed to output to stdout")
+            let _ = writer.write_all(
+                serde_json::to_string(&json)
+                    .expect("failed to serialize")
+                    .as_bytes(),
             );
+            let _ = writer.flush();
 
             if let Some(rate) = traffic_ratelimit.as_ref().map(|v| v.rate()) {
                 if requests.ok as f64 / elapsed < 0.95 * rate as f64 {
