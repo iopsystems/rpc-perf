@@ -4,9 +4,20 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-#[allow(dead_code)]
 #[derive(Debug, PartialEq)]
 pub enum ClientWorkItem {
+    Reconnect,
+    Request {
+        request: ClientRequest,
+        sequence: u64,
+    },
+    // pub request: ClientRequest,
+    // pub sequence: u64,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, PartialEq)]
+pub enum ClientRequest {
     Add {
         key: Arc<[u8]>,
         value: Arc<[u8]>,

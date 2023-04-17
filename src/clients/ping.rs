@@ -71,17 +71,19 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
         REQUEST.increment();
 
         // compose request into buffer
-        match work_item {
-            WorkItem::Ping => {
-                Request::Ping.compose(&mut write_buffer);
-            }
+        match &work_item {
+            WorkItem::Request { request, .. } => match request {
+                ClientRequest::Ping => {
+                    Request::Ping.compose(&mut write_buffer);
+                }
+                _ => {
+                    REQUEST_UNSUPPORTED.increment();
+                    stream = Some(s);
+                    continue;
+                }
+            },
             WorkItem::Reconnect => {
                 REQUEST_RECONNECT.increment();
-                continue;
-            }
-            _ => {
-                REQUEST_UNSUPPORTED.increment();
-                stream = Some(s);
                 continue;
             }
         }
@@ -144,9 +146,15 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
             Ok(response) => {
                 // validate response
                 match work_item {
-                    WorkItem::Ping => match response {
-                        Response::Pong => {
-                            PING_OK.increment();
+                    WorkItem::Request { request, .. } => match request {
+                        ClientRequest::Ping => match response {
+                            Response::Pong => {
+                                PING_OK.increment();
+                            }
+                        },
+                        _ => {
+                            error!("unexpected request");
+                            unimplemented!();
                         }
                     },
                     _ => {
@@ -167,10 +175,15 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
             Err(ResponseError::Exception) => {
                 // record execption
                 match work_item {
-                    WorkItem::Ping => {
-                        error!("ping exception");
-                        PING_EX.increment();
-                    }
+                    WorkItem::Request { request, .. } => match request {
+                        ClientRequest::Ping => {
+                            PING_EX.increment();
+                        }
+                        _ => {
+                            error!("unexpected request");
+                            unimplemented!();
+                        }
+                    },
                     _ => {
                         error!("unexpected work item");
                         unimplemented!();

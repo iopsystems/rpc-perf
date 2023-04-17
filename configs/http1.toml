@@ -47,14 +47,14 @@ threads = 1
 # set a global ratelimit for the workload
 ratelimit = 10_000
 
-# [[workload.keyspace]]
-# # sets the relative weight of this keyspace: defaults to 1
-# weight = 1
-# # controls what commands will be used in this keyspace
-# commands = [
-# 	# get /
-# 	{ verb = "get", weight = 80 },
-# ]
+[[workload.keyspace]]
+# sets the relative weight of this keyspace: defaults to 1
+weight = 1
+# controls what commands will be used in this keyspace
+commands = [
+	# get /
+	{ verb = "get", weight = 80 },
+]
 
 [[workload.keyspace]]
 # sets the relative weight of this keyspace: defaults to 1

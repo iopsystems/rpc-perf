@@ -8,6 +8,7 @@ mod momento;
 mod ping;
 mod resp;
 
+use crate::workload::ClientRequest;
 use crate::workload::ClientWorkItem as WorkItem;
 use crate::*;
 use ::momento::MomentoError;
