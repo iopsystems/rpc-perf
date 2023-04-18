@@ -5,6 +5,7 @@ use super::*;
 use crate::net::Connector;
 use bytes::Bytes;
 use http_body_util::Empty;
+use hyper::client::conn::http1::Connection;
 use hyper::header::{HeaderName, HeaderValue};
 use hyper::{Request, Uri};
 

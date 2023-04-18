@@ -324,6 +324,7 @@ struct Client {
 #[derive(Serialize)]
 struct Pubsub {
     publishers: Publishers,
+    subscribers: Subscribers,
 }
 
 #[derive(Serialize)]
@@ -333,10 +334,17 @@ struct Publishers {
 }
 
 #[derive(Serialize)]
+struct Subscribers {
+    // current number of subscribers
+    current: i64,
+}
+
+#[derive(Serialize)]
 struct JsonSnapshot {
     window: u64,
     elapsed: f64,
     client: Client,
+    pubsub: Pubsub,
 }
 
 // gets the non-zero buckets for the most recent window in the heatmap
@@ -438,6 +446,14 @@ pub fn json(config: Config, traffic_ratelimit: Option<Arc<Ratelimiter>>) {
                     requests,
                     responses,
                     request_latency: heatmap_to_buckets(&REQUEST_LATENCY),
+                },
+                pubsub: Pubsub {
+                    publishers: Publishers {
+                        current: PUBSUB_PUBLISHER_CURR.value(),
+                    },
+                    subscribers: Subscribers {
+                        current: PUBSUB_SUBSCRIBER_CURR.value(),
+                    },
                 },
             };
 

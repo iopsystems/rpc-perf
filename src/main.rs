@@ -2,8 +2,7 @@
 // Copyright Authors of rpc-perf
 
 use crate::clients::launch_clients;
-use crate::pubsub::launch_publishers;
-use crate::pubsub::launch_subscribers;
+use crate::pubsub::launch_pubsub;
 use crate::workload::launch_workload;
 use metriken::Counter;
 use metriken::Gauge;
@@ -142,8 +141,8 @@ fn main() {
     let workload_rt = launch_workload(workload_generator, &config, client_sender, pubsub_sender);
 
     let client_rt = launch_clients(&config, client_receiver);
-    let publisher_rt = launch_publishers(&config, pubsub_receiver);
-    let subscriber_rt = launch_subscribers(&config, workload_components);
+
+    let mut pubsub_runtimes = launch_pubsub(&config, pubsub_receiver, workload_components);
 
     // launch json log output
     {
@@ -161,12 +160,9 @@ fn main() {
     if let Some(client_rt) = client_rt {
         client_rt.shutdown_timeout(std::time::Duration::from_millis(100));
     }
-    if let Some(publisher_rt) = publisher_rt {
-        publisher_rt.shutdown_timeout(std::time::Duration::from_millis(100));
-    }
-    if let Some(subscriber_rt) = subscriber_rt {
-        subscriber_rt.shutdown_timeout(std::time::Duration::from_millis(100));
-    }
+
+    pubsub_runtimes.shutdown_timeout(std::time::Duration::from_millis(100));
+
     workload_rt.shutdown_timeout(std::time::Duration::from_millis(100));
 
     // delay before exiting

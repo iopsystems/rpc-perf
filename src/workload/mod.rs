@@ -596,7 +596,7 @@ pub fn convert_ratelimit(rate: NonZeroU64) -> (u64, Interval) {
 
     // TODO: this gives approximate rates
     //
-    // timer granulcardinality should be millisecond level on most platforms
+    // timer granulularity should be millisecond level on most platforms
     // for higher rates, we can insert multiple work items every interval
     let (quanta, interval) = if rate <= 1000 {
         (1, 1000 / rate)
