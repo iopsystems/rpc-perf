@@ -462,7 +462,7 @@ pub fn json(config: Config, traffic_ratelimit: Option<Arc<Ratelimiter>>) {
                     .expect("failed to serialize")
                     .as_bytes(),
             );
-            let _ = writer.flush();
+            let _ = writer.write_all(b"\n");
 
             if let Some(rate) = traffic_ratelimit.as_ref().map(|v| v.rate()) {
                 if requests.ok as f64 / elapsed < 0.95 * rate as f64 {

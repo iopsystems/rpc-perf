@@ -169,9 +169,15 @@ async fn task(
         // compose request into buffer
         let request = match &work_item {
             WorkItem::Request { request, sequence } => match request {
-                ClientRequest::Get { .. } => {
-                    let url: Uri = format!("http://{endpoint}/").parse().unwrap();
+                ClientRequest::Get { key } => {
+                    let key = unsafe { std::str::from_utf8_unchecked(key) };
+                    let url: Uri = if config.tls().is_none() {
+                        format!("http://{endpoint}/{key}").parse().unwrap()
+                    } else {
+                        format!("https://{endpoint}/{key}").parse().unwrap()
+                    };
                     let authority = url.authority().unwrap().clone();
+
                     Request::builder()
                         .uri(url)
                         .header(hyper::header::HOST, authority.as_str())

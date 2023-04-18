@@ -5,7 +5,6 @@ use super::*;
 use crate::net::Connector;
 use bytes::Bytes;
 use http_body_util::Empty;
-use hyper::client::conn::http1::Connection;
 use hyper::header::{HeaderName, HeaderValue};
 use hyper::{Request, Uri};
 
@@ -103,8 +102,13 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
             WorkItem::Request { request, sequence } => match request {
                 ClientRequest::Get { key } => {
                     let key = unsafe { std::str::from_utf8_unchecked(key) };
-                    let url: Uri = format!("http://{endpoint}/{key}").parse().unwrap();
+                    let url: Uri = if config.tls().is_none() {
+                        format!("http://{endpoint}/{key}").parse().unwrap()
+                    } else {
+                        format!("https://{endpoint}/{key}").parse().unwrap()
+                    };
                     let authority = url.authority().unwrap().clone();
+
                     Request::builder()
                         .uri(url)
                         .header(hyper::header::HOST, authority.as_str())
@@ -144,7 +148,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
             Ok(Ok(response)) => {
                 // validate response
                 match &work_item {
-                    WorkItem::Request { request, sequence } => match request {
+                    WorkItem::Request { request, .. } => match request {
                         ClientRequest::Get { .. } => {
                             GET_OK.increment();
                         }
@@ -176,6 +180,8 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                 }
             }
             Ok(Err(_e)) => {
+                RESPONSE_EX.increment();
+
                 // record execption
                 match work_item {
                     WorkItem::Request { request, .. } => match request {

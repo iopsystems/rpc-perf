@@ -56,4 +56,14 @@ commands = [
 	{ verb = "ping", weight = 100 },
 ]
 
-[tls]
+# To enable mTLS, uncomment the `[tls]` section below.
+
+#[tls]
+# set the client's TLS private key for mTLS authentication
+#private_key = "path/to/client_key.pem"
+# set the client's TLS certificate for mTLS authentication
+#certificate = "path/to/client_cert.pem"
+# set a path to a root CA PEM, useful if running your own CA
+#ca_file = "path/to/root_ca.pem"
+# require that the server certifcate and hostname match
+#verify_hostname = "true"

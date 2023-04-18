@@ -249,5 +249,3 @@ commands = [
 	# remove an entire set with delete
 	{ verb = "delete", weight = 5 }
 ]
-
-[tls]

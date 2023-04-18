@@ -77,5 +77,3 @@ topics = 1
 topic_len = 32
 # sets the value length, in bytes
 message_len = 128
-
-[tls]

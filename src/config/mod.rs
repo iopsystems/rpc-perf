@@ -31,7 +31,7 @@ pub struct Config {
     debug: Debug,
     pubsub: Option<Pubsub>,
     target: Target,
-    tls: Tls,
+    tls: Option<Tls>,
     workload: Workload,
 }
 
@@ -78,8 +78,8 @@ impl Config {
         &self.target
     }
 
-    pub fn tls(&self) -> &Tls {
-        &self.tls
+    pub fn tls(&self) -> Option<&Tls> {
+        self.tls.as_ref()
     }
 
     pub fn workload(&self) -> &Workload {
