@@ -3,6 +3,7 @@
 
 mod http1;
 mod http2;
+mod http3;
 mod memcache;
 mod momento;
 mod ping;

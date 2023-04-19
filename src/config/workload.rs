@@ -17,6 +17,10 @@ pub struct Workload {
     // zero is treated as unlimited
     #[serde(default)]
     ratelimit: u64,
+    /// if strict ratelimit is enabled, the test will stop if the rate is not
+    /// within 95% of the target
+    #[serde(default)]
+    strict_ratelimit: bool,
     /// An optional p999 SLO in microseconds. Zero means no SLO enforcement.
     #[serde(default)]
     p999_slo: u64,
@@ -44,6 +48,10 @@ impl Workload {
 
     pub fn ratelimit(&self) -> Option<NonZeroU64> {
         NonZeroU64::new(self.ratelimit)
+    }
+
+    pub fn strict_ratelimit(&self) -> bool {
+        self.strict_ratelimit
     }
 
     pub fn p999_slo(&self) -> u64 {

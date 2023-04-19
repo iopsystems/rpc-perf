@@ -76,19 +76,22 @@ pub fn log(config: &Config, traffic_ratelimit: Option<Arc<Ratelimiter>>) {
 
             // a check to determine if we're approximately hitting our target
             // ratelimit. If not, this will terminate the run.
-            if let Some(rate) = traffic_ratelimit.as_ref().map(|v| v.rate()) {
-                if total_ok as f64 / elapsed < 0.95 * rate as f64 {
-                    windows_under_target_rate += 1;
-                } else {
-                    windows_under_target_rate = 0;
-                }
+            if config.workload().strict_ratelimit() {
+                if let Some(rate) = traffic_ratelimit.as_ref().map(|v| v.rate()) {
+                    if total_ok as f64 / elapsed < 0.95 * rate as f64 {
+                        windows_under_target_rate += 1;
+                    } else {
+                        windows_under_target_rate = 0;
+                    }
 
-                if windows_under_target_rate > 5 {
-                    break;
+                    if windows_under_target_rate > 5 {
+                        break;
+                    }
                 }
             }
 
-            // a check to determine if we're achieving our p999 SLO (if set)
+            // a check to determine if we're achieving our p999 SLO (if set). If
+            // not, this will terminate the run.
             if config.workload().p999_slo() > 0 {
                 if let Ok(p999_latency) =
                     RESPONSE_LATENCY.percentile(0.999).map(|b| b.high() / 1000)
