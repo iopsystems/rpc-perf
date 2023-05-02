@@ -31,6 +31,8 @@ mod filters {
             .or(update_ratelimit(ratelimit))
     }
 
+    /// Serves Prometheus / OpenMetrics text format metrics.
+    ///
     /// GET /metrics
     pub fn prometheus_stats(
     ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
@@ -39,6 +41,8 @@ mod filters {
             .and_then(handlers::prometheus_stats)
     }
 
+    /// Serves a human readable metrics output.
+    ///
     /// GET /vars
     pub fn human_stats(
     ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
@@ -47,6 +51,10 @@ mod filters {
             .and_then(handlers::human_stats)
     }
 
+    /// Serves JSON metrics output that is compatible with Twitter Server /
+    /// Finagle metrics endpoints. Multiple paths are provided for enhanced
+    /// compatibility with metrics collectors.
+    ///
     /// GET /metrics.json
     /// GET /vars.json
     /// GET /admin/metrics.json
@@ -64,6 +72,9 @@ mod filters {
     }
 
     // TODO(bmartin): we should probably pass the rate in the body
+
+    /// An endpoint that allows realtime adjustment of the workload ratelimit.
+    ///
     /// PUT /ratelimit/:rate
     pub fn update_ratelimit(
         ratelimit: Option<Arc<Ratelimiter>>,
@@ -82,6 +93,7 @@ mod filters {
     }
 }
 
+/// An enum to wrap metric readings for various metric types.
 pub enum Metric<'a> {
     Counter(&'a str, Option<&'a str>, u64),
     Gauge(&'a str, Option<&'a str>, i64),
@@ -89,6 +101,7 @@ pub enum Metric<'a> {
 }
 
 impl<'a> Metric<'a> {
+    /// Returns the name of the metric.
     pub fn name(&self) -> &'a str {
         match self {
             Self::Counter(name, _description, _value) => name,
@@ -147,6 +160,21 @@ mod handlers {
     use core::convert::Infallible;
     use warp::http::StatusCode;
 
+    /// Serves Prometheus / OpenMetrics text format metrics. All metrics have
+    /// type information, some have descriptions as well. Percentiles read from
+    /// heatmaps are exposed with a `percentile` label where the value
+    /// corresponds to the percentile in the range of 0.0 - 100.0.
+    ///
+    /// ```text
+    /// # TYPE some_counter counter
+    /// # HELP some_counter An unsigned 64bit monotonic counter.
+    /// counter 0
+    /// # TYPE some_gauge gauge
+    /// # HELP some_gauge A signed 64bit gauge.
+    /// some_gauge 0
+    /// # TYPE some_distribution{percentile="50.0"} gauge
+    /// some_distribution{percentile="50.0"} 0
+    /// ```
     pub async fn prometheus_stats() -> Result<impl warp::Reply, Infallible> {
         let mut data = Vec::new();
 
@@ -205,6 +233,14 @@ mod handlers {
         Ok(parts.join("_"))
     }
 
+    /// Serves JSON formatted metrics following the conventions of Finagle /
+    /// TwitterServer. Percentiles read from heatmaps will have a percentile
+    /// label appended to the metric name in the form `/p999` which would be the
+    /// 99.9th percentile.
+    ///
+    /// ```text
+    /// {"get/ok": 0,"client/request/p999": 0, ... }
+    /// ```
     pub async fn json_stats() -> Result<impl warp::Reply, Infallible> {
         let mut data = Vec::new();
 
@@ -227,7 +263,7 @@ mod handlers {
                 Metric::Percentiles(name, _description, percentiles) => {
                     for (label, _percentile, value) in percentiles {
                         if let Some(value) = value {
-                            data.push(format!("\"{name}_{label}\": {value}",));
+                            data.push(format!("\"{name}/{label}\": {value}",));
                         }
                     }
                 }
@@ -242,6 +278,14 @@ mod handlers {
         Ok(content)
     }
 
+    /// Serves human readable stats. One metric per line with a `LF` as the
+    /// newline character (Unix-style). Percentiles will have percentile labels
+    /// appened with a `/` as a separator.
+    ///
+    /// ```
+    /// get/ok: 0
+    /// client/request/latency/p50: 0,
+    /// ```
     pub async fn human_stats() -> Result<impl warp::Reply, Infallible> {
         let mut data = Vec::new();
 
