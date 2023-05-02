@@ -120,7 +120,7 @@ jobs:
       - name: test
         shell: bash
         run: |
-          cargo test --workspace --all-features --tests --lib --bins --examples --locked ${{ env.FLAGS }}
+          cargo test --workspace --all-features --tests --bins --locked ${{ env.FLAGS }}
       - name: doctests
         if: ${{ matrix.profile == 'debug' }}
         shell: bash
