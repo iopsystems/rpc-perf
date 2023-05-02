@@ -1,9 +1,11 @@
 # rpc-perf
 
-rpc-perf is a tool for measuring the performance of RPC services with a focus on
-benchmarking caching systems.
+rpc-perf is a tool for measuring the performance of network services. While it
+has historically focused on caching services, the support is expanding to cover
+HTTP and PubSub.
 
-[![License: Apache-2.0][license-badge]][license-url]
+[![License: Apache-2.0][license-badge-apache]][license-url-apache]
+[![License: MIT][license-badge-mit]][license-url-mit]
 [![Build Status: CI][ci-build-badge]][ci-build-url]
 
 # Content
@@ -15,9 +17,9 @@ benchmarking caching systems.
 
 Follow the [build instructions](#building-from-source) to build rpc-perf from
 this repository and take a look at the example configurations in the `configs`
-folder. There you will find some examples on using rpc-perf to test Memcached,
-Momento, Redis, and Pelikan Segcache. The examples provide a starting point and
-may need some changes to produce a representative workload for your testing.
+folder. There you will find some examples for each of the supported protocols.
+The examples provide a starting point and may need some changes to produce a
+representative workload for your testing.
 
 # Building from source
 
@@ -50,5 +52,7 @@ If you want to submit a patch, please follow these steps:
 
 [ci-build-badge]: https://img.shields.io/github/workflow/status/iopsystems/rpc-perf/CI/master?label=CI
 [ci-build-url]: https://github.com/iopsystems/rpc-perf/actions/workflows/cargo.yml?query=branch%3Amaster+event%3Apush
-[license-badge]: https://img.shields.io/badge/license-Apache%202.0-blue.svg
-[license-url]: https://github.com/iopsystems/rpc-perf/blob/master/LICENSE
+[license-badge-apache]: https://img.shields.io/badge/license-Apache%202.0-blue.svg
+[license-badge-mit]: https://img.shields.io/badge/license-MIT-blue.svg
+[license-url-apache]: https://github.com/iopsystems/rpc-perf/blob/master/LICENSE-APACHE
+[license-url-mit]: https://github.com/iopsystems/rpc-perf/blob/master/LICENSE-MIT

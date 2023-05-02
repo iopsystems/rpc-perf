@@ -83,17 +83,17 @@ mod filters {
 }
 
 pub enum Metric<'a> {
-    Counter(&'a str, u64),
-    Gauge(&'a str, i64),
-    Percentiles(&'a str, Vec<(&'a str, f64, Option<u64>)>),
+    Counter(&'a str, Option<&'a str>, u64),
+    Gauge(&'a str, Option<&'a str>, i64),
+    Percentiles(&'a str, Option<&'a str>, Vec<(&'a str, f64, Option<u64>)>),
 }
 
 impl<'a> Metric<'a> {
     pub fn name(&self) -> &'a str {
         match self {
-            Self::Counter(name, _value) => name,
-            Self::Gauge(name, _value) => name,
-            Self::Percentiles(name, _percentiles) => name,
+            Self::Counter(name, _description, _value) => name,
+            Self::Gauge(name, _description, _value) => name,
+            Self::Percentiles(name, _description, _percentiles) => name,
         }
     }
 }
@@ -110,9 +110,17 @@ impl<'a> TryFrom<&'a metriken::MetricEntry> for Metric<'a> {
         };
 
         if let Some(counter) = any.downcast_ref::<Counter>() {
-            Ok(Metric::Counter((*metric).name(), counter.value()))
+            Ok(Metric::Counter(
+                (*metric).name(),
+                metric.description(),
+                counter.value(),
+            ))
         } else if let Some(gauge) = any.downcast_ref::<Gauge>() {
-            Ok(Metric::Gauge(metric.name(), gauge.value()))
+            Ok(Metric::Gauge(
+                metric.name(),
+                metric.description(),
+                gauge.value(),
+            ))
         } else if let Some(heatmap) = any.downcast_ref::<Heatmap>() {
             let percentiles = PERCENTILES
                 .iter()
@@ -123,7 +131,11 @@ impl<'a> TryFrom<&'a metriken::MetricEntry> for Metric<'a> {
                 })
                 .collect();
 
-            Ok(Metric::Percentiles(metric.name(), percentiles))
+            Ok(Metric::Percentiles(
+                metric.name(),
+                metric.description(),
+                percentiles,
+            ))
         } else {
             Err(())
         }
@@ -148,19 +160,38 @@ mod handlers {
             }
 
             match metric {
-                Metric::Counter(name, value) => {
-                    data.push(format!("# TYPE {name} counter\n{name} {value}"));
+                Metric::Counter(name, description, value) => {
+                    if let Some(description) = description {
+                        data.push(format!(
+                            "# TYPE {name} counter\n# HELP {name} {description}\n{name} {value}"
+                        ));
+                    } else {
+                        data.push(format!("# TYPE {name} counter\n{name} {value}"));
+                    }
                 }
-                Metric::Gauge(name, value) => {
-                    data.push(format!("# TYPE {name} gauge\n{name} {value}"));
+                Metric::Gauge(name, description, value) => {
+                    if let Some(description) = description {
+                        data.push(format!(
+                            "# TYPE {name} gauge\n# HELP {name} {description}\n{name} {value}"
+                        ));
+                    } else {
+                        data.push(format!("# TYPE {name} gauge\n{name} {value}"));
+                    }
                 }
-                Metric::Percentiles(name, percentiles) => {
+                Metric::Percentiles(name, description, percentiles) => {
                     for (_label, percentile, value) in percentiles {
                         if let Some(value) = value {
-                            data.push(format!(
-                                "# TYPE {name} gauge\n{name}{{percentile=\"{:02}\"}} {value}",
-                                percentile,
-                            ));
+                            if let Some(description) = description {
+                                data.push(format!(
+                                    "# TYPE {name} gauge\n# HELP {name} {description}\n{name}{{percentile=\"{:02}\"}} {value}",
+                                    percentile,
+                                ));
+                            } else {
+                                data.push(format!(
+                                    "# TYPE {name} gauge\n{name}{{percentile=\"{:02}\"}} {value}",
+                                    percentile,
+                                ));
+                            }
                         }
                     }
                 }
@@ -187,13 +218,13 @@ mod handlers {
             }
 
             match metric {
-                Metric::Counter(name, value) => {
+                Metric::Counter(name, _description, value) => {
                     data.push(format!("\"{name}\": {value}"));
                 }
-                Metric::Gauge(name, value) => {
+                Metric::Gauge(name, _description, value) => {
                     data.push(format!("\"{name}\": {value}"));
                 }
-                Metric::Percentiles(name, percentiles) => {
+                Metric::Percentiles(name, _description, percentiles) => {
                     for (label, _percentile, value) in percentiles {
                         if let Some(value) = value {
                             data.push(format!("\"{name}_{label}\": {value}",));
@@ -224,13 +255,13 @@ mod handlers {
             }
 
             match metric {
-                Metric::Counter(name, value) => {
+                Metric::Counter(name, _description, value) => {
                     data.push(format!("{name}: {value}"));
                 }
-                Metric::Gauge(name, value) => {
+                Metric::Gauge(name, _description, value) => {
                     data.push(format!("{name}: {value}"));
                 }
-                Metric::Percentiles(name, percentiles) => {
+                Metric::Percentiles(name, _description, percentiles) => {
                     for (label, _percentile, value) in percentiles {
                         if let Some(value) = value {
                             data.push(format!("{name}/{label}: {value}",));

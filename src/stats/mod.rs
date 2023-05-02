@@ -98,6 +98,7 @@ macro_rules! counter {
     ($ident:ident, $name:tt, $description:tt) => {
         #[metriken::metric(
             name = $name,
+            description = $description,
             crate = metriken
         )]
         pub static $ident: Lazy<metriken::Counter> = metriken::Lazy::new(|| {
@@ -121,6 +122,7 @@ macro_rules! gauge {
     ($ident:ident, $name:tt, $description:tt) => {
         #[metriken::metric(
             name = $name,
+            description = $description,
             crate = metriken
         )]
         pub static $ident: Lazy<metriken::Gauge> = metriken::Lazy::new(|| {
@@ -159,6 +161,7 @@ macro_rules! request {
     ($ident:ident, $name:tt) => {
         #[metriken::metric(
             name = concat!($name, "/total"),
+            description = concat!("The total number of ", $name, " requests"),
             crate = metriken
         )]
         pub static $ident: Lazy<metriken::Counter> = metriken::Lazy::new(|| {
@@ -168,6 +171,7 @@ macro_rules! request {
         paste! {
             #[metriken::metric(
                 name = concat!($name, "/exception"),
+                description = concat!("The number of ", $name, " requests that resulted in an exception"),
                 crate = metriken
             )]
             pub static [<$ident _EX>]: Lazy<metriken::Counter> = metriken::Lazy::new(|| {
@@ -178,6 +182,7 @@ macro_rules! request {
         paste! {
             #[metriken::metric(
                 name = concat!($name, "/ok"),
+                description = concat!("The number of ", $name, " requests that were successful"),
                 crate = metriken
             )]
             pub static [<$ident _OK>]: Lazy<metriken::Counter> = metriken::Lazy::new(|| {
@@ -188,6 +193,7 @@ macro_rules! request {
         paste! {
             #[metriken::metric(
                 name = concat!($name, "/timeout"),
+                description = concat!("The number of ", $name, " requests that resulted in a timeout"),
                 crate = metriken
             )]
             pub static [<$ident _TIMEOUT>]: Lazy<metriken::Counter> = metriken::Lazy::new(|| {
@@ -270,43 +276,39 @@ counter!(RESPONSE_HIT, "client/response/hit");
 counter!(RESPONSE_MISS, "client/response/miss");
 
 // augment the get stats
-counter!(
-    GET_OK,
-    "client/request/get/ok",
-    "get requests that were successful"
-);
+counter!(GET_OK, "get/ok", "get requests that were successful");
 counter!(
     GET_TIMEOUT,
-    "client/request/get/timeout",
+    "get/timeout",
     "get requests that resulted in timeout"
 );
 
 // augment the set stats
 counter!(
     SET_TIMEOUT,
-    "client/request/set/timeout",
+    "set/timeout",
     "set requests that resulted in timeout"
 );
 
 // augment the delete stats
 counter!(
     DELETE_OK,
-    "client/request/delete/ok",
+    "delete/ok",
     "delete requests that were successful"
 );
 counter!(
     DELETE_TIMEOUT,
-    "client/request/delete/timeout",
+    "delete/timeout",
     "delete requests that resulted in timeout"
 );
 
-request!(HASH_GET, "client/request/hash_get");
-counter!(HASH_GET_FIELD_HIT, "client/request/hash_get/field_hit");
-counter!(HASH_GET_FIELD_MISS, "client/request/hash_get/field_miss");
+request!(HASH_GET, "hash_get");
+counter!(HASH_GET_FIELD_HIT, "hash_get/field_hit");
+counter!(HASH_GET_FIELD_MISS, "hash_get/field_miss");
 
-request!(HASH_GET_ALL, "client/request/hash_get_all");
-counter!(HASH_GET_ALL_HIT, "client/request/hash_get_all/hit");
-counter!(HASH_GET_ALL_MISS, "client/request/hash_get_all/miss");
+request!(HASH_GET_ALL, "hash_get_all");
+counter!(HASH_GET_ALL_HIT, "hash_get_all/hit");
+counter!(HASH_GET_ALL_MISS, "hash_get_all/miss");
 
 counter!(CONNECT, "client/connect/total");
 counter!(CONNECT_EX, "client/connect/exception");
@@ -318,65 +320,65 @@ counter!(SESSION_CLOSED_SERVER, "client/session/server_closed");
 /*
  * PING
  */
-request!(PING, "client/request/ping");
+request!(PING, "ping");
 
 /*
  * HASHES (DICTIONARIES)
  */
 
-request!(HASH_DELETE, "client/request/hash_delete");
+request!(HASH_DELETE, "hash_delete");
 
-request!(HASH_EXISTS, "client/request/hash_exists");
-counter!(HASH_EXISTS_HIT, "client/request/hash_exists/hit");
-counter!(HASH_EXISTS_MISS, "client/request/hash_exists/miss");
+request!(HASH_EXISTS, "hash_exists");
+counter!(HASH_EXISTS_HIT, "hash_exists/hit");
+counter!(HASH_EXISTS_MISS, "hash_exists/miss");
 
-request!(HASH_INCR, "client/request/hash_incr");
-counter!(HASH_INCR_HIT, "client/request/hash_incr/hit");
-counter!(HASH_INCR_MISS, "client/request/hash_incr/miss");
+request!(HASH_INCR, "hash_incr");
+counter!(HASH_INCR_HIT, "hash_incr/hit");
+counter!(HASH_INCR_MISS, "hash_incr/miss");
 
-request!(HASH_SET, "client/request/hash_set");
+request!(HASH_SET, "hash_set");
 
 /*
  * LISTS
  */
 
-request!(LIST_FETCH, "client/request/list_fetch");
+request!(LIST_FETCH, "list_fetch");
 
-request!(LIST_LENGTH, "client/request/list_length");
+request!(LIST_LENGTH, "list_length");
 
-request!(LIST_POP_BACK, "client/request/list_pop_back");
+request!(LIST_POP_BACK, "list_pop_back");
 
-request!(LIST_POP_FRONT, "client/request/list_pop_front");
+request!(LIST_POP_FRONT, "list_pop_front");
 
-request!(LIST_PUSH_BACK, "client/request/list_push_back");
+request!(LIST_PUSH_BACK, "list_push_back");
 
-request!(LIST_PUSH_FRONT, "client/request/list_push_front");
+request!(LIST_PUSH_FRONT, "list_push_front");
 
 /*
  * SETS
  */
 
-request!(SET_ADD, "client/request/set_add");
+request!(SET_ADD, "set_add");
 
-request!(SET_MEMBERS, "client/request/set_members");
+request!(SET_MEMBERS, "set_members");
 
-request!(SET_REMOVE, "client/request/set_remove");
+request!(SET_REMOVE, "set_remove");
 
 /*
  * SORTED SETS
  */
 
-request!(SORTED_SET_ADD, "client/request/sorted_set_add");
+request!(SORTED_SET_ADD, "sorted_set_add");
 
-request!(SORTED_SET_INCR, "client/request/sorted_set_incr");
+request!(SORTED_SET_INCR, "sorted_set_incr");
 
-request!(SORTED_SET_MEMBERS, "client/request/sorted_set_members");
+request!(SORTED_SET_MEMBERS, "sorted_set_members");
 
-request!(SORTED_SET_RANK, "client/request/sorted_set_rank");
+request!(SORTED_SET_RANK, "sorted_set_rank");
 
-request!(SORTED_SET_REMOVE, "client/request/sorted_set_remove");
+request!(SORTED_SET_REMOVE, "sorted_set_remove");
 
-request!(SORTED_SET_SCORE, "client/request/sorted_set_score");
+request!(SORTED_SET_SCORE, "sorted_set_score");
 
 /*
  * PUBSUB
