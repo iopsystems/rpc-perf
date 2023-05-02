@@ -102,15 +102,15 @@ fn main() {
 
     output!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
 
-    // initialize async runtime
-    let rt = Builder::new_multi_thread()
+    // initialize async runtime for control plane
+    let control_runtime = Builder::new_multi_thread()
         .enable_all()
         .worker_threads(4)
         .build()
         .expect("failed to initialize tokio runtime");
 
     // spawn logging thread
-    rt.spawn(async move {
+    control_runtime.spawn(async move {
         while RUNNING.load(Ordering::Relaxed) {
             clocksource::refresh_clock();
             sleep(Duration::from_millis(1)).await;
@@ -133,11 +133,11 @@ fn main() {
     let workload_components = workload_generator.components().to_owned();
 
     // spawn the admin thread
-    rt.spawn(admin::http(config.clone(), workload_ratelimit.clone()));
+    control_runtime.spawn(admin::http(config.clone(), workload_ratelimit.clone()));
 
-    let workload_rt = launch_workload(workload_generator, &config, client_sender, pubsub_sender);
+    let workload_runtime = launch_workload(workload_generator, &config, client_sender, pubsub_sender);
 
-    let client_rt = launch_clients(&config, client_receiver);
+    let client_runtime = launch_clients(&config, client_receiver);
 
     let mut pubsub_runtimes = launch_pubsub(&config, pubsub_receiver, workload_components);
 
@@ -145,7 +145,7 @@ fn main() {
     {
         let config = config.clone();
         let workload_ratelimit = workload_ratelimit.clone();
-        rt.spawn_blocking(move || output::json(config, workload_ratelimit));
+        control_runtime.spawn_blocking(move || output::json(config, workload_ratelimit));
     }
 
     // provide output on cli and block until run is over
@@ -154,13 +154,13 @@ fn main() {
     // signal to other threads to shutdown
     RUNNING.store(false, Ordering::Relaxed);
 
-    if let Some(client_rt) = client_rt {
-        client_rt.shutdown_timeout(std::time::Duration::from_millis(100));
+    if let Some(client_runtime) = client_runtime {
+        client_runtime.shutdown_timeout(std::time::Duration::from_millis(100));
     }
 
     pubsub_runtimes.shutdown_timeout(std::time::Duration::from_millis(100));
 
-    workload_rt.shutdown_timeout(std::time::Duration::from_millis(100));
+    workload_runtime.shutdown_timeout(std::time::Duration::from_millis(100));
 
     // delay before exiting
     std::thread::sleep(std::time::Duration::from_millis(100));
