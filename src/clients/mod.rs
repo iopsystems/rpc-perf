@@ -1,10 +1,3 @@
-mod http1;
-mod http2;
-mod memcache;
-mod momento;
-mod ping;
-mod resp;
-
 use crate::workload::ClientRequest;
 use crate::workload::ClientWorkItem as WorkItem;
 use crate::*;
@@ -14,6 +7,13 @@ use std::io::{Error, ErrorKind, Result};
 use tokio::io::*;
 use tokio::runtime::Runtime;
 use tokio::time::{timeout, Duration};
+
+mod http1;
+mod http2;
+mod memcache;
+mod momento;
+mod ping;
+mod resp;
 
 pub fn launch_clients(config: &Config, work_receiver: Receiver<WorkItem>) -> Option<Runtime> {
     debug!("Launching clients...");

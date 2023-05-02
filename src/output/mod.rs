@@ -1,12 +1,9 @@
 use crate::*;
-use ahash::HashMap;
-use ahash::HashMapExt;
+use ahash::{HashMap, HashMapExt};
 use ratelimit::Ratelimiter;
-use std::io::BufWriter;
-use std::io::Write;
-use std::sync::Arc;
-
 use serde::Serialize;
+use std::io::{BufWriter, Write};
+use std::sync::Arc;
 
 #[macro_export]
 macro_rules! output {

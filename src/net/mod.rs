@@ -2,8 +2,7 @@ use crate::Config;
 use boring::ssl::{SslFiletype, SslMethod};
 use boring::x509::X509;
 use std::io::{Error, ErrorKind, Result};
-use tokio::io::AsyncRead;
-use tokio::io::AsyncWrite;
+use tokio::io::{AsyncRead, AsyncWrite};
 
 pub struct Connector {
     inner: ConnectorImpl,

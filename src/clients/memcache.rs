@@ -1,6 +1,5 @@
 use super::*;
 use crate::net::Connector;
-
 use protocol_memcache::{Compose, Parse, Request, Response, Ttl};
 use session::{Buf, BufMut, Buffer};
 use std::borrow::{Borrow, BorrowMut};

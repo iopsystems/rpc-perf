@@ -1,8 +1,7 @@
 use super::*;
 use crate::net::Connector;
 use crate::Instant;
-use redis::AsyncCommands;
-use redis::RedisConnectionInfo;
+use redis::{AsyncCommands, RedisConnectionInfo};
 use std::borrow::Borrow;
 
 /// Launch tasks with one conncetion per task as RESP protocol is not mux-enabled.

@@ -1,12 +1,8 @@
 use super::*;
 use crate::net::Connector;
-use protocol_ping::Compose;
-use protocol_ping::{Parse, Request, Response};
-use session::Buf;
-use session::BufMut;
-use session::Buffer;
-use std::borrow::Borrow;
-use std::borrow::BorrowMut;
+use protocol_ping::{Compose, Parse, Request, Response};
+use session::{Buf, BufMut, Buffer};
+use std::borrow::{Borrow, BorrowMut};
 
 /// Launch tasks with one conncetion per task as ping protocol is not mux-enabled.
 pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiver<WorkItem>) {
