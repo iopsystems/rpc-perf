@@ -1,6 +1,5 @@
 use super::*;
 use config::{Command, ValueKind, Verb};
-use core::num::NonZeroU64;
 use rand::distributions::{Alphanumeric, Uniform};
 use rand::{Rng, RngCore, SeedableRng};
 use rand_distr::Distribution as RandomDistribution;
@@ -12,7 +11,6 @@ use std::io::Result;
 use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
-use tokio::time::Interval;
 use zipf::ZipfDistribution;
 
 mod client;
@@ -557,48 +555,22 @@ pub async fn reconnect(work_sender: Sender<ClientWorkItem>, config: Config) -> R
         return Ok(());
     }
 
-    let rate = config.client().unwrap().reconnect_rate();
+    let ratelimiter = config
+            .client()
+            .unwrap()
+            .reconnect_rate()
+            .map(|r| Arc::new(Ratelimiter::new(1000, 1, r.into())));
 
-    let mut ratelimit_params = if rate.is_some() {
-        Some(convert_ratelimit(rate.unwrap()))
-    } else {
-        // NOTE: we treat reconnect differently and don't generate any
-        // reconnects if there is no ratelimit specified. (In contrast to
-        // request generation where no ratelimit means unlimited).
+    if ratelimiter.is_none() {
         return Ok(());
-    };
+    }
+
+    let ratelimiter = ratelimiter.unwrap();
 
     while RUNNING.load(Ordering::Relaxed) {
-        let quanta = if let Some((quanta, ref mut interval)) = ratelimit_params {
-            interval.tick().await;
-            quanta
-        } else {
-            1
-        };
-
-        for _ in 0..quanta {
-            let _ = work_sender.send(ClientWorkItem::Reconnect).await;
-        }
+        ratelimiter.wait();
+        let _ = work_sender.send(ClientWorkItem::Reconnect).await;
     }
 
     Ok(())
-}
-
-pub fn convert_ratelimit(rate: NonZeroU64) -> (u64, Interval) {
-    let rate = u64::from(rate);
-
-    // TODO: this gives approximate rates
-    //
-    // timer granulularity should be millisecond level on most platforms
-    // for higher rates, we can insert multiple work items every interval
-    let (quanta, interval) = if rate <= 1000 {
-        (1, 1000 / rate)
-    } else {
-        (rate / 1000, 1)
-    };
-
-    (
-        quanta,
-        ::tokio::time::interval(Duration::from_millis(interval)),
-    )
 }

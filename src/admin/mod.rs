@@ -165,6 +165,8 @@ mod handlers {
     /// heatmaps are exposed with a `percentile` label where the value
     /// corresponds to the percentile in the range of 0.0 - 100.0.
     ///
+    /// See: https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md
+    ///
     /// ```text
     /// # TYPE some_counter counter
     /// # HELP some_counter An unsigned 64bit monotonic counter.
