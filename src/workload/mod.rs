@@ -186,20 +186,20 @@ impl Generator {
                 key: keyspace.sample(rng),
                 field: keyspace.sample_inner(rng),
             }),
-            Verb::HashIncrement => ClientRequest::HashIncrement {
+            Verb::HashIncrement => ClientRequest::HashIncrement( client::HashIncrement {
                 key: keyspace.sample(rng),
                 field: keyspace.sample_inner(rng),
                 amount: rng.gen(),
-            },
+            }),
             Verb::HashSet => {
                 let mut data = HashMap::new();
                 while data.len() < command.cardinality() {
                     data.insert(keyspace.sample_inner(rng), keyspace.gen_value(rng));
                 }
-                ClientRequest::HashSet {
+                ClientRequest::HashSet ( client::HashSet {
                     key: keyspace.sample(rng),
                     data,
-                }
+                })
             }
             Verb::ListPushFront => {
                 let cardinality = command.cardinality();

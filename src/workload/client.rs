@@ -55,6 +55,19 @@ pub struct HashGetAll  {
     pub key: Arc<[u8]>,
 }
 
+#[derive(Debug, PartialEq)]
+pub struct HashIncrement {
+    pub key: Arc<[u8]>,
+    pub field: Arc<[u8]>,
+    pub amount: i64,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct HashSet {
+    pub key: Arc<[u8]>,
+    pub data: HashMap<Arc<[u8]>, Vec<u8>>,
+}
+
 #[allow(dead_code)]
 #[derive(Debug, PartialEq)]
 pub enum ClientRequest {
@@ -66,15 +79,8 @@ pub enum ClientRequest {
     /// Retrieve one or more fields from a hash.
     HashGet(HashGet),
     HashGetAll(HashGetAll),
-    HashIncrement {
-        key: Arc<[u8]>,
-        field: Arc<[u8]>,
-        amount: i64,
-    },
-    HashSet {
-        key: Arc<[u8]>,
-        data: HashMap<Arc<[u8]>, Vec<u8>>,
-    },
+    HashIncrement(HashIncrement),
+    HashSet(HashSet),
     /// Fetch all elements in a list. Equivalent to:
     /// `ListRange { key, start: 0, stop: -1 }`
     ListFetch {

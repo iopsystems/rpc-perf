@@ -73,71 +73,8 @@ async fn task(
                 ClientRequest::HashDelete(r) => hash_delete(&mut client, &config, cache_name, r).await,
                 ClientRequest::HashGet(r) => hash_get(&mut client, &config, cache_name, r).await,
                 ClientRequest::HashGetAll(r) => hash_get_all(&mut client, &config, cache_name, r).await,
-                ClientRequest::HashIncrement { key, field, amount } => {
-                    HASH_INCR.increment();
-                    match timeout(
-                        config.client().unwrap().request_timeout(),
-                        client.dictionary_increment(
-                            cache_name,
-                            &*key,
-                            &*field,
-                            amount,
-                            CollectionTtl::new(None, false),
-                        ),
-                    )
-                    .await
-                    {
-                        Ok(Ok(r)) => {
-                            HASH_INCR_OK.increment();
-                            #[allow(clippy::if_same_then_else)]
-                            if r.value == amount {
-                                RESPONSE_MISS.increment();
-                                HASH_INCR_MISS.increment();
-                            } else {
-                                RESPONSE_HIT.increment();
-                                HASH_INCR_HIT.increment();
-                            }
-                            Ok(())
-                        }
-                        Ok(Err(e)) => {
-                            HASH_INCR_EX.increment();
-                            Err(e.into())
-                        }
-                        Err(_) => {
-                            HASH_INCR_TIMEOUT.increment();
-                            Err(ResponseError::Timeout)
-                        }
-                    }
-                }
-                ClientRequest::HashSet { key, data } => {
-                    HASH_SET.increment();
-                    let data: HashMap<Vec<u8>, Vec<u8>> =
-                        data.iter().map(|(k, v)| (k.to_vec(), v.to_vec())).collect();
-                    match timeout(
-                        config.client().unwrap().request_timeout(),
-                        client.dictionary_set(
-                            cache_name,
-                            &*key,
-                            data,
-                            CollectionTtl::new(None, false),
-                        ),
-                    )
-                    .await
-                    {
-                        Ok(Ok(_)) => {
-                            HASH_SET_OK.increment();
-                            Ok(())
-                        }
-                        Ok(Err(e)) => {
-                            HASH_SET_EX.increment();
-                            Err(e.into())
-                        }
-                        Err(_) => {
-                            HASH_SET_TIMEOUT.increment();
-                            Err(ResponseError::Timeout)
-                        }
-                    }
-                }
+                ClientRequest::HashIncrement(r) => hash_increment(&mut client, &config, cache_name, r).await,
+                ClientRequest::HashSet(r) => hash_set(&mut client, &config, cache_name, r).await,
 
                 /*
                  * SETS

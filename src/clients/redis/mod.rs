@@ -94,72 +94,11 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                  */
                 ClientRequest::HashDelete(r) => hash_delete(&mut con, &config, r).await,
                 ClientRequest::HashExists(r) => hash_exists(&mut con, &config, r).await,
-                ClientRequest::HashIncrement { key, field, amount } => {
-                    match timeout(
-                        config.client().unwrap().request_timeout(),
-                        con.hincr::<&[u8], &[u8], i64, i64>(&key, &field, amount),
-                    )
-                    .await
-                    {
-                        Ok(Ok(_)) => Ok(()),
-                        Ok(Err(_)) => Err(ResponseError::Exception),
-                        Err(_) => Err(ResponseError::Timeout),
-                    }
-                }
+                ClientRequest::HashIncrement(r) => hash_increment(&mut con, &config, r).await,
                 // transparently issues either a `hget` or `hmget`
                 ClientRequest::HashGet(r) => hash_get(&mut con, &config, r).await,
                 ClientRequest::HashGetAll(r) => hash_get_all(&mut con, &config, r).await,
-                ClientRequest::HashSet { key, data } => {
-                    if data.is_empty() {
-                        panic!("empty data for hash set");
-                    }
-
-                    HASH_SET.increment();
-                    let result = if data.len() == 1 {
-                        let (field, value) = data.iter().next().unwrap();
-                        match timeout(
-                            config.client().unwrap().request_timeout(),
-                            con.hset::<&[u8], &[u8], &[u8], ()>(
-                                key.as_ref(),
-                                field.as_ref(),
-                                value.as_ref(),
-                            ),
-                        )
-                        .await
-                        {
-                            Ok(Ok(_)) => Ok(()),
-                            Ok(Err(_)) => Err(ResponseError::Exception),
-                            Err(_) => Err(ResponseError::Timeout),
-                        }
-                    } else {
-                        let d: Vec<(&[u8], &[u8])> =
-                            data.iter().map(|(k, v)| (k.as_ref(), v.as_ref())).collect();
-                        match timeout(
-                            config.client().unwrap().request_timeout(),
-                            con.hset_multiple::<&[u8], &[u8], &[u8], ()>(&key, &d),
-                        )
-                        .await
-                        {
-                            Ok(Ok(_)) => Ok(()),
-                            Ok(Err(_)) => Err(ResponseError::Exception),
-                            Err(_) => Err(ResponseError::Timeout),
-                        }
-                    };
-
-                    match result {
-                        Ok(_) => {
-                            HASH_SET_OK.increment();
-                        }
-                        Err(ResponseError::Timeout) => {
-                            HASH_SET_TIMEOUT.increment();
-                        }
-                        Err(_) => {
-                            HASH_SET_EX.increment();
-                        }
-                    }
-
-                    result
-                }
+                ClientRequest::HashSet(r) => hash_set(&mut con, &config, r).await,
 
                 /*
                  * LISTS
