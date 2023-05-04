@@ -167,9 +167,9 @@ impl Generator {
                     fields,
                 })
             }
-            Verb::HashGetAll => ClientRequest::HashGetAll {
+            Verb::HashGetAll => ClientRequest::HashGetAll( client::HashGetAll {
                 key: keyspace.sample(rng),
-            },
+            }),
             Verb::HashDelete => {
                 let cardinality = command.cardinality();
                 let mut fields = Vec::with_capacity(cardinality);

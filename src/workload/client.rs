@@ -50,6 +50,10 @@ pub struct HashGet  {
     pub fields: Vec<Arc<[u8]>>,
 }
 
+#[derive(Debug, PartialEq)]
+pub struct HashGetAll  {
+    pub key: Arc<[u8]>,
+}
 
 #[allow(dead_code)]
 #[derive(Debug, PartialEq)]
@@ -61,9 +65,7 @@ pub enum ClientRequest {
     HashDelete(HashDelete),
     /// Retrieve one or more fields from a hash.
     HashGet(HashGet),
-    HashGetAll {
-        key: Arc<[u8]>,
-    },
+    HashGetAll(HashGetAll),
     HashIncrement {
         key: Arc<[u8]>,
         field: Arc<[u8]>,

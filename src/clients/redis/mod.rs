@@ -108,36 +108,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                 }
                 // transparently issues either a `hget` or `hmget`
                 ClientRequest::HashGet(r) => hash_get(&mut con, &config, r).await,
-                ClientRequest::HashGetAll { key } => {
-                    HASH_GET_ALL.increment();
-                    match timeout(
-                        config.client().unwrap().request_timeout(),
-                        con.hgetall::<&[u8], Option<HashMap<Vec<u8>, Vec<u8>>>>(key.as_ref()),
-                    )
-                    .await
-                    {
-                        Ok(Ok(Some(_))) => {
-                            RESPONSE_HIT.increment();
-                            HASH_GET_ALL_OK.increment();
-                            HASH_GET_ALL_HIT.increment();
-                            Ok(())
-                        }
-                        Ok(Ok(None)) => {
-                            RESPONSE_MISS.increment();
-                            HASH_GET_ALL_OK.increment();
-                            HASH_GET_ALL_MISS.increment();
-                            Ok(())
-                        }
-                        Ok(Err(_)) => {
-                            HASH_GET_ALL_EX.increment();
-                            Err(ResponseError::Exception)
-                        }
-                        Err(_) => {
-                            HASH_GET_ALL_TIMEOUT.increment();
-                            Err(ResponseError::Timeout)
-                        }
-                    }
-                }
+                ClientRequest::HashGetAll(r) => hash_get_all(&mut con, &config, r).await,
                 ClientRequest::HashSet { key, data } => {
                     if data.is_empty() {
                         panic!("empty data for hash set");

@@ -72,36 +72,7 @@ async fn task(
                  */
                 ClientRequest::HashDelete(r) => hash_delete(&mut client, &config, cache_name, r).await,
                 ClientRequest::HashGet(r) => hash_get(&mut client, &config, cache_name, r).await,
-                ClientRequest::HashGetAll { key } => {
-                    HASH_GET_ALL.increment();
-                    match timeout(
-                        config.client().unwrap().request_timeout(),
-                        client.dictionary_fetch(cache_name, &*key),
-                    )
-                    .await
-                    {
-                        Ok(Ok(r)) => match r.dictionary {
-                            Some(_) => {
-                                RESPONSE_HIT.increment();
-                                HASH_GET_ALL_HIT.increment();
-                                Ok(())
-                            }
-                            None => {
-                                RESPONSE_MISS.increment();
-                                HASH_GET_ALL_MISS.increment();
-                                Ok(())
-                            }
-                        },
-                        Ok(Err(e)) => {
-                            HASH_GET_ALL_EX.increment();
-                            Err(e.into())
-                        }
-                        Err(_) => {
-                            HASH_GET_ALL_TIMEOUT.increment();
-                            Err(ResponseError::Timeout)
-                        }
-                    }
-                }
+                ClientRequest::HashGetAll(r) => hash_get_all(&mut client, &config, cache_name, r).await,
                 ClientRequest::HashIncrement { key, field, amount } => {
                     HASH_INCR.increment();
                     match timeout(
