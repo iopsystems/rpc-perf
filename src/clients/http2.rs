@@ -166,8 +166,8 @@ async fn task(
         // compose request into buffer
         let request = match &work_item {
             WorkItem::Request { request, sequence } => match request {
-                ClientRequest::Get { key } => {
-                    let key = unsafe { std::str::from_utf8_unchecked(key) };
+                ClientRequest::Get(r) => {
+                    let key = unsafe { std::str::from_utf8_unchecked(&r.key) };
                     let url: Uri = if config.tls().is_none() {
                         format!("http://{endpoint}/{key}").parse().unwrap()
                     } else {

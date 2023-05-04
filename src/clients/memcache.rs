@@ -184,34 +184,46 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
     Ok(())
 }
 
+impl From<&workload::client::Add> for Request {
+    fn from(other: &workload::client::Add) -> Self {
+        ADD.increment();
+        Request::add(
+            (*other.key).to_owned().into_boxed_slice(),
+            (*other.value).to_owned().into_boxed_slice(),
+            0,
+            Ttl::none(),
+            false,
+        )
+    }
+}
+
+impl From<&workload::client::Get> for Request {
+    fn from(other: &workload::client::Get) -> Self {
+        GET.increment();
+        Request::get(
+            vec![(*other.key).to_owned().into_boxed_slice()].into_boxed_slice(),
+        )
+    }
+}
+
+impl From<&workload::client::Delete> for Request {
+    fn from(other: &workload::client::Delete) -> Self {
+        DELETE.increment();
+        Request::delete(
+            (*other.key).to_owned().into_boxed_slice(),
+            false,
+        )
+    }
+}
+
 impl TryFrom<&WorkItem> for Request {
     type Error = ();
     fn try_from(other: &WorkItem) -> std::result::Result<protocol_memcache::Request, ()> {
         match other {
             WorkItem::Request { request, .. } => match request {
-                ClientRequest::Add { key, value } => {
-                    ADD.increment();
-                    Ok(Request::add(
-                        (**key).to_owned().into_boxed_slice(),
-                        (**value).to_owned().into_boxed_slice(),
-                        0,
-                        Ttl::none(),
-                        false,
-                    ))
-                }
-                ClientRequest::Get { key } => {
-                    GET.increment();
-                    Ok(Request::get(
-                        vec![(**key).to_owned().into_boxed_slice()].into_boxed_slice(),
-                    ))
-                }
-                ClientRequest::Delete { key } => {
-                    DELETE.increment();
-                    Ok(Request::delete(
-                        (**key).to_owned().into_boxed_slice(),
-                        false,
-                    ))
-                }
+                ClientRequest::Add(r) => Ok(Self::from(r)),
+                ClientRequest::Get(r) => Ok(Self::from(r)),
+                ClientRequest::Delete(r) => Ok(Self::from(r)),
                 ClientRequest::Replace { key, value } => {
                     REPLACE.increment();
                     Ok(Request::replace(

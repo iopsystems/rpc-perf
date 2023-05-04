@@ -2,7 +2,12 @@ use super::*;
 use crate::net::Connector;
 use crate::Instant;
 use ::redis::{AsyncCommands, RedisConnectionInfo};
+use ::redis::aio::Connection;
 use std::borrow::Borrow;
+
+mod commands;
+
+use commands::*;
 
 /// Launch tasks with one conncetion per task as RESP protocol is not mux-enabled.
 pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiver<WorkItem>) {
@@ -80,34 +85,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
         let start = Instant::now();
         let result = match work_item {
             WorkItem::Request { request, .. } => match request {
-                ClientRequest::Get { key } => {
-                    GET.increment();
-                    match timeout(
-                        config.client().unwrap().request_timeout(),
-                        con.get::<&[u8], Option<Vec<u8>>>(&key),
-                    )
-                    .await
-                    {
-                        Ok(Ok(None)) => {
-                            RESPONSE_MISS.increment();
-                            GET_KEY_MISS.increment();
-                            Ok(())
-                        }
-                        Ok(Ok(Some(_))) => {
-                            RESPONSE_HIT.increment();
-                            GET_KEY_HIT.increment();
-                            Ok(())
-                        }
-                        Ok(Err(_)) => {
-                            GET_EX.increment();
-                            Err(ResponseError::Exception)
-                        }
-                        Err(_) => {
-                            GET_TIMEOUT.increment();
-                            Err(ResponseError::Timeout)
-                        }
-                    }
-                }
+                ClientRequest::Get(r) => get(&mut con, &config, r).await,
                 ClientRequest::Set { key, value } => {
                     SET.increment();
                     match timeout(
@@ -130,76 +108,13 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                         }
                     }
                 }
-                ClientRequest::Delete { key } => {
-                    DELETE.increment();
-                    match timeout(
-                        config.client().unwrap().request_timeout(),
-                        con.del::<&[u8], ()>(&key),
-                    )
-                    .await
-                    {
-                        Ok(Ok(_)) => {
-                            DELETE_OK.increment();
-                            Ok(())
-                        }
-                        Ok(Err(_)) => {
-                            DELETE_EX.increment();
-                            Err(ResponseError::Exception)
-                        }
-                        Err(_) => {
-                            DELETE_TIMEOUT.increment();
-                            Err(ResponseError::Timeout)
-                        }
-                    }
-                }
+                ClientRequest::Delete(r) => delete(&mut con, &config, r).await,
 
                 /*
                  * HASHES (DICTIONARIES)
                  */
-                ClientRequest::HashDelete { key, fields } => {
-                    HASH_DELETE.increment();
-                    let fields: Vec<&[u8]> = fields.iter().map(|v| v.borrow()).collect();
-                    match timeout(
-                        config.client().unwrap().request_timeout(),
-                        con.hdel::<&[u8], Vec<&[u8]>, usize>(&key, fields),
-                    )
-                    .await
-                    {
-                        Ok(Ok(_)) => {
-                            HASH_DELETE_OK.increment();
-                            Ok(())
-                        }
-                        Ok(Err(_)) => {
-                            HASH_DELETE_EX.increment();
-                            Err(ResponseError::Exception)
-                        }
-                        Err(_) => {
-                            HASH_DELETE_TIMEOUT.increment();
-                            Err(ResponseError::Timeout)
-                        }
-                    }
-                }
-                ClientRequest::HashExists { key, field } => {
-                    match timeout(
-                        config.client().unwrap().request_timeout(),
-                        con.hexists::<&[u8], &[u8], bool>(&key, &field),
-                    )
-                    .await
-                    {
-                        Ok(Ok(true)) => {
-                            RESPONSE_HIT.increment();
-                            HASH_EXISTS_HIT.increment();
-                            Ok(())
-                        }
-                        Ok(Ok(false)) => {
-                            RESPONSE_MISS.increment();
-                            HASH_EXISTS_MISS.increment();
-                            Ok(())
-                        }
-                        Ok(Err(_)) => Err(ResponseError::Exception),
-                        Err(_) => Err(ResponseError::Timeout),
-                    }
-                }
+                ClientRequest::HashDelete(r) => hash_delete(&mut con, &config, r).await,
+                ClientRequest::HashExists(r) => hash_exists(&mut con, &config, r).await,
                 ClientRequest::HashIncrement { key, field, amount } => {
                     match timeout(
                         config.client().unwrap().request_timeout(),

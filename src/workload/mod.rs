@@ -13,7 +13,7 @@ use std::sync::Arc;
 use tokio::runtime::Runtime;
 use zipf::ZipfDistribution;
 
-mod client;
+pub mod client;
 mod publisher;
 
 pub use client::{ClientRequest, ClientWorkItem};
@@ -145,16 +145,16 @@ impl Generator {
         let command = &keyspace.commands[keyspace.command_dist.sample(rng)];
 
         let request = match command.verb() {
-            Verb::Get => ClientRequest::Get {
+            Verb::Get => ClientRequest::Get( client::Get {
                 key: keyspace.sample(rng),
-            },
+            }),
             Verb::Set => ClientRequest::Set {
                 key: keyspace.sample(rng),
                 value: keyspace.gen_value(rng),
             },
-            Verb::Delete => ClientRequest::Delete {
+            Verb::Delete => ClientRequest::Delete( client::Delete {
                 key: keyspace.sample(rng),
-            },
+            }),
             Verb::HashGet => {
                 let cardinality = command.cardinality();
                 let mut fields = Vec::with_capacity(cardinality);
@@ -177,15 +177,15 @@ impl Generator {
                     fields.push(keyspace.sample_inner(rng));
                 }
 
-                ClientRequest::HashDelete {
+                ClientRequest::HashDelete( client::HashDelete {
                     key: keyspace.sample(rng),
                     fields,
-                }
+                })
             }
-            Verb::HashExists => ClientRequest::HashExists {
+            Verb::HashExists => ClientRequest::HashExists( client::HashExists {
                 key: keyspace.sample(rng),
                 field: keyspace.sample_inner(rng),
-            },
+            }),
             Verb::HashIncrement => ClientRequest::HashIncrement {
                 key: keyspace.sample(rng),
                 field: keyspace.sample_inner(rng),

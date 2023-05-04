@@ -10,27 +10,42 @@ pub enum ClientWorkItem {
     },
 }
 
+#[derive(Debug, PartialEq)]
+pub struct Add {
+    pub key: Arc<[u8]>,
+    pub value: Arc<[u8]>,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Get {
+    pub key: Arc<[u8]>,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Delete {
+    pub key: Arc<[u8]>,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct HashExists {
+    pub key: Arc<[u8]>,
+    pub field: Arc<[u8]>,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct HashDelete {
+    pub key: Arc<[u8]>,
+    pub fields: Vec<Arc<[u8]>>,
+}
+
 #[allow(dead_code)]
 #[derive(Debug, PartialEq)]
 pub enum ClientRequest {
-    Add {
-        key: Arc<[u8]>,
-        value: Arc<[u8]>,
-    },
-    Get {
-        key: Arc<[u8]>,
-    },
-    Delete {
-        key: Arc<[u8]>,
-    },
-    HashExists {
-        key: Arc<[u8]>,
-        field: Arc<[u8]>,
-    },
-    HashDelete {
-        key: Arc<[u8]>,
-        fields: Vec<Arc<[u8]>>,
-    },
+    Add(Add),
+    Get(Get),
+    Delete(Delete),
+    HashExists(HashExists),
+    HashDelete(HashDelete),
     /// Retrieve one or more fields from a hash.
     HashGet {
         key: Arc<[u8]>,
