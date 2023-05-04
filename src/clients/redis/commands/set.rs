@@ -8,7 +8,7 @@ pub async fn set(
     SET.increment();
     match timeout(
         config.client().unwrap().request_timeout(),
-        connection.set::<&[u8], &[u8], ()>(&key, &value),
+        connection.set::<&[u8], &[u8], ()>(&request.key, &request.value),
     )
     .await
     {

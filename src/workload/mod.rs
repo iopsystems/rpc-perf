@@ -162,10 +162,10 @@ impl Generator {
                     fields.push(keyspace.sample_inner(rng));
                 }
 
-                ClientRequest::HashGet {
+                ClientRequest::HashGet( client::HashGet  {
                     key: keyspace.sample(rng),
                     fields,
-                }
+                })
             }
             Verb::HashGetAll => ClientRequest::HashGetAll {
                 key: keyspace.sample(rng),

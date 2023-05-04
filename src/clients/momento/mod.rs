@@ -71,51 +71,7 @@ async fn task(
                  * HASHES (DICTIONARIES)
                  */
                 ClientRequest::HashDelete(r) => hash_delete(&mut client, &config, cache_name, r).await,
-                ClientRequest::HashGet { key, fields } => {
-                    HASH_GET.increment();
-                    match timeout(
-                        config.client().unwrap().request_timeout(),
-                        client.dictionary_get(
-                            cache_name,
-                            &*key,
-                            fields.iter().map(|f| &**f).collect(),
-                        ),
-                    )
-                    .await
-                    {
-                        Ok(Ok(r)) => match r.dictionary {
-                            Some(dict) => {
-                                let mut hit = 0;
-                                let mut miss = 0;
-                                for field in fields {
-                                    if dict.contains_key(&*field) {
-                                        hit += 1;
-                                    } else {
-                                        miss += 1;
-                                    }
-                                }
-                                RESPONSE_HIT.add(hit);
-                                RESPONSE_MISS.add(miss);
-                                HASH_GET_FIELD_HIT.add(hit);
-                                HASH_GET_FIELD_MISS.add(miss);
-                                Ok(())
-                            }
-                            None => {
-                                RESPONSE_MISS.add(fields.len() as _);
-                                HASH_GET_FIELD_MISS.add(fields.len() as _);
-                                Ok(())
-                            }
-                        },
-                        Ok(Err(e)) => {
-                            HASH_GET_EX.increment();
-                            Err(e.into())
-                        }
-                        Err(_) => {
-                            HASH_GET_TIMEOUT.increment();
-                            Err(ResponseError::Timeout)
-                        }
-                    }
-                }
+                ClientRequest::HashGet(r) => hash_get(&mut client, &config, cache_name, r).await,
                 ClientRequest::HashGetAll { key } => {
                     HASH_GET_ALL.increment();
                     match timeout(
