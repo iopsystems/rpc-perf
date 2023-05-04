@@ -1,7 +1,7 @@
 use super::*;
 use crate::net::Connector;
 use crate::Instant;
-use redis::{AsyncCommands, RedisConnectionInfo};
+use ::redis::{AsyncCommands, RedisConnectionInfo};
 use std::borrow::Borrow;
 
 /// Launch tasks with one conncetion per task as RESP protocol is not mux-enabled.
@@ -47,7 +47,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                 Ok(Ok(c)) => {
                     CONNECT_OK.increment();
                     CONNECT_CURR.add(1);
-                    if let Ok(c) = redis::aio::Connection::new(&redis_connection_info, c).await {
+                    if let Ok(c) = ::redis::aio::Connection::new(&redis_connection_info, c).await {
                         Some(c)
                     } else {
                         CONNECT_EX.increment();
@@ -573,7 +573,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                     PING.increment();
                     match timeout(
                         config.client().unwrap().request_timeout(),
-                        redis::cmd("PING").query_async(&mut con),
+                        ::redis::cmd("PING").query_async(&mut con),
                     )
                     .await
                     {
@@ -778,7 +778,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                     SORTED_SET_INCR.increment();
                     match timeout(
                         config.client().unwrap().request_timeout(),
-                        redis::cmd("ZUNION")
+                        ::redis::cmd("ZUNION")
                             .arg(1)
                             .arg(&*key)
                             .arg("WITHSCORES")
