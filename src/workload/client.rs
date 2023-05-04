@@ -68,12 +68,35 @@ pub struct HashSet {
     pub data: HashMap<Arc<[u8]>, Vec<u8>>,
 }
 
+#[derive(Debug, PartialEq)]
+pub struct ListFetch {
+    pub key: Arc<[u8]>,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct ListLength {
+    pub key: Arc<[u8]>,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct ListPopBack {
+    pub key: Arc<[u8]>,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct ListPopFront {
+    pub key: Arc<[u8]>,
+}
+
 #[allow(dead_code)]
 #[derive(Debug, PartialEq)]
 pub enum ClientRequest {
     Add(Add),
     Get(Get),
     Delete(Delete),
+
+    // Hash Commands
+    
     HashExists(HashExists),
     HashDelete(HashDelete),
     /// Retrieve one or more fields from a hash.
@@ -81,23 +104,18 @@ pub enum ClientRequest {
     HashGetAll(HashGetAll),
     HashIncrement(HashIncrement),
     HashSet(HashSet),
+
+    // List Commands
+
     /// Fetch all elements in a list. Equivalent to:
     /// `ListRange { key, start: 0, stop: -1 }`
-    ListFetch {
-        key: Arc<[u8]>,
-    },
+    ListFetch(ListFetch),
     /// Return the length of a list.
-    ListLength {
-        key: Arc<[u8]>,
-    },
+    ListLength(ListLength),
     /// Remove and return the element at the back of a list.
-    ListPopBack {
-        key: Arc<[u8]>,
-    },
+    ListPopBack(ListPopBack),
     /// Remove and return the element at the front of a list.
-    ListPopFront {
-        key: Arc<[u8]>,
-    },
+    ListPopFront(ListPopFront),
     /// Push one or more elements to the back of a list.
     ListPushBack {
         key: Arc<[u8]>,
@@ -126,6 +144,8 @@ pub enum ClientRequest {
         key: Arc<[u8]>,
         elements: Vec<Arc<[u8]>>,
     },
+
+
     MultiGet {
         keys: Vec<Arc<[u8]>>,
     },

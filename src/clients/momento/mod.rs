@@ -274,94 +274,10 @@ async fn task(
 
                     result
                 }
-                ClientRequest::ListFetch { key } => {
-                    LIST_FETCH.increment();
-                    match timeout(
-                        config.client().unwrap().request_timeout(),
-                        client.list_fetch(cache_name, &*key),
-                    )
-                    .await
-                    {
-                        Ok(Ok(_)) => {
-                            LIST_FETCH_OK.increment();
-                            Ok(())
-                        }
-                        Ok(Err(e)) => {
-                            LIST_FETCH_EX.increment();
-                            Err(e.into())
-                        }
-                        Err(_) => {
-                            LIST_FETCH_TIMEOUT.increment();
-                            Err(ResponseError::Timeout)
-                        }
-                    }
-                }
-                ClientRequest::ListLength { key } => {
-                    LIST_LENGTH.increment();
-                    match timeout(
-                        config.client().unwrap().request_timeout(),
-                        client.list_fetch(cache_name, &*key),
-                    )
-                    .await
-                    {
-                        Ok(Ok(_)) => {
-                            LIST_LENGTH_OK.increment();
-                            Ok(())
-                        }
-                        Ok(Err(e)) => {
-                            LIST_LENGTH_EX.increment();
-                            Err(e.into())
-                        }
-                        Err(_) => {
-                            LIST_LENGTH_TIMEOUT.increment();
-                            Err(ResponseError::Timeout)
-                        }
-                    }
-                }
-                ClientRequest::ListPopFront { key } => {
-                    LIST_POP_FRONT.increment();
-                    match timeout(
-                        config.client().unwrap().request_timeout(),
-                        client.list_pop_front(cache_name, &*key),
-                    )
-                    .await
-                    {
-                        Ok(Ok(_)) => {
-                            LIST_POP_FRONT_OK.increment();
-                            Ok(())
-                        }
-                        Ok(Err(e)) => {
-                            LIST_POP_FRONT_EX.increment();
-                            Err(e.into())
-                        }
-                        Err(_) => {
-                            LIST_POP_FRONT_TIMEOUT.increment();
-                            Err(ResponseError::Timeout)
-                        }
-                    }
-                }
-                ClientRequest::ListPopBack { key } => {
-                    LIST_POP_BACK.increment();
-                    match timeout(
-                        config.client().unwrap().request_timeout(),
-                        client.list_pop_back(cache_name, &*key),
-                    )
-                    .await
-                    {
-                        Ok(Ok(_)) => {
-                            LIST_POP_BACK_OK.increment();
-                            Ok(())
-                        }
-                        Ok(Err(e)) => {
-                            LIST_POP_BACK_EX.increment();
-                            Err(e.into())
-                        }
-                        Err(_) => {
-                            LIST_POP_BACK_TIMEOUT.increment();
-                            Err(ResponseError::Timeout)
-                        }
-                    }
-                }
+                ClientRequest::ListFetch(r) => list_fetch(&mut client, &config, cache_name, r).await,
+                ClientRequest::ListLength(r) => list_length(&mut client, &config, cache_name, r).await,
+                ClientRequest::ListPopFront(r) => list_pop_front(&mut client, &config, cache_name, r).await,
+                ClientRequest::ListPopBack(r) => list_pop_back(&mut client, &config, cache_name, r).await,
 
                 /*
                  * SORTED SETS

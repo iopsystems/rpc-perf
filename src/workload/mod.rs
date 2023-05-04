@@ -225,18 +225,18 @@ impl Generator {
                     truncate: command.truncate(),
                 }
             }
-            Verb::ListFetch => ClientRequest::ListFetch {
+            Verb::ListFetch => ClientRequest::ListFetch( client::ListFetch {
                 key: keyspace.sample(rng),
-            },
-            Verb::ListLength => ClientRequest::ListLength {
+            }),
+            Verb::ListLength => ClientRequest::ListLength( client::ListLength {
                 key: keyspace.sample(rng),
-            },
-            Verb::ListPopFront => ClientRequest::ListPopFront {
+            }),
+            Verb::ListPopFront => ClientRequest::ListPopFront( client::ListPopFront {
                 key: keyspace.sample(rng),
-            },
-            Verb::ListPopBack => ClientRequest::ListPopBack {
+            }),
+            Verb::ListPopBack => ClientRequest::ListPopBack( client::ListPopBack {
                 key: keyspace.sample(rng),
-            },
+            }),
             Verb::Ping => ClientRequest::Ping {},
             Verb::SetAdd => {
                 let mut members = HashSet::new();

@@ -211,94 +211,10 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
 
                     result
                 }
-                ClientRequest::ListFetch { key } => {
-                    LIST_FETCH.increment();
-                    match timeout(
-                        config.client().unwrap().request_timeout(),
-                        con.lrange::<&[u8], Option<Vec<Vec<u8>>>>(key.as_ref(), 0, -1),
-                    )
-                    .await
-                    {
-                        Ok(Ok(_)) => {
-                            LIST_FETCH_OK.increment();
-                            Ok(())
-                        }
-                        Ok(Err(_)) => {
-                            LIST_FETCH_EX.increment();
-                            Err(ResponseError::Exception)
-                        }
-                        Err(_) => {
-                            LIST_FETCH_TIMEOUT.increment();
-                            Err(ResponseError::Timeout)
-                        }
-                    }
-                }
-                ClientRequest::ListLength { key } => {
-                    LIST_LENGTH.increment();
-                    match timeout(
-                        config.client().unwrap().request_timeout(),
-                        con.llen::<&[u8], Option<u64>>(key.as_ref()),
-                    )
-                    .await
-                    {
-                        Ok(Ok(_)) => {
-                            LIST_LENGTH_OK.increment();
-                            Ok(())
-                        }
-                        Ok(Err(_)) => {
-                            LIST_LENGTH_EX.increment();
-                            Err(ResponseError::Exception)
-                        }
-                        Err(_) => {
-                            LIST_LENGTH_TIMEOUT.increment();
-                            Err(ResponseError::Timeout)
-                        }
-                    }
-                }
-                ClientRequest::ListPopFront { key } => {
-                    LIST_POP_FRONT.increment();
-                    match timeout(
-                        config.client().unwrap().request_timeout(),
-                        con.lpop::<&[u8], Option<Vec<u8>>>(key.as_ref(), None),
-                    )
-                    .await
-                    {
-                        Ok(Ok(_)) => {
-                            LIST_POP_FRONT_OK.increment();
-                            Ok(())
-                        }
-                        Ok(Err(_)) => {
-                            LIST_POP_FRONT_EX.increment();
-                            Err(ResponseError::Exception)
-                        }
-                        Err(_) => {
-                            LIST_POP_FRONT_TIMEOUT.increment();
-                            Err(ResponseError::Timeout)
-                        }
-                    }
-                }
-                ClientRequest::ListPopBack { key } => {
-                    LIST_POP_BACK.increment();
-                    match timeout(
-                        config.client().unwrap().request_timeout(),
-                        con.rpop::<&[u8], Option<Vec<u8>>>(key.as_ref(), None),
-                    )
-                    .await
-                    {
-                        Ok(Ok(_)) => {
-                            LIST_POP_BACK_OK.increment();
-                            Ok(())
-                        }
-                        Ok(Err(_)) => {
-                            LIST_POP_BACK_EX.increment();
-                            Err(ResponseError::Exception)
-                        }
-                        Err(_) => {
-                            LIST_POP_BACK_TIMEOUT.increment();
-                            Err(ResponseError::Timeout)
-                        }
-                    }
-                }
+                ClientRequest::ListFetch(r) => list_fetch(&mut con, &config, r).await,
+                ClientRequest::ListLength(r) => list_length(&mut con, &config, r).await,
+                ClientRequest::ListPopFront(r) => list_pop_front(&mut con, &config, r).await,
+                ClientRequest::ListPopBack(r) => list_pop_back(&mut con, &config, r).await,
 
                 ClientRequest::Ping { .. } => {
                     PING.increment();
