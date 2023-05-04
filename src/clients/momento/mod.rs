@@ -4,6 +4,10 @@ use ::momento::*;
 use std::borrow::Borrow;
 use std::collections::HashMap;
 
+mod commands;
+
+use commands::*;
+
 /// Launch tasks with one channel per task as gRPC is mux-enabled.
 pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiver<WorkItem>) {
     debug!("launching momento protocol tasks");
@@ -38,108 +42,6 @@ pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiv
     }
 }
 
-async fn get(
-    client: &mut SimpleCacheClient,
-    config: &Config,
-    cache_name: &str,
-    request: workload::client::Get
-) -> std::result::Result<(), ResponseError> {
-    GET.increment();
-    match timeout(
-        config.client().unwrap().request_timeout(),
-        client.get(cache_name, &*request.key),
-    )
-    .await
-    {
-        Ok(Ok(r)) => match r.result {
-            MomentoGetStatus::HIT => {
-                GET_OK.increment();
-                RESPONSE_HIT.increment();
-                GET_KEY_HIT.increment();
-                Ok(())
-            }
-            MomentoGetStatus::MISS => {
-                GET_OK.increment();
-                RESPONSE_MISS.increment();
-                GET_KEY_MISS.increment();
-                Ok(())
-            }
-            MomentoGetStatus::ERROR => {
-                GET_EX.increment();
-                Err(ResponseError::Exception)
-            }
-        },
-        Ok(Err(e)) => {
-            GET_EX.increment();
-            Err(e.into())
-        }
-        Err(_) => {
-            GET_TIMEOUT.increment();
-            Err(ResponseError::Timeout)
-        }
-    }
-}
-
-async fn delete(
-    client: &mut SimpleCacheClient,
-    config: &Config,
-    cache_name: &str,
-    request: workload::client::Delete
-) -> std::result::Result<(), ResponseError> {
-    DELETE.increment();
-    match timeout(
-        config.client().unwrap().request_timeout(),
-        client.delete(cache_name, (*request.key).to_owned()),
-    )
-    .await
-    {
-        Ok(Ok(_)) => {
-            DELETE_OK.increment();
-            Ok(())
-        }
-        Ok(Err(e)) => {
-            DELETE_EX.increment();
-            Err(e.into())
-        }
-        Err(_) => {
-            DELETE_TIMEOUT.increment();
-            Err(ResponseError::Timeout)
-        }
-    }
-}
-
-async fn hash_delete(
-    client: &mut SimpleCacheClient,
-    config: &Config,
-    cache_name: &str,
-    request: workload::client::HashDelete
-) -> std::result::Result<(), ResponseError> {
-    HASH_DELETE.increment();
-    match timeout(
-        config.client().unwrap().request_timeout(),
-        client.dictionary_delete(
-            cache_name,
-            &*request.key,
-            Fields::Some(request.fields.iter().map(|f| &**f).collect()),
-        ),
-    )
-    .await
-    {
-        Ok(Ok(_)) => {
-            HASH_DELETE_OK.increment();
-            Ok(())
-        }
-        Ok(Err(e)) => {
-            HASH_DELETE_EX.increment();
-            Err(e.into())
-        }
-        Err(_) => {
-            HASH_DELETE_TIMEOUT.increment();
-            Err(ResponseError::Timeout)
-        }
-    }
-}
-
 async fn task(
     config: Config,
     // cache_name: String,
@@ -162,28 +64,7 @@ async fn task(
         let result = match work_item {
             WorkItem::Request { request, .. } => match request {
                 ClientRequest::Get(r) => get(&mut client, &config, cache_name, r).await,
-                ClientRequest::Set { key, value } => {
-                    SET.increment();
-                    match timeout(
-                        config.client().unwrap().request_timeout(),
-                        client.set(cache_name, (*key).to_owned(), (*value).to_owned(), None),
-                    )
-                    .await
-                    {
-                        Ok(Ok(_)) => {
-                            SET_STORED.increment();
-                            Ok(())
-                        }
-                        Ok(Err(e)) => {
-                            SET_EX.increment();
-                            Err(e.into())
-                        }
-                        Err(_) => {
-                            SET_TIMEOUT.increment();
-                            Err(ResponseError::Timeout)
-                        }
-                    }
-                }
+                ClientRequest::Set(r) => set(&mut client, &config, cache_name, r).await,
                 ClientRequest::Delete(r) => delete(&mut client, &config, cache_name, r).await,
 
                 /*

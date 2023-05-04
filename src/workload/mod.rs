@@ -148,10 +148,10 @@ impl Generator {
             Verb::Get => ClientRequest::Get( client::Get {
                 key: keyspace.sample(rng),
             }),
-            Verb::Set => ClientRequest::Set {
+            Verb::Set => ClientRequest::Set( client::Set {
                 key: keyspace.sample(rng),
                 value: keyspace.gen_value(rng),
-            },
+            }),
             Verb::Delete => ClientRequest::Delete( client::Delete {
                 key: keyspace.sample(rng),
             }),

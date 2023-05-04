@@ -86,28 +86,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
         let result = match work_item {
             WorkItem::Request { request, .. } => match request {
                 ClientRequest::Get(r) => get(&mut con, &config, r).await,
-                ClientRequest::Set { key, value } => {
-                    SET.increment();
-                    match timeout(
-                        config.client().unwrap().request_timeout(),
-                        con.set::<&[u8], &[u8], ()>(&key, &value),
-                    )
-                    .await
-                    {
-                        Ok(Ok(_)) => {
-                            SET_STORED.increment();
-                            Ok(())
-                        }
-                        Ok(Err(_)) => {
-                            SET_EX.increment();
-                            Err(ResponseError::Exception)
-                        }
-                        Err(_) => {
-                            SET_TIMEOUT.increment();
-                            Err(ResponseError::Timeout)
-                        }
-                    }
-                }
+                ClientRequest::Set(r) => set(&mut con, &config, r).await,
                 ClientRequest::Delete(r) => delete(&mut con, &config, r).await,
 
                 /*

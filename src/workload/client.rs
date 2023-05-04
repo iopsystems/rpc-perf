@@ -38,6 +38,13 @@ pub struct HashDelete {
     pub fields: Vec<Arc<[u8]>>,
 }
 
+#[derive(Debug, PartialEq)]
+pub struct Set {
+    pub key: Arc<[u8]>,
+    pub value: Vec<u8>,
+}
+
+
 #[allow(dead_code)]
 #[derive(Debug, PartialEq)]
 pub enum ClientRequest {
@@ -116,10 +123,7 @@ pub enum ClientRequest {
         key: Arc<[u8]>,
         value: Arc<[u8]>,
     },
-    Set {
-        key: Arc<[u8]>,
-        value: Vec<u8>,
-    },
+    Set(Set),
     SetAdd {
         key: Arc<[u8]>,
         members: Vec<Arc<[u8]>>,
