@@ -79,79 +79,9 @@ async fn task(
                 /*
                  * SETS
                  */
-                ClientRequest::SetAdd { key, members } => {
-                    SET_ADD.increment();
-                    let members: Vec<&[u8]> = members.iter().map(|v| v.borrow()).collect();
-                    match timeout(
-                        config.client().unwrap().request_timeout(),
-                        client.set_add_elements(
-                            cache_name,
-                            &*key,
-                            members,
-                            CollectionTtl::new(None, false),
-                        ),
-                    )
-                    .await
-                    {
-                        Ok(Ok(_)) => {
-                            SET_ADD_OK.increment();
-                            Ok(())
-                        }
-                        Ok(Err(e)) => {
-                            SET_ADD_EX.increment();
-                            Err(e.into())
-                        }
-                        Err(_) => {
-                            SET_ADD_TIMEOUT.increment();
-                            Err(ResponseError::Timeout)
-                        }
-                    }
-                }
-                ClientRequest::SetMembers { key } => {
-                    SET_MEMBERS.increment();
-                    match timeout(
-                        config.client().unwrap().request_timeout(),
-                        client.set_fetch(cache_name, &*key),
-                    )
-                    .await
-                    {
-                        Ok(Ok(_)) => {
-                            SET_MEMBERS_OK.increment();
-                            Ok(())
-                        }
-                        Ok(Err(e)) => {
-                            SET_MEMBERS_EX.increment();
-                            Err(e.into())
-                        }
-                        Err(_) => {
-                            SET_MEMBERS_TIMEOUT.increment();
-                            Err(ResponseError::Timeout)
-                        }
-                    }
-                }
-                ClientRequest::SetRemove { key, members } => {
-                    SET_REMOVE.increment();
-                    let members: Vec<&[u8]> = members.iter().map(|v| v.borrow()).collect();
-                    match timeout(
-                        config.client().unwrap().request_timeout(),
-                        client.set_remove_elements(cache_name, &*key, members),
-                    )
-                    .await
-                    {
-                        Ok(Ok(_)) => {
-                            SET_REMOVE_OK.increment();
-                            Ok(())
-                        }
-                        Ok(Err(e)) => {
-                            SET_REMOVE_EX.increment();
-                            Err(e.into())
-                        }
-                        Err(_) => {
-                            SET_REMOVE_TIMEOUT.increment();
-                            Err(ResponseError::Timeout)
-                        }
-                    }
-                }
+                ClientRequest::SetAdd(r) => set_add(&mut client, &config, cache_name, r).await,
+                ClientRequest::SetMembers(r) => set_members(&mut client, &config, cache_name, r).await,
+                ClientRequest::SetRemove(r) => set_remove(&mut client, &config, cache_name, r).await,
 
                 /*
                  * LISTS

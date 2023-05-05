@@ -15,6 +15,9 @@ mod list_pop_front;
 mod list_push_back;
 mod list_push_front;
 mod set;
+mod set_add;
+mod set_members;
+mod set_remove;
 
 pub use delete::*;
 pub use get::*;
@@ -31,3 +34,6 @@ pub use list_pop_front::*;
 pub use list_push_back::*;
 pub use list_push_front::*;
 pub use set::*;
+pub use set_add::*;
+pub use set_members::*;
+pub use set_remove::*;

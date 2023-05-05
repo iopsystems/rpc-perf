@@ -244,24 +244,24 @@ impl Generator {
                     members.insert(keyspace.sample_inner(rng));
                 }
                 let members = members.drain().collect();
-                ClientRequest::SetAdd {
+                ClientRequest::SetAdd(client::SetAdd {
                     key: keyspace.sample(rng),
                     members,
-                }
+                })
             }
-            Verb::SetMembers => ClientRequest::SetMembers {
+            Verb::SetMembers => ClientRequest::SetMembers( client::SetMembers {
                 key: keyspace.sample(rng),
-            },
+            }),
             Verb::SetRemove => {
                 let mut members = HashSet::new();
                 while members.len() < command.cardinality() {
                     members.insert(keyspace.sample_inner(rng));
                 }
                 let members = members.drain().collect();
-                ClientRequest::SetRemove {
+                ClientRequest::SetRemove(client::SetRemove {
                     key: keyspace.sample(rng),
                     members,
-                }
+                })
             }
             Verb::SortedSetAdd => {
                 let mut members = HashSet::new();

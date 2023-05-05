@@ -137,6 +137,23 @@ pub struct ListStore {
     pub elements: Vec<Arc<[u8]>>,
 }
 
+#[derive(Debug, PartialEq)]
+pub struct SetAdd {
+    pub key: Arc<[u8]>,
+    pub members: Vec<Arc<[u8]>>,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct SetMembers {
+    pub key: Arc<[u8]>,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct SetRemove {
+    pub key: Arc<[u8]>,
+    pub members: Vec<Arc<[u8]>>,
+}
+
 #[allow(dead_code)]
 #[derive(Debug, PartialEq)]
 pub enum ClientRequest {
@@ -189,17 +206,9 @@ pub enum ClientRequest {
 
     Reconnect,
     
-    SetAdd {
-        key: Arc<[u8]>,
-        members: Vec<Arc<[u8]>>,
-    },
-    SetMembers {
-        key: Arc<[u8]>,
-    },
-    SetRemove {
-        key: Arc<[u8]>,
-        members: Vec<Arc<[u8]>>,
-    },
+    SetAdd(SetAdd),
+    SetMembers(SetMembers),
+    SetRemove(SetRemove),
 
     // Sorted Set 
 
