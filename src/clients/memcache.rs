@@ -229,6 +229,19 @@ impl From<&workload::client::Set> for Request {
     }
 }
 
+impl From<&workload::client::Replace> for Request {
+    fn from(other: &workload::client::Replace) -> Self {
+        REPLACE.increment();
+        Request::replace(
+            (*other.key).to_owned().into_boxed_slice(),
+            (*other.value).to_owned().into_boxed_slice(),
+            0,
+            Ttl::none(),
+            false,
+        )
+    }
+}
+
 impl TryFrom<&WorkItem> for Request {
     type Error = ();
     fn try_from(other: &WorkItem) -> std::result::Result<protocol_memcache::Request, ()> {
@@ -237,16 +250,7 @@ impl TryFrom<&WorkItem> for Request {
                 ClientRequest::Add(r) => Ok(Self::from(r)),
                 ClientRequest::Get(r) => Ok(Self::from(r)),
                 ClientRequest::Delete(r) => Ok(Self::from(r)),
-                ClientRequest::Replace { key, value } => {
-                    REPLACE.increment();
-                    Ok(Request::replace(
-                        (**key).to_owned().into_boxed_slice(),
-                        (**value).to_owned().into_boxed_slice(),
-                        0,
-                        Ttl::none(),
-                        false,
-                    ))
-                }
+                ClientRequest::Replace(r) => Ok(Self::from(r)),
                 ClientRequest::Set(r) => Ok(Self::from(r)),
                 _ => Err(()),
             },

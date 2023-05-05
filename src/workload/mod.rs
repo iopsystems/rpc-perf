@@ -207,11 +207,11 @@ impl Generator {
                 for _ in 0..cardinality {
                     elements.push(keyspace.sample_inner(rng));
                 }
-                ClientRequest::ListPushFront {
+                ClientRequest::ListPushFront( client::ListPushFront {
                     key: keyspace.sample(rng),
                     elements,
                     truncate: command.truncate(),
-                }
+                })
             }
             Verb::ListPushBack => {
                 let cardinality = command.cardinality();
@@ -219,11 +219,11 @@ impl Generator {
                 for _ in 0..cardinality {
                     elements.push(keyspace.sample_inner(rng));
                 }
-                ClientRequest::ListPushBack {
+                ClientRequest::ListPushBack( client::ListPushBack {
                     key: keyspace.sample(rng),
                     elements,
                     truncate: command.truncate(),
-                }
+                })
             }
             Verb::ListFetch => ClientRequest::ListFetch( client::ListFetch {
                 key: keyspace.sample(rng),

@@ -11,6 +11,8 @@ mod list_fetch;
 mod list_length;
 mod list_pop_back;
 mod list_pop_front;
+mod list_push_back;
+mod list_push_front;
 mod set;
 
 pub use delete::*;
@@ -24,4 +26,6 @@ pub use list_fetch::*;
 pub use list_length::*;
 pub use list_pop_back::*;
 pub use list_pop_front::*;
+pub use list_push_back::*;
+pub use list_push_front::*;
 pub use set::*;

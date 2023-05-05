@@ -22,9 +22,29 @@ pub struct Get {
 }
 
 #[derive(Debug, PartialEq)]
+pub struct MultiGet {
+    pub keys: Vec<Arc<[u8]>>,
+}
+
+#[derive(Debug, PartialEq)]
 pub struct Delete {
     pub key: Arc<[u8]>,
 }
+
+#[derive(Debug, PartialEq)]
+pub struct Replace {
+    pub key: Arc<[u8]>,
+    pub value: Arc<[u8]>,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Set {
+    pub key: Arc<[u8]>,
+    pub value: Vec<u8>,
+}
+
+
+// Hash
 
 #[derive(Debug, PartialEq)]
 pub struct HashExists {
@@ -36,12 +56,6 @@ pub struct HashExists {
 pub struct HashDelete {
     pub key: Arc<[u8]>,
     pub fields: Vec<Arc<[u8]>>,
-}
-
-#[derive(Debug, PartialEq)]
-pub struct Set {
-    pub key: Arc<[u8]>,
-    pub value: Vec<u8>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -68,6 +82,8 @@ pub struct HashSet {
     pub data: HashMap<Arc<[u8]>, Vec<u8>>,
 }
 
+// List
+
 #[derive(Debug, PartialEq)]
 pub struct ListFetch {
     pub key: Arc<[u8]>,
@@ -88,12 +104,54 @@ pub struct ListPopFront {
     pub key: Arc<[u8]>,
 }
 
+#[derive(Debug, PartialEq)]
+pub struct ListPushFront {
+    pub key: Arc<[u8]>,
+    pub elements: Vec<Arc<[u8]>>,
+    pub truncate: Option<u32>,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct ListPushBack {
+    pub key: Arc<[u8]>,
+    pub elements: Vec<Arc<[u8]>>,
+    pub truncate: Option<u32>,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct ListRange {
+    pub key: Arc<[u8]>,
+    pub start: i64,
+    pub stop: i64,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct ListRemove {
+    pub key: Arc<[u8]>,
+    pub element: Arc<[u8]>,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct ListStore {
+    pub key: Arc<[u8]>,
+    pub elements: Vec<Arc<[u8]>>,
+}
+
 #[allow(dead_code)]
 #[derive(Debug, PartialEq)]
 pub enum ClientRequest {
+    // Ping
+
+    Ping,
+
+    // Key-Value
+
     Add(Add),
     Get(Get),
     Delete(Delete),
+    MultiGet(MultiGet),
+    Replace(Replace),
+    Set(Set),
 
     // Hash Commands
     
@@ -117,44 +175,20 @@ pub enum ClientRequest {
     /// Remove and return the element at the front of a list.
     ListPopFront(ListPopFront),
     /// Push one or more elements to the back of a list.
-    ListPushBack {
-        key: Arc<[u8]>,
-        elements: Vec<Arc<[u8]>>,
-        truncate: Option<u32>,
-    },
+    ListPushBack(ListPushBack),
     /// Push one or more elements to the front of a list.
-    ListPushFront {
-        key: Arc<[u8]>,
-        elements: Vec<Arc<[u8]>>,
-        truncate: Option<u32>,
-    },
+    ListPushFront(ListPushFront),
     /// Return the elements of a list between the given indices.
-    ListRange {
-        key: Arc<[u8]>,
-        start: i64,
-        stop: i64,
-    },
+    ListRange(ListRange),
     /// Remove all instances of an element from a list.
-    ListRemove {
-        key: Arc<[u8]>,
-        element: Arc<[u8]>,
-    },
+    ListRemove(ListRemove),
     /// Create or replace a list with a new list.
-    ListStore {
-        key: Arc<[u8]>,
-        elements: Vec<Arc<[u8]>>,
-    },
+    ListStore(ListStore),
 
 
-    MultiGet {
-        keys: Vec<Arc<[u8]>>,
-    },
+
     Reconnect,
-    Replace {
-        key: Arc<[u8]>,
-        value: Arc<[u8]>,
-    },
-    Set(Set),
+    
     SetAdd {
         key: Arc<[u8]>,
         members: Vec<Arc<[u8]>>,
@@ -166,6 +200,9 @@ pub enum ClientRequest {
         key: Arc<[u8]>,
         members: Vec<Arc<[u8]>>,
     },
+
+    // Sorted Set 
+
     SortedSetAdd {
         key: Arc<[u8]>,
         members: Vec<(Arc<[u8]>, f64)>,
@@ -190,9 +227,6 @@ pub enum ClientRequest {
         key: Arc<[u8]>,
         members: Vec<Arc<[u8]>>,
     },
-    Ping,
-    Publish {
-        topic: Arc<String>,
-        message: Vec<u8>,
-    },
+    
+
 }
