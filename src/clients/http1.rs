@@ -97,7 +97,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
         // compose request into buffer
         let request = match &work_item {
             WorkItem::Request { request, sequence } => match request {
-                ClientRequest::Get(r)=> {
+                ClientRequest::Get(r) => {
                     let key = unsafe { std::str::from_utf8_unchecked(&r.key) };
                     let url: Uri = if config.tls().is_none() {
                         format!("http://{endpoint}/{key}").parse().unwrap()

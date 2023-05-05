@@ -66,7 +66,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
         // compose request into buffer
         match &work_item {
             WorkItem::Request { request, .. } => match request {
-                ClientRequest::Ping => {
+                ClientRequest::Ping(_) => {
                     Request::Ping.compose(&mut write_buffer);
                 }
                 _ => {
@@ -140,7 +140,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                 // validate response
                 match work_item {
                     WorkItem::Request { request, .. } => match request {
-                        ClientRequest::Ping => match response {
+                        ClientRequest::Ping(_) => match response {
                             Response::Pong => {
                                 PING_OK.increment();
                             }
@@ -169,7 +169,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                 // record execption
                 match work_item {
                     WorkItem::Request { request, .. } => match request {
-                        ClientRequest::Ping => {
+                        ClientRequest::Ping(_) => {
                             PING_EX.increment();
                         }
                         _ => {

@@ -4,7 +4,7 @@ pub async fn get(
     client: &mut SimpleCacheClient,
     config: &Config,
     cache_name: &str,
-    request: workload::client::Get
+    request: workload::client::Get,
 ) -> std::result::Result<(), ResponseError> {
     GET.increment();
     match timeout(

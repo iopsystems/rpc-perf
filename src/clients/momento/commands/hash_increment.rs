@@ -4,7 +4,7 @@ pub async fn hash_increment(
     client: &mut SimpleCacheClient,
     config: &Config,
     cache_name: &str,
-    request: workload::client::HashIncrement
+    request: workload::client::HashIncrement,
 ) -> std::result::Result<(), ResponseError> {
     HASH_INCR.increment();
     match timeout(

@@ -3,7 +3,7 @@ use super::*;
 pub async fn get(
     connection: &mut Connection<net::Stream>,
     config: &Config,
-    request: workload::client::Get
+    request: workload::client::Get,
 ) -> std::result::Result<(), ResponseError> {
     GET.increment();
     match timeout(

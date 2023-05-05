@@ -1,38 +1,41 @@
 use super::*;
 
-pub async fn hash_set(
+pub async fn sorted_set_add(
     client: &mut SimpleCacheClient,
     config: &Config,
     cache_name: &str,
-    request: workload::client::HashSet,
+    request: workload::client::SortedSetAdd,
 ) -> std::result::Result<(), ResponseError> {
-    HASH_SET.increment();
-    let data: HashMap<Vec<u8>, Vec<u8>> = request
-        .data
+    SORTED_SET_ADD.increment();
+    let members: Vec<sorted_set::SortedSetElement> = request
+        .members
         .iter()
-        .map(|(k, v)| (k.to_vec(), v.to_vec()))
+        .map(|(value, score)| sorted_set::SortedSetElement {
+            value: value.to_vec(),
+            score: *score,
+        })
         .collect();
     match timeout(
         config.client().unwrap().request_timeout(),
-        client.dictionary_set(
+        client.sorted_set_put(
             cache_name,
             &*request.key,
-            data,
+            members,
             CollectionTtl::new(None, false),
         ),
     )
     .await
     {
         Ok(Ok(_)) => {
-            HASH_SET_OK.increment();
+            SORTED_SET_ADD_OK.increment();
             Ok(())
         }
         Ok(Err(e)) => {
-            HASH_SET_EX.increment();
+            SORTED_SET_ADD_EX.increment();
             Err(e.into())
         }
         Err(_) => {
-            HASH_SET_TIMEOUT.increment();
+            SORTED_SET_ADD_TIMEOUT.increment();
             Err(ResponseError::Timeout)
         }
     }

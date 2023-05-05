@@ -4,7 +4,7 @@ pub async fn hash_get_all(
     client: &mut SimpleCacheClient,
     config: &Config,
     cache_name: &str,
-    request: workload::client::HashGetAll
+    request: workload::client::HashGetAll,
 ) -> std::result::Result<(), ResponseError> {
     HASH_GET_ALL.increment();
     match timeout(

@@ -27,8 +27,11 @@ pub async fn hash_set(
             Err(_) => Err(ResponseError::Timeout),
         }
     } else {
-        let d: Vec<(&[u8], &[u8])> =
-            request.data.iter().map(|(k, v)| (k.as_ref(), v.as_ref())).collect();
+        let d: Vec<(&[u8], &[u8])> = request
+            .data
+            .iter()
+            .map(|(k, v)| (k.as_ref(), v.as_ref()))
+            .collect();
         match timeout(
             config.client().unwrap().request_timeout(),
             connection.hset_multiple::<&[u8], &[u8], &[u8], ()>(&request.key, &d),

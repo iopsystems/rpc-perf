@@ -200,19 +200,14 @@ impl From<&workload::client::Add> for Request {
 impl From<&workload::client::Get> for Request {
     fn from(other: &workload::client::Get) -> Self {
         GET.increment();
-        Request::get(
-            vec![(*other.key).to_owned().into_boxed_slice()].into_boxed_slice(),
-        )
+        Request::get(vec![(*other.key).to_owned().into_boxed_slice()].into_boxed_slice())
     }
 }
 
 impl From<&workload::client::Delete> for Request {
     fn from(other: &workload::client::Delete) -> Self {
         DELETE.increment();
-        Request::delete(
-            (*other.key).to_owned().into_boxed_slice(),
-            false,
-        )
+        Request::delete((*other.key).to_owned().into_boxed_slice(), false)
     }
 }
 

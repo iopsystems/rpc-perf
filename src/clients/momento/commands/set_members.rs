@@ -4,7 +4,7 @@ pub async fn set_members(
     client: &mut SimpleCacheClient,
     config: &Config,
     cache_name: &str,
-    request: workload::client::SetMembers
+    request: workload::client::SetMembers,
 ) -> std::result::Result<(), ResponseError> {
     SET_MEMBERS.increment();
     match timeout(

@@ -31,9 +31,7 @@ pub async fn hash_get(
         let fields: Vec<&[u8]> = request.fields.iter().map(|f| &**f).collect();
         match timeout(
             config.client().unwrap().request_timeout(),
-            connection.hget::<&[u8], &[&[u8]], Option<Vec<Option<Vec<u8>>>>>(
-                &request.key, &fields,
-            ),
+            connection.hget::<&[u8], &[&[u8]], Option<Vec<Option<Vec<u8>>>>>(&request.key, &fields),
         )
         .await
         {

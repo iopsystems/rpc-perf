@@ -1,28 +1,29 @@
 use super::*;
 
-pub async fn delete(
+pub async fn sorted_set_score(
     client: &mut SimpleCacheClient,
     config: &Config,
     cache_name: &str,
-    request: workload::client::Delete,
+    request: workload::client::SortedSetScore,
 ) -> std::result::Result<(), ResponseError> {
-    DELETE.increment();
+    SORTED_SET_SCORE.increment();
+    let members: Vec<&[u8]> = request.members.iter().map(|v| v.borrow()).collect();
     match timeout(
         config.client().unwrap().request_timeout(),
-        client.delete(cache_name, (*request.key).to_owned()),
+        client.sorted_set_get_score(cache_name, &*request.key, members),
     )
     .await
     {
         Ok(Ok(_)) => {
-            DELETE_OK.increment();
+            SORTED_SET_SCORE_OK.increment();
             Ok(())
         }
         Ok(Err(e)) => {
-            DELETE_EX.increment();
+            SORTED_SET_SCORE_EX.increment();
             Err(e.into())
         }
         Err(_) => {
-            DELETE_TIMEOUT.increment();
+            SORTED_SET_SCORE_TIMEOUT.increment();
             Err(ResponseError::Timeout)
         }
     }

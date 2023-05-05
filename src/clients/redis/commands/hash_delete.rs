@@ -3,7 +3,7 @@ use super::*;
 pub async fn hash_delete(
     connection: &mut Connection<net::Stream>,
     config: &Config,
-    request: workload::client::HashDelete
+    request: workload::client::HashDelete,
 ) -> std::result::Result<(), ResponseError> {
     HASH_DELETE.increment();
     let fields: Vec<&[u8]> = request.fields.iter().map(|v| v.borrow()).collect();

@@ -4,12 +4,17 @@ pub async fn set(
     client: &mut SimpleCacheClient,
     config: &Config,
     cache_name: &str,
-    request: workload::client::Set
+    request: workload::client::Set,
 ) -> std::result::Result<(), ResponseError> {
     SET.increment();
     match timeout(
         config.client().unwrap().request_timeout(),
-        client.set(cache_name, (*request.key).to_owned(), (*request.value).to_owned(), None),
+        client.set(
+            cache_name,
+            (*request.key).to_owned(),
+            (*request.value).to_owned(),
+            None,
+        ),
     )
     .await
     {

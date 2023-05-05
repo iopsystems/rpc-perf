@@ -3,7 +3,7 @@ use super::*;
 pub async fn hash_exists(
     connection: &mut Connection<net::Stream>,
     config: &Config,
-    request: workload::client::HashExists
+    request: workload::client::HashExists,
 ) -> std::result::Result<(), ResponseError> {
     match timeout(
         config.client().unwrap().request_timeout(),

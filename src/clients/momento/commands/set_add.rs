@@ -4,7 +4,7 @@ pub async fn set_add(
     client: &mut SimpleCacheClient,
     config: &Config,
     cache_name: &str,
-    request: workload::client::SetAdd
+    request: workload::client::SetAdd,
 ) -> std::result::Result<(), ResponseError> {
     SET_ADD.increment();
     let members: Vec<&[u8]> = request.members.iter().map(|v| v.borrow()).collect();

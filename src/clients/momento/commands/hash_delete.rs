@@ -4,7 +4,7 @@ pub async fn hash_delete(
     client: &mut SimpleCacheClient,
     config: &Config,
     cache_name: &str,
-    request: workload::client::HashDelete
+    request: workload::client::HashDelete,
 ) -> std::result::Result<(), ResponseError> {
     HASH_DELETE.increment();
     match timeout(

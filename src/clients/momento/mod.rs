@@ -63,6 +63,9 @@ async fn task(
         let start = Instant::now();
         let result = match work_item {
             WorkItem::Request { request, .. } => match request {
+                /*
+                 * KEY-VALUE
+                 */
                 ClientRequest::Get(r) => get(&mut client, &config, cache_name, r).await,
                 ClientRequest::Set(r) => set(&mut client, &config, cache_name, r).await,
                 ClientRequest::Delete(r) => delete(&mut client, &config, cache_name, r).await,
@@ -70,194 +73,76 @@ async fn task(
                 /*
                  * HASHES (DICTIONARIES)
                  */
-                ClientRequest::HashDelete(r) => hash_delete(&mut client, &config, cache_name, r).await,
+                ClientRequest::HashDelete(r) => {
+                    hash_delete(&mut client, &config, cache_name, r).await
+                }
                 ClientRequest::HashGet(r) => hash_get(&mut client, &config, cache_name, r).await,
-                ClientRequest::HashGetAll(r) => hash_get_all(&mut client, &config, cache_name, r).await,
-                ClientRequest::HashIncrement(r) => hash_increment(&mut client, &config, cache_name, r).await,
+                ClientRequest::HashGetAll(r) => {
+                    hash_get_all(&mut client, &config, cache_name, r).await
+                }
+                ClientRequest::HashIncrement(r) => {
+                    hash_increment(&mut client, &config, cache_name, r).await
+                }
                 ClientRequest::HashSet(r) => hash_set(&mut client, &config, cache_name, r).await,
 
                 /*
                  * SETS
                  */
                 ClientRequest::SetAdd(r) => set_add(&mut client, &config, cache_name, r).await,
-                ClientRequest::SetMembers(r) => set_members(&mut client, &config, cache_name, r).await,
-                ClientRequest::SetRemove(r) => set_remove(&mut client, &config, cache_name, r).await,
+                ClientRequest::SetMembers(r) => {
+                    set_members(&mut client, &config, cache_name, r).await
+                }
+                ClientRequest::SetRemove(r) => {
+                    set_remove(&mut client, &config, cache_name, r).await
+                }
 
                 /*
                  * LISTS
                  */
-                ClientRequest::ListPushFront(r) => list_push_front(&mut client, &config, cache_name, r).await,
-                ClientRequest::ListPushBack(r) => list_push_back(&mut client, &config, cache_name, r).await,
-                ClientRequest::ListFetch(r) => list_fetch(&mut client, &config, cache_name, r).await,
-                ClientRequest::ListLength(r) => list_length(&mut client, &config, cache_name, r).await,
-                ClientRequest::ListPopFront(r) => list_pop_front(&mut client, &config, cache_name, r).await,
-                ClientRequest::ListPopBack(r) => list_pop_back(&mut client, &config, cache_name, r).await,
+                ClientRequest::ListPushFront(r) => {
+                    list_push_front(&mut client, &config, cache_name, r).await
+                }
+                ClientRequest::ListPushBack(r) => {
+                    list_push_back(&mut client, &config, cache_name, r).await
+                }
+                ClientRequest::ListFetch(r) => {
+                    list_fetch(&mut client, &config, cache_name, r).await
+                }
+                ClientRequest::ListLength(r) => {
+                    list_length(&mut client, &config, cache_name, r).await
+                }
+                ClientRequest::ListPopFront(r) => {
+                    list_pop_front(&mut client, &config, cache_name, r).await
+                }
+                ClientRequest::ListPopBack(r) => {
+                    list_pop_back(&mut client, &config, cache_name, r).await
+                }
 
                 /*
                  * SORTED SETS
                  */
-                ClientRequest::SortedSetAdd { key, members } => {
-                    SORTED_SET_ADD.increment();
-                    let members: Vec<sorted_set::SortedSetElement> = members
-                        .iter()
-                        .map(|(value, score)| sorted_set::SortedSetElement {
-                            value: value.to_vec(),
-                            score: *score,
-                        })
-                        .collect();
-                    match timeout(
-                        config.client().unwrap().request_timeout(),
-                        client.sorted_set_put(
-                            cache_name,
-                            &*key,
-                            members,
-                            CollectionTtl::new(None, false),
-                        ),
-                    )
-                    .await
-                    {
-                        Ok(Ok(_)) => {
-                            SORTED_SET_ADD_OK.increment();
-                            Ok(())
-                        }
-                        Ok(Err(e)) => {
-                            SORTED_SET_ADD_EX.increment();
-                            Err(e.into())
-                        }
-                        Err(_) => {
-                            SORTED_SET_ADD_TIMEOUT.increment();
-                            Err(ResponseError::Timeout)
-                        }
-                    }
+                ClientRequest::SortedSetAdd(r) => {
+                    sorted_set_add(&mut client, &config, cache_name, r).await
                 }
-                ClientRequest::SortedSetMembers { key } => {
-                    SORTED_SET_MEMBERS.increment();
-                    match timeout(
-                        config.client().unwrap().request_timeout(),
-                        client.sorted_set_fetch(
-                            cache_name,
-                            &*key,
-                            momento::sorted_set::Order::Ascending,
-                            None,
-                            None,
-                        ),
-                    )
-                    .await
-                    {
-                        Ok(Ok(_)) => {
-                            SORTED_SET_MEMBERS_OK.increment();
-                            Ok(())
-                        }
-                        Ok(Err(e)) => {
-                            SORTED_SET_MEMBERS_EX.increment();
-                            Err(e.into())
-                        }
-                        Err(_) => {
-                            SORTED_SET_MEMBERS_TIMEOUT.increment();
-                            Err(ResponseError::Timeout)
-                        }
-                    }
+                ClientRequest::SortedSetMembers(r) => {
+                    sorted_set_members(&mut client, &config, cache_name, r).await
                 }
-                ClientRequest::SortedSetIncrement {
-                    key,
-                    member,
-                    amount,
-                } => {
-                    SORTED_SET_INCR.increment();
-                    match timeout(
-                        config.client().unwrap().request_timeout(),
-                        client.sorted_set_increment(
-                            cache_name,
-                            &*key,
-                            &*member,
-                            amount,
-                            CollectionTtl::new(None, false),
-                        ),
-                    )
-                    .await
-                    {
-                        Ok(Ok(_)) => {
-                            SORTED_SET_INCR_OK.increment();
-                            Ok(())
-                        }
-                        Ok(Err(e)) => {
-                            SORTED_SET_INCR_EX.increment();
-                            Err(e.into())
-                        }
-                        Err(_) => {
-                            SORTED_SET_INCR_TIMEOUT.increment();
-                            Err(ResponseError::Timeout)
-                        }
-                    }
+                ClientRequest::SortedSetIncrement(r) => {
+                    sorted_set_increment(&mut client, &config, cache_name, r).await
                 }
-                ClientRequest::SortedSetRank { key, member } => {
-                    SORTED_SET_RANK.increment();
-                    match timeout(
-                        config.client().unwrap().request_timeout(),
-                        client.sorted_set_get_rank(cache_name, &*key, &*member),
-                    )
-                    .await
-                    {
-                        Ok(Ok(_)) => {
-                            SORTED_SET_RANK_OK.increment();
-                            Ok(())
-                        }
-                        Ok(Err(e)) => {
-                            SORTED_SET_RANK_EX.increment();
-                            Err(e.into())
-                        }
-                        Err(_) => {
-                            SORTED_SET_RANK_TIMEOUT.increment();
-                            Err(ResponseError::Timeout)
-                        }
-                    }
+                ClientRequest::SortedSetRank(r) => {
+                    sorted_set_rank(&mut client, &config, cache_name, r).await
                 }
-                ClientRequest::SortedSetRemove { key, members } => {
-                    SORTED_SET_REMOVE.increment();
-                    let members: Vec<&[u8]> = members.iter().map(|v| v.borrow()).collect();
-                    match timeout(
-                        config.client().unwrap().request_timeout(),
-                        client.sorted_set_remove(cache_name, &*key, members),
-                    )
-                    .await
-                    {
-                        Ok(Ok(_)) => {
-                            SORTED_SET_REMOVE_OK.increment();
-                            Ok(())
-                        }
-                        Ok(Err(e)) => {
-                            SORTED_SET_REMOVE_EX.increment();
-                            Err(e.into())
-                        }
-                        Err(_) => {
-                            SORTED_SET_REMOVE_TIMEOUT.increment();
-                            Err(ResponseError::Timeout)
-                        }
-                    }
+                ClientRequest::SortedSetRemove(r) => {
+                    sorted_set_remove(&mut client, &config, cache_name, r).await
                 }
-                ClientRequest::SortedSetScore { key, members } => {
-                    SORTED_SET_SCORE.increment();
-                    let members: Vec<&[u8]> = members.iter().map(|v| v.borrow()).collect();
-                    match timeout(
-                        config.client().unwrap().request_timeout(),
-                        client.sorted_set_get_score(cache_name, &*key, members),
-                    )
-                    .await
-                    {
-                        Ok(Ok(_)) => {
-                            SORTED_SET_SCORE_OK.increment();
-                            Ok(())
-                        }
-                        Ok(Err(e)) => {
-                            SORTED_SET_SCORE_EX.increment();
-                            Err(e.into())
-                        }
-                        Err(_) => {
-                            SORTED_SET_SCORE_TIMEOUT.increment();
-                            Err(ResponseError::Timeout)
-                        }
-                    }
+                ClientRequest::SortedSetScore(r) => {
+                    sorted_set_score(&mut client, &config, cache_name, r).await
                 }
+
+                /*
+                 * UNSUPPORTED
+                 */
                 _ => {
                     REQUEST_UNSUPPORTED.increment();
                     continue;

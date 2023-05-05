@@ -1,33 +1,34 @@
 use super::*;
 
-pub async fn set_members(
+pub async fn sorted_set_rank(
     connection: &mut Connection<net::Stream>,
     config: &Config,
-    request: workload::client::SetMembers,
+    request: workload::client::SortedSetRank,
 ) -> std::result::Result<(), ResponseError> {
-    SET_MEMBERS.increment();
+    SORTED_SET_RANK.increment();
     match timeout(
         config.client().unwrap().request_timeout(),
-        connection.smembers::<&[u8], Option<Vec<Vec<u8>>>>(request.key.as_ref()),
+        connection
+            .zrank::<&[u8], &[u8], Option<u64>>(request.key.as_ref(), request.member.as_ref()),
     )
     .await
     {
-        Ok(Ok(set)) => {
-            if set.is_some() {
+        Ok(Ok(rank)) => {
+            if rank.is_some() {
                 RESPONSE_HIT.increment();
             } else {
                 RESPONSE_MISS.increment();
             }
 
-            SET_MEMBERS_OK.increment();
+            SORTED_SET_RANK_OK.increment();
             Ok(())
         }
         Ok(Err(_)) => {
-            SET_MEMBERS_EX.increment();
+            SORTED_SET_RANK_EX.increment();
             Err(ResponseError::Exception)
         }
         Err(_) => {
-            SET_MEMBERS_TIMEOUT.increment();
+            SORTED_SET_RANK_TIMEOUT.increment();
             Err(ResponseError::Timeout)
         }
     }

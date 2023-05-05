@@ -1,8 +1,8 @@
 use super::*;
 use crate::net::Connector;
 use crate::Instant;
-use ::redis::{AsyncCommands, RedisConnectionInfo};
 use ::redis::aio::Connection;
+use ::redis::{AsyncCommands, RedisConnectionInfo};
 use std::borrow::Borrow;
 
 mod commands;
@@ -85,6 +85,14 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
         let start = Instant::now();
         let result = match work_item {
             WorkItem::Request { request, .. } => match request {
+                /*
+                 * PING
+                 */
+                ClientRequest::Ping(r) => ping(&mut con, &config, r).await,
+
+                /*
+                 * KEY-VALUE
+                 */
                 ClientRequest::Get(r) => get(&mut con, &config, r).await,
                 ClientRequest::Set(r) => set(&mut con, &config, r).await,
                 ClientRequest::Delete(r) => delete(&mut con, &config, r).await,
@@ -112,26 +120,6 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                 ClientRequest::ListPopFront(r) => list_pop_front(&mut con, &config, r).await,
                 ClientRequest::ListPopBack(r) => list_pop_back(&mut con, &config, r).await,
 
-                ClientRequest::Ping { .. } => {
-                    PING.increment();
-                    match timeout(
-                        config.client().unwrap().request_timeout(),
-                        ::redis::cmd("PING").query_async(&mut con),
-                    )
-                    .await
-                    {
-                        Ok(Ok(())) => {
-                            PING_OK.increment();
-                            Ok(())
-                        }
-                        Ok(Err(_)) => {
-                            PING_EX.increment();
-                            Err(ResponseError::Exception)
-                        }
-                        Err(_) => Err(ResponseError::Timeout),
-                    }
-                }
-
                 /*
                  * SETS
                  */
@@ -142,234 +130,20 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                 /*
                  * SORTED SETS
                  */
-                ClientRequest::SortedSetAdd { key, members } => {
-                    SORTED_SET_ADD.increment();
-                    if members.is_empty() {
-                        connection = Some(con);
-                        continue;
-                    } else if members.len() == 1 {
-                        let (member, score) = members.first().unwrap();
-                        match timeout(
-                            config.client().unwrap().request_timeout(),
-                            con.zadd::<&[u8], f64, &[u8], f64>(
-                                key.as_ref(),
-                                member.as_ref(),
-                                *score,
-                            ),
-                        )
-                        .await
-                        {
-                            Ok(Ok(_)) => {
-                                SORTED_SET_ADD_OK.increment();
-                                Ok(())
-                            }
-                            Ok(Err(_)) => {
-                                SORTED_SET_ADD_EX.increment();
-                                Err(ResponseError::Exception)
-                            }
-                            Err(_) => {
-                                SORTED_SET_ADD_TIMEOUT.increment();
-                                Err(ResponseError::Timeout)
-                            }
-                        }
-                    } else {
-                        let d: Vec<(f64, &[u8])> =
-                            members.iter().map(|(m, s)| (*s, m.as_ref())).collect();
-                        match timeout(
-                            config.client().unwrap().request_timeout(),
-                            con.zadd_multiple::<&[u8], f64, &[u8], f64>(&key, &d),
-                        )
-                        .await
-                        {
-                            Ok(Ok(_)) => {
-                                SORTED_SET_ADD_OK.increment();
-                                Ok(())
-                            }
-                            Ok(Err(_)) => {
-                                SORTED_SET_ADD_EX.increment();
-                                Err(ResponseError::Exception)
-                            }
-                            Err(_) => {
-                                SORTED_SET_ADD_TIMEOUT.increment();
-                                Err(ResponseError::Timeout)
-                            }
-                        }
-                    }
+                ClientRequest::SortedSetAdd(r) => sorted_set_add(&mut con, &config, r).await,
+                ClientRequest::SortedSetMembers(r) => {
+                    sorted_set_members(&mut con, &config, r).await
                 }
-                ClientRequest::SortedSetMembers { key } => {
-                    SORTED_SET_INCR.increment();
-                    match timeout(
-                        config.client().unwrap().request_timeout(),
-                        ::redis::cmd("ZUNION")
-                            .arg(1)
-                            .arg(&*key)
-                            .arg("WITHSCORES")
-                            .query_async::<_, Vec<(Vec<u8>, f64)>>(&mut con),
-                    )
-                    .await
-                    {
-                        Ok(Ok(set)) => {
-                            if set.is_empty() {
-                                RESPONSE_MISS.increment();
-                            } else {
-                                RESPONSE_HIT.increment();
-                            }
+                ClientRequest::SortedSetIncrement(r) => {
+                    sorted_set_increment(&mut con, &config, r).await
+                }
+                ClientRequest::SortedSetRemove(r) => sorted_set_remove(&mut con, &config, r).await,
+                ClientRequest::SortedSetScore(r) => sorted_set_score(&mut con, &config, r).await,
+                ClientRequest::SortedSetRank(r) => sorted_set_rank(&mut con, &config, r).await,
 
-                            SORTED_SET_INCR_OK.increment();
-                            Ok(())
-                        }
-                        Ok(Err(_)) => {
-                            SORTED_SET_INCR_EX.increment();
-                            Err(ResponseError::Exception)
-                        }
-                        Err(_) => {
-                            SORTED_SET_INCR_TIMEOUT.increment();
-                            Err(ResponseError::Timeout)
-                        }
-                    }
-                }
-                ClientRequest::SortedSetIncrement {
-                    key,
-                    member,
-                    amount,
-                } => {
-                    SORTED_SET_INCR.increment();
-                    match timeout(
-                        config.client().unwrap().request_timeout(),
-                        con.zincr::<&[u8], &[u8], f64, String>(&key, &member, amount),
-                    )
-                    .await
-                    {
-                        Ok(Ok(_)) => {
-                            SORTED_SET_INCR_OK.increment();
-                            Ok(())
-                        }
-                        Ok(Err(_)) => {
-                            SORTED_SET_INCR_EX.increment();
-                            Err(ResponseError::Exception)
-                        }
-                        Err(_) => {
-                            SORTED_SET_INCR_TIMEOUT.increment();
-                            Err(ResponseError::Timeout)
-                        }
-                    }
-                }
-                ClientRequest::SortedSetRemove { key, members } => {
-                    SORTED_SET_REMOVE.increment();
-                    let members: Vec<&[u8]> = members.iter().map(|v| v.borrow()).collect();
-                    match timeout(
-                        config.client().unwrap().request_timeout(),
-                        con.zrem::<&[u8], Vec<&[u8]>, usize>(&key, members),
-                    )
-                    .await
-                    {
-                        Ok(Ok(_)) => {
-                            SORTED_SET_REMOVE_OK.increment();
-                            Ok(())
-                        }
-                        Ok(Err(_)) => {
-                            SORTED_SET_REMOVE_EX.increment();
-                            Err(ResponseError::Exception)
-                        }
-                        Err(_) => {
-                            SORTED_SET_REMOVE_TIMEOUT.increment();
-                            Err(ResponseError::Timeout)
-                        }
-                    }
-                }
-                ClientRequest::SortedSetScore { key, members } => {
-                    SORTED_SET_SCORE.increment();
-
-                    let result = if members.len() == 1 {
-                        match timeout(
-                            config.client().unwrap().request_timeout(),
-                            con.zscore::<&[u8], &[u8], Option<f64>>(
-                                key.as_ref(),
-                                members[0].as_ref(),
-                            ),
-                        )
-                        .await
-                        {
-                            Ok(Ok(score)) => {
-                                if score.is_some() {
-                                    RESPONSE_HIT.increment();
-                                } else {
-                                    RESPONSE_MISS.increment();
-                                }
-                                Ok(())
-                            }
-                            Ok(Err(_)) => Err(ResponseError::Exception),
-                            Err(_) => Err(ResponseError::Timeout),
-                        }
-                    } else {
-                        let members: Vec<&[u8]> = members.iter().map(|v| v.borrow()).collect();
-                        match timeout(
-                            config.client().unwrap().request_timeout(),
-                            con.zscore_multiple::<&[u8], &[u8], Vec<Option<f64>>>(
-                                key.as_ref(),
-                                &members,
-                            ),
-                        )
-                        .await
-                        {
-                            Ok(Ok(scores)) => {
-                                for score in scores {
-                                    if score.is_some() {
-                                        RESPONSE_HIT.increment();
-                                    } else {
-                                        RESPONSE_MISS.increment();
-                                    }
-                                }
-                                Ok(())
-                            }
-                            Ok(Err(_)) => Err(ResponseError::Exception),
-                            Err(_) => Err(ResponseError::Timeout),
-                        }
-                    };
-
-                    match result {
-                        Ok(_) => {
-                            SORTED_SET_SCORE_OK.increment();
-                        }
-                        Err(ResponseError::Exception) => {
-                            SORTED_SET_SCORE_EX.increment();
-                        }
-                        Err(ResponseError::Timeout) => {
-                            SORTED_SET_SCORE_TIMEOUT.increment();
-                        }
-                        _ => {}
-                    }
-
-                    result
-                }
-                ClientRequest::SortedSetRank { key, member } => {
-                    SORTED_SET_RANK.increment();
-                    match timeout(
-                        config.client().unwrap().request_timeout(),
-                        con.zrank::<&[u8], &[u8], Option<u64>>(key.as_ref(), member.as_ref()),
-                    )
-                    .await
-                    {
-                        Ok(Ok(rank)) => {
-                            if rank.is_some() {
-                                RESPONSE_HIT.increment();
-                            } else {
-                                RESPONSE_MISS.increment();
-                            }
-
-                            SORTED_SET_RANK_OK.increment();
-                            Ok(())
-                        }
-                        Ok(Err(_)) => {
-                            SORTED_SET_RANK_EX.increment();
-                            Err(ResponseError::Exception)
-                        }
-                        Err(_) => {
-                            SORTED_SET_RANK_TIMEOUT.increment();
-                            Err(ResponseError::Timeout)
-                        }
-                    }
-                }
+                /*
+                 * UNSUPPORTED
+                 */
                 _ => {
                     REQUEST_UNSUPPORTED.increment();
                     connection = Some(con);

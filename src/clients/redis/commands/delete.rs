@@ -3,7 +3,7 @@ use super::*;
 pub async fn delete(
     connection: &mut Connection<net::Stream>,
     config: &Config,
-    request: workload::client::Delete
+    request: workload::client::Delete,
 ) -> std::result::Result<(), ResponseError> {
     DELETE.increment();
     match timeout(

@@ -145,14 +145,14 @@ impl Generator {
         let command = &keyspace.commands[keyspace.command_dist.sample(rng)];
 
         let request = match command.verb() {
-            Verb::Get => ClientRequest::Get( client::Get {
+            Verb::Get => ClientRequest::Get(client::Get {
                 key: keyspace.sample(rng),
             }),
-            Verb::Set => ClientRequest::Set( client::Set {
+            Verb::Set => ClientRequest::Set(client::Set {
                 key: keyspace.sample(rng),
                 value: keyspace.gen_value(rng),
             }),
-            Verb::Delete => ClientRequest::Delete( client::Delete {
+            Verb::Delete => ClientRequest::Delete(client::Delete {
                 key: keyspace.sample(rng),
             }),
             Verb::HashGet => {
@@ -162,12 +162,12 @@ impl Generator {
                     fields.push(keyspace.sample_inner(rng));
                 }
 
-                ClientRequest::HashGet( client::HashGet  {
+                ClientRequest::HashGet(client::HashGet {
                     key: keyspace.sample(rng),
                     fields,
                 })
             }
-            Verb::HashGetAll => ClientRequest::HashGetAll( client::HashGetAll {
+            Verb::HashGetAll => ClientRequest::HashGetAll(client::HashGetAll {
                 key: keyspace.sample(rng),
             }),
             Verb::HashDelete => {
@@ -177,16 +177,16 @@ impl Generator {
                     fields.push(keyspace.sample_inner(rng));
                 }
 
-                ClientRequest::HashDelete( client::HashDelete {
+                ClientRequest::HashDelete(client::HashDelete {
                     key: keyspace.sample(rng),
                     fields,
                 })
             }
-            Verb::HashExists => ClientRequest::HashExists( client::HashExists {
+            Verb::HashExists => ClientRequest::HashExists(client::HashExists {
                 key: keyspace.sample(rng),
                 field: keyspace.sample_inner(rng),
             }),
-            Verb::HashIncrement => ClientRequest::HashIncrement( client::HashIncrement {
+            Verb::HashIncrement => ClientRequest::HashIncrement(client::HashIncrement {
                 key: keyspace.sample(rng),
                 field: keyspace.sample_inner(rng),
                 amount: rng.gen(),
@@ -196,7 +196,7 @@ impl Generator {
                 while data.len() < command.cardinality() {
                     data.insert(keyspace.sample_inner(rng), keyspace.gen_value(rng));
                 }
-                ClientRequest::HashSet ( client::HashSet {
+                ClientRequest::HashSet(client::HashSet {
                     key: keyspace.sample(rng),
                     data,
                 })
@@ -207,7 +207,7 @@ impl Generator {
                 for _ in 0..cardinality {
                     elements.push(keyspace.sample_inner(rng));
                 }
-                ClientRequest::ListPushFront( client::ListPushFront {
+                ClientRequest::ListPushFront(client::ListPushFront {
                     key: keyspace.sample(rng),
                     elements,
                     truncate: command.truncate(),
@@ -219,25 +219,25 @@ impl Generator {
                 for _ in 0..cardinality {
                     elements.push(keyspace.sample_inner(rng));
                 }
-                ClientRequest::ListPushBack( client::ListPushBack {
+                ClientRequest::ListPushBack(client::ListPushBack {
                     key: keyspace.sample(rng),
                     elements,
                     truncate: command.truncate(),
                 })
             }
-            Verb::ListFetch => ClientRequest::ListFetch( client::ListFetch {
+            Verb::ListFetch => ClientRequest::ListFetch(client::ListFetch {
                 key: keyspace.sample(rng),
             }),
-            Verb::ListLength => ClientRequest::ListLength( client::ListLength {
+            Verb::ListLength => ClientRequest::ListLength(client::ListLength {
                 key: keyspace.sample(rng),
             }),
-            Verb::ListPopFront => ClientRequest::ListPopFront( client::ListPopFront {
+            Verb::ListPopFront => ClientRequest::ListPopFront(client::ListPopFront {
                 key: keyspace.sample(rng),
             }),
-            Verb::ListPopBack => ClientRequest::ListPopBack( client::ListPopBack {
+            Verb::ListPopBack => ClientRequest::ListPopBack(client::ListPopBack {
                 key: keyspace.sample(rng),
             }),
-            Verb::Ping => ClientRequest::Ping {},
+            Verb::Ping => ClientRequest::Ping(client::Ping {}),
             Verb::SetAdd => {
                 let mut members = HashSet::new();
                 while members.len() < command.cardinality() {
@@ -249,7 +249,7 @@ impl Generator {
                     members,
                 })
             }
-            Verb::SetMembers => ClientRequest::SetMembers( client::SetMembers {
+            Verb::SetMembers => ClientRequest::SetMembers(client::SetMembers {
                 key: keyspace.sample(rng),
             }),
             Verb::SetRemove => {
@@ -269,45 +269,47 @@ impl Generator {
                     members.insert(keyspace.sample_inner(rng));
                 }
                 let members = members.drain().map(|m| (m, rng.gen())).collect();
-                ClientRequest::SortedSetAdd {
+                ClientRequest::SortedSetAdd(client::SortedSetAdd {
                     key: keyspace.sample(rng),
                     members,
-                }
+                })
             }
-            Verb::SortedSetMembers => ClientRequest::SortedSetMembers {
+            Verb::SortedSetMembers => ClientRequest::SortedSetMembers(client::SortedSetMembers {
                 key: keyspace.sample(rng),
-            },
+            }),
             Verb::SortedSetRemove => {
                 let mut members = HashSet::new();
                 while members.len() < command.cardinality() {
                     members.insert(keyspace.sample_inner(rng));
                 }
                 let members = members.drain().collect();
-                ClientRequest::SortedSetRemove {
+                ClientRequest::SortedSetRemove(client::SortedSetRemove {
                     key: keyspace.sample(rng),
                     members,
-                }
+                })
             }
-            Verb::SortedSetIncrement => ClientRequest::SortedSetIncrement {
-                key: keyspace.sample(rng),
-                member: keyspace.sample_inner(rng),
-                amount: rng.gen(),
-            },
+            Verb::SortedSetIncrement => {
+                ClientRequest::SortedSetIncrement(client::SortedSetIncrement {
+                    key: keyspace.sample(rng),
+                    member: keyspace.sample_inner(rng),
+                    amount: rng.gen(),
+                })
+            }
             Verb::SortedSetScore => {
                 let mut members = HashSet::new();
                 while members.len() < command.cardinality() {
                     members.insert(keyspace.sample_inner(rng));
                 }
                 let members = members.drain().collect();
-                ClientRequest::SortedSetScore {
+                ClientRequest::SortedSetScore(client::SortedSetScore {
                     key: keyspace.sample(rng),
                     members,
-                }
+                })
             }
-            Verb::SortedSetRank => ClientRequest::SortedSetRank {
+            Verb::SortedSetRank => ClientRequest::SortedSetRank(client::SortedSetRank {
                 key: keyspace.sample(rng),
                 member: keyspace.sample_inner(rng),
-            },
+            }),
         };
 
         ClientWorkItem::Request {
@@ -556,10 +558,10 @@ pub async fn reconnect(work_sender: Sender<ClientWorkItem>, config: Config) -> R
     }
 
     let ratelimiter = config
-            .client()
-            .unwrap()
-            .reconnect_rate()
-            .map(|r| Arc::new(Ratelimiter::new(1000, 1, r.into())));
+        .client()
+        .unwrap()
+        .reconnect_rate()
+        .map(|r| Arc::new(Ratelimiter::new(1000, 1, r.into())));
 
     if ratelimiter.is_none() {
         return Ok(());

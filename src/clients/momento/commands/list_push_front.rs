@@ -27,8 +27,7 @@ pub async fn list_push_front(
     } else {
         // note: we need to reverse because the semantics of list
         // concat do not match the redis push semantics
-        let elements: Vec<&[u8]> =
-            request.elements.iter().map(|v| v.borrow()).rev().collect();
+        let elements: Vec<&[u8]> = request.elements.iter().map(|v| v.borrow()).rev().collect();
         match timeout(
             config.client().unwrap().request_timeout(),
             client.list_concat_front(

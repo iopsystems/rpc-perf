@@ -11,6 +11,9 @@ pub enum ClientWorkItem {
 }
 
 #[derive(Debug, PartialEq)]
+pub struct Ping {}
+
+#[derive(Debug, PartialEq)]
 pub struct Add {
     pub key: Arc<[u8]>,
     pub value: Arc<[u8]>,
@@ -43,7 +46,6 @@ pub struct Set {
     pub value: Vec<u8>,
 }
 
-
 // Hash
 
 #[derive(Debug, PartialEq)]
@@ -59,13 +61,13 @@ pub struct HashDelete {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct HashGet  {
+pub struct HashGet {
     pub key: Arc<[u8]>,
     pub fields: Vec<Arc<[u8]>>,
 }
 
 #[derive(Debug, PartialEq)]
-pub struct HashGetAll  {
+pub struct HashGetAll {
     pub key: Arc<[u8]>,
 }
 
@@ -154,15 +156,49 @@ pub struct SetRemove {
     pub members: Vec<Arc<[u8]>>,
 }
 
+#[derive(Debug, PartialEq)]
+pub struct SortedSetAdd {
+    pub key: Arc<[u8]>,
+    pub members: Vec<(Arc<[u8]>, f64)>,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct SortedSetMembers {
+    pub key: Arc<[u8]>,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct SortedSetIncrement {
+    pub key: Arc<[u8]>,
+    pub member: Arc<[u8]>,
+    pub amount: f64,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct SortedSetRank {
+    pub key: Arc<[u8]>,
+    pub member: Arc<[u8]>,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct SortedSetRemove {
+    pub key: Arc<[u8]>,
+    pub members: Vec<Arc<[u8]>>,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct SortedSetScore {
+    pub key: Arc<[u8]>,
+    pub members: Vec<Arc<[u8]>>,
+}
+
 #[allow(dead_code)]
 #[derive(Debug, PartialEq)]
 pub enum ClientRequest {
     // Ping
-
-    Ping,
+    Ping(Ping),
 
     // Key-Value
-
     Add(Add),
     Get(Get),
     Delete(Delete),
@@ -171,7 +207,6 @@ pub enum ClientRequest {
     Set(Set),
 
     // Hash Commands
-    
     HashExists(HashExists),
     HashDelete(HashDelete),
     /// Retrieve one or more fields from a hash.
@@ -181,7 +216,6 @@ pub enum ClientRequest {
     HashSet(HashSet),
 
     // List Commands
-
     /// Fetch all elements in a list. Equivalent to:
     /// `ListRange { key, start: 0, stop: -1 }`
     ListFetch(ListFetch),
@@ -202,40 +236,17 @@ pub enum ClientRequest {
     /// Create or replace a list with a new list.
     ListStore(ListStore),
 
-
-
     Reconnect,
-    
+
     SetAdd(SetAdd),
     SetMembers(SetMembers),
     SetRemove(SetRemove),
 
-    // Sorted Set 
-
-    SortedSetAdd {
-        key: Arc<[u8]>,
-        members: Vec<(Arc<[u8]>, f64)>,
-    },
-    SortedSetMembers {
-        key: Arc<[u8]>,
-    },
-    SortedSetIncrement {
-        key: Arc<[u8]>,
-        member: Arc<[u8]>,
-        amount: f64,
-    },
-    SortedSetRank {
-        key: Arc<[u8]>,
-        member: Arc<[u8]>,
-    },
-    SortedSetRemove {
-        key: Arc<[u8]>,
-        members: Vec<Arc<[u8]>>,
-    },
-    SortedSetScore {
-        key: Arc<[u8]>,
-        members: Vec<Arc<[u8]>>,
-    },
-    
-
+    // Sorted Set
+    SortedSetAdd(SortedSetAdd),
+    SortedSetMembers(SortedSetMembers),
+    SortedSetIncrement(SortedSetIncrement),
+    SortedSetRank(SortedSetRank),
+    SortedSetRemove(SortedSetRemove),
+    SortedSetScore(SortedSetScore),
 }

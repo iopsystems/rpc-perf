@@ -1,27 +1,31 @@
 use super::*;
 
-pub async fn set(
+pub async fn sorted_set_increment(
     connection: &mut Connection<net::Stream>,
     config: &Config,
-    request: workload::client::Set,
+    request: workload::client::SortedSetIncrement,
 ) -> std::result::Result<(), ResponseError> {
-    SET.increment();
+    SORTED_SET_INCR.increment();
     match timeout(
         config.client().unwrap().request_timeout(),
-        connection.set::<&[u8], &[u8], ()>(&request.key, &request.value),
+        connection.zincr::<&[u8], &[u8], f64, String>(
+            &request.key,
+            &request.member,
+            request.amount,
+        ),
     )
     .await
     {
         Ok(Ok(_)) => {
-            SET_STORED.increment();
+            SORTED_SET_INCR_OK.increment();
             Ok(())
         }
         Ok(Err(_)) => {
-            SET_EX.increment();
+            SORTED_SET_INCR_EX.increment();
             Err(ResponseError::Exception)
         }
         Err(_) => {
-            SET_TIMEOUT.increment();
+            SORTED_SET_INCR_TIMEOUT.increment();
             Err(ResponseError::Timeout)
         }
     }
