@@ -421,7 +421,7 @@ impl Keyspace {
         // we use a predictable seed to generate the keys in the keyspace
         let mut rng = Xoshiro512PlusPlus::seed_from_u64(0);
         let mut keys = HashSet::with_capacity(nkeys);
-        while keys.len() < nkeys {
+        while keys.len() <= nkeys {
             let key = (&mut rng)
                 .sample_iter(&Alphanumeric)
                 .take(klen)
@@ -442,7 +442,7 @@ impl Keyspace {
         // we use a predictable seed to generate the keys in the keyspace
         let mut rng = Xoshiro512PlusPlus::seed_from_u64(0);
         let mut inner_keys = HashSet::with_capacity(nkeys);
-        while inner_keys.len() < nkeys {
+        while inner_keys.len() <= nkeys {
             let key = (&mut rng)
                 .sample_iter(&Alphanumeric)
                 .take(klen)
