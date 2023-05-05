@@ -72,7 +72,7 @@ pub fn log(config: &Config, traffic_ratelimit: Option<Arc<Ratelimiter>>) {
             // ratelimit. If not, this will terminate the run.
             if config.workload().strict_ratelimit() {
                 if let Some(rate) = traffic_ratelimit.as_ref().map(|v| v.rate()) {
-                    if total_ok as f64 / elapsed < 0.95 * rate as f64 {
+                    if total_ok as f64 / elapsed < (rate.saturating_sub(1000)) as f64 {
                         windows_under_target_rate += 1;
                     } else {
                         windows_under_target_rate = 0;
