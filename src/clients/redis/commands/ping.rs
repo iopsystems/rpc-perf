@@ -20,6 +20,9 @@ pub async fn ping(
             PING_EX.increment();
             Err(ResponseError::Exception)
         }
-        Err(_) => Err(ResponseError::Timeout),
+        Err(_) => {
+            PING_TIMEOUT.increment();
+            Err(ResponseError::Timeout)
+        }
     }
 }

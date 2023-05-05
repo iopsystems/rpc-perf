@@ -5,14 +5,24 @@ pub async fn hash_increment(
     config: &Config,
     request: workload::client::HashIncrement,
 ) -> std::result::Result<(), ResponseError> {
+    HASH_INCR.increment();
     match timeout(
         config.client().unwrap().request_timeout(),
         connection.hincr::<&[u8], &[u8], i64, i64>(&request.key, &request.field, request.amount),
     )
     .await
     {
-        Ok(Ok(_)) => Ok(()),
-        Ok(Err(_)) => Err(ResponseError::Exception),
-        Err(_) => Err(ResponseError::Timeout),
+        Ok(Ok(_)) => {
+            HASH_INCR_OK.increment();
+            Ok(())
+        }
+        Ok(Err(_)) => {
+            HASH_INCR_EX.increment();
+            Err(ResponseError::Exception)
+        }
+        Err(_) => {
+            HASH_INCR_TIMEOUT.increment();
+            Err(ResponseError::Timeout)
+        }
     }
 }
