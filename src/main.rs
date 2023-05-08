@@ -128,7 +128,7 @@ fn main() {
     let workload_components = workload_generator.components().to_owned();
 
     // spawn the admin thread
-    control_runtime.spawn(admin::http(config.clone(), workload_ratelimit.clone()));
+    control_runtime.spawn(admin::http(config.clone(), workload_ratelimit));
 
     let workload_runtime =
         launch_workload(workload_generator, &config, client_sender, pubsub_sender);
@@ -140,12 +140,11 @@ fn main() {
     // launch json log output
     {
         let config = config.clone();
-        let workload_ratelimit = workload_ratelimit.clone();
-        control_runtime.spawn_blocking(move || output::json(config, workload_ratelimit));
+        control_runtime.spawn_blocking(move || output::json(config));
     }
 
     // provide output on cli and block until run is over
-    output::log(&config, workload_ratelimit);
+    output::log(&config);
 
     // signal to other threads to shutdown
     RUNNING.store(false, Ordering::Relaxed);

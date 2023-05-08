@@ -1,9 +1,8 @@
 use crate::*;
 use ahash::{HashMap, HashMapExt};
-use ratelimit::Ratelimiter;
 use serde::Serialize;
 use std::io::{BufWriter, Write};
-use std::sync::Arc;
+
 
 #[macro_export]
 macro_rules! output {
@@ -17,7 +16,7 @@ macro_rules! output {
     }};
 }
 
-pub fn log(config: &Config, traffic_ratelimit: Option<Arc<Ratelimiter>>) {
+pub fn log(config: &Config) {
     let mut interval = config.general().interval().as_millis();
     let mut duration = config.general().duration().as_millis();
 
@@ -28,9 +27,6 @@ pub fn log(config: &Config, traffic_ratelimit: Option<Arc<Ratelimiter>>) {
     };
 
     let mut prev = Instant::now();
-
-    let mut windows_under_target_rate = 0;
-    let mut windows_over_p999_slo = 0;
 
     let client = !config.workload().keyspaces().is_empty();
     let pubsub = !config.workload().topics().is_empty();
@@ -49,57 +45,14 @@ pub fn log(config: &Config, traffic_ratelimit: Option<Arc<Ratelimiter>>) {
             output!("-----");
             output!("Window: {}", window_id);
 
-            // output the client stats and retrieve the number of client
-            // requests sent since last snapshot
-            let client_ok = if client {
-                client_stats(&mut snapshot, elapsed)
-            } else {
-                0
-            };
-
-            // output the pubsusb stats and retrieve the number of messages
-            // published since last snapshot
-            let publish_ok = if pubsub {
-                pubsub_stats(&mut snapshot, elapsed)
-            } else {
-                0
-            };
-
-            // the total number of requests + publishes
-            let total_ok = client_ok + publish_ok;
-
-            // a check to determine if we're approximately hitting our target
-            // ratelimit. If not, this will terminate the run.
-            if config.workload().strict_ratelimit() {
-                if let Some(rate) = traffic_ratelimit.as_ref().map(|v| v.rate()) {
-                    if total_ok as f64 / elapsed < (rate.saturating_sub(1000)) as f64 {
-                        windows_under_target_rate += 1;
-                    } else {
-                        windows_under_target_rate = 0;
-                    }
-
-                    if windows_under_target_rate > 5 {
-                        break;
-                    }
-                }
+            // output the client stats
+            if client {
+                client_stats(&mut snapshot, elapsed);
             }
 
-            // a check to determine if we're achieving our p999 SLO (if set). If
-            // not, this will terminate the run.
-            if config.workload().p999_slo() > 0 {
-                if let Ok(p999_latency) =
-                    RESPONSE_LATENCY.percentile(0.999).map(|b| b.high() / 1000)
-                {
-                    if p999_latency > config.workload().p999_slo() {
-                        windows_over_p999_slo += 1;
-                    } else {
-                        windows_over_p999_slo = 0;
-                    }
-
-                    if windows_over_p999_slo > 5 {
-                        break;
-                    }
-                }
+            // output the pubsub stats
+            if pubsub {
+                pubsub_stats(&mut snapshot, elapsed);
             }
 
             interval = config.general().interval().as_millis();
@@ -365,7 +318,7 @@ fn heatmap_to_buckets(heatmap: &Heatmap) -> Vec<Bucket> {
     }
 }
 
-pub fn json(config: Config, traffic_ratelimit: Option<Arc<Ratelimiter>>) {
+pub fn json(config: Config) {
     if config.general().json_output().is_none() {
         return;
     }
@@ -392,8 +345,6 @@ pub fn json(config: Config, traffic_ratelimit: Option<Arc<Ratelimiter>>) {
     let mut snapshot = Snapshot {
         prev: HashMap::new(),
     };
-
-    let mut windows_under_target_rate = 0;
 
     while end > now {
         std::thread::sleep(Duration::from_millis(1));
@@ -460,18 +411,6 @@ pub fn json(config: Config, traffic_ratelimit: Option<Arc<Ratelimiter>>) {
                     .as_bytes(),
             );
             let _ = writer.write_all(b"\n");
-
-            if let Some(rate) = traffic_ratelimit.as_ref().map(|v| v.rate()) {
-                if requests.ok as f64 / elapsed < 0.95 * rate as f64 {
-                    windows_under_target_rate += 1;
-                } else {
-                    windows_under_target_rate = 0;
-                }
-
-                if windows_under_target_rate > 5 {
-                    break;
-                }
-            }
 
             window_id += 1;
         }
