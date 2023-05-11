@@ -266,9 +266,14 @@ counter!(
     "client/response/ok",
     "responses which were successful"
 );
-counter!(RESPONSE_TIMEOUT, "responses not received due to timeout");
+counter!(
+    RESPONSE_TIMEOUT,
+    "client/response/timeout",
+    "responses not received due to timeout"
+);
 counter!(
     RESPONSE_INVALID,
+    "client/response/invalid",
     "responses that were invalid for the protocol"
 );
 
