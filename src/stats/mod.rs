@@ -268,12 +268,12 @@ counter!(
 );
 counter!(
     RESPONSE_TIMEOUT,
-    "response/timeout",
+    "client/response/timeout",
     "responses not received due to timeout"
 );
 counter!(
     RESPONSE_INVALID,
-    "response/invalid",
+    "client/response/invalid",
     "responses that were invalid for the protocol"
 );
 
