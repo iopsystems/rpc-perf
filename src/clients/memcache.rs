@@ -145,36 +145,42 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
             Ok(response) => {
                 let latency_ns = stop.duration_since(start).as_nanos();
 
+                // check if the response is valid
                 if validate_response(&work_item, &response).is_err() {
+                    // increment error stats, connection will be dropped
                     RESPONSE_EX.increment();
                     CONNECT_CURR.sub(1);
+                } else {
+                    // increment success stats and latency
+                    RESPONSE_OK.increment();
 
-                    continue;
+                    REQUEST_LATENCY.increment(start, latency_ns, 1);
+                    RESPONSE_LATENCY.increment(stop, latency_ns, 1);
+
+                    // preserve the connection for the next request
+                    stream = Some(s);
                 }
-
-                stream = Some(s);
-
-                RESPONSE_OK.increment();
-
-                REQUEST_LATENCY.increment(start, latency_ns, 1);
-                RESPONSE_LATENCY.increment(stop, latency_ns, 1);
             }
             Err(ResponseError::Exception) => {
                 // use validate response to record the exception
                 let _ = validate_response(&work_item, &Response::error());
 
+                // increment error stats and allow connection to be dropped
                 RESPONSE_EX.increment();
                 CONNECT_CURR.sub(1);
             }
             Err(ResponseError::Timeout) => {
+                // increment error stats and allow connection to be dropped
                 RESPONSE_TIMEOUT.increment();
                 CONNECT_CURR.sub(1);
             }
             Err(ResponseError::Ratelimited) => {
+                // increment error stats and preserve the connection for reuse
                 RESPONSE_RATELIMITED.increment();
                 stream = Some(s);
             }
             Err(ResponseError::BackendTimeout) => {
+                // increment error stats and preserve the connection for reuse
                 RESPONSE_BACKEND_TIMEOUT.increment();
                 stream = Some(s);
             }
