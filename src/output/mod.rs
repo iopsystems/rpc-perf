@@ -62,21 +62,21 @@ pub fn log(config: &Config) {
 
 /// Outputs client stats and returns the number of requests successfully sent
 fn client_stats(snapshot: &mut Snapshot, elapsed: f64) -> u64 {
-    let connect_ok = Stat::ConnectOk.delta(snapshot);
-    let connect_ex = Stat::ConnectEx.delta(snapshot);
-    let connect_timeout = Stat::ConnectTimeout.delta(snapshot);
-    let connect_total = Stat::Connect.delta(snapshot);
+    let connect_ok = Metrics::ConnectOk.delta(snapshot);
+    let connect_ex = Metrics::ConnectEx.delta(snapshot);
+    let connect_timeout = Metrics::ConnectTimeout.delta(snapshot);
+    let connect_total = Metrics::Connect.delta(snapshot);
 
-    let request_reconnect = Stat::RequestReconnect.delta(snapshot);
-    let request_ok = Stat::RequestOk.delta(snapshot);
-    let request_unsupported = Stat::RequestUnsupported.delta(snapshot);
-    let request_total = Stat::Request.delta(snapshot);
+    let request_reconnect = Metrics::RequestReconnect.delta(snapshot);
+    let request_ok = Metrics::RequestOk.delta(snapshot);
+    let request_unsupported = Metrics::RequestUnsupported.delta(snapshot);
+    let request_total = Metrics::Request.delta(snapshot);
 
-    let response_ok = Stat::ResponseOk.delta(snapshot);
-    let response_ex = Stat::ResponseEx.delta(snapshot);
-    let response_timeout = Stat::ResponseTimeout.delta(snapshot);
-    let response_hit = Stat::ResponseHit.delta(snapshot);
-    let response_miss = Stat::ResponseMiss.delta(snapshot);
+    let response_ok = Metrics::ResponseOk.delta(snapshot);
+    let response_ex = Metrics::ResponseEx.delta(snapshot);
+    let response_timeout = Metrics::ResponseTimeout.delta(snapshot);
+    let response_hit = Metrics::ResponseHit.delta(snapshot);
+    let response_miss = Metrics::ResponseMiss.delta(snapshot);
 
     let connect_sr = 100.0 * connect_ok as f64 / connect_total as f64;
 
@@ -144,17 +144,17 @@ fn client_stats(snapshot: &mut Snapshot, elapsed: f64) -> u64 {
 /// Output pubsub metrics and return the number of successful publish operations
 fn pubsub_stats(snapshot: &mut Snapshot, elapsed: f64) -> u64 {
     // publisher stats
-    let pubsub_tx_ex = Stat::PubsubTxEx.delta(snapshot);
-    let pubsub_tx_ok = Stat::PubsubTxOk.delta(snapshot);
-    let pubsub_tx_timeout = Stat::PubsubTxTimeout.delta(snapshot);
-    let pubsub_tx_total = Stat::PubsubTx.delta(snapshot);
+    let pubsub_tx_ex = Metrics::PubsubTxEx.delta(snapshot);
+    let pubsub_tx_ok = Metrics::PubsubTxOk.delta(snapshot);
+    let pubsub_tx_timeout = Metrics::PubsubTxTimeout.delta(snapshot);
+    let pubsub_tx_total = Metrics::PubsubTx.delta(snapshot);
 
     // subscriber stats
-    let pubsub_rx_ok = Stat::PubsubRxOk.delta(snapshot);
-    let pubsub_rx_ex = Stat::PubsubRxEx.delta(snapshot);
-    let pubsub_rx_corrupt = Stat::PubsubRxCorrupt.delta(snapshot);
-    let pubsub_rx_invalid = Stat::PubsubRxInvalid.delta(snapshot);
-    let pubsub_rx_total = Stat::PubsubRx.delta(snapshot);
+    let pubsub_rx_ok = Metrics::PubsubRxOk.delta(snapshot);
+    let pubsub_rx_ex = Metrics::PubsubRxEx.delta(snapshot);
+    let pubsub_rx_corrupt = Metrics::PubsubRxCorrupt.delta(snapshot);
+    let pubsub_rx_invalid = Metrics::PubsubRxInvalid.delta(snapshot);
+    let pubsub_rx_total = Metrics::PubsubRx.delta(snapshot);
 
     output!("Publishers: Current: {}", PUBSUB_PUBLISHER_CURR.value(),);
 
@@ -336,9 +336,6 @@ pub fn json(config: Config) {
     let mut next = now + Duration::from_secs(1);
     let end = now + config.general().duration();
 
-    // let mut interval: u64 = 1000;
-    // let mut duration = config.general().duration().as_millis();
-
     let mut window_id = 0;
 
     let mut snapshot = Snapshot {
@@ -358,22 +355,22 @@ pub fn json(config: Config) {
 
             let connections = Connections {
                 current: CONNECT_CURR.value(),
-                total: Stat::Connect.delta(&mut snapshot),
-                opened: Stat::ConnectOk.delta(&mut snapshot),
-                error: Stat::ConnectEx.delta(&mut snapshot),
-                timeout: Stat::ConnectTimeout.delta(&mut snapshot),
+                total: Metrics::Connect.delta(&mut snapshot),
+                opened: Metrics::ConnectOk.delta(&mut snapshot),
+                error: Metrics::ConnectEx.delta(&mut snapshot),
+                timeout: Metrics::ConnectTimeout.delta(&mut snapshot),
             };
 
             let requests = Requests {
-                total: Stat::Request.delta(&mut snapshot),
-                ok: Stat::RequestOk.delta(&mut snapshot),
-                reconnect: Stat::RequestReconnect.delta(&mut snapshot),
-                unsupported: Stat::RequestUnsupported.delta(&mut snapshot),
+                total: Metrics::Request.delta(&mut snapshot),
+                ok: Metrics::RequestOk.delta(&mut snapshot),
+                reconnect: Metrics::RequestReconnect.delta(&mut snapshot),
+                unsupported: Metrics::RequestUnsupported.delta(&mut snapshot),
             };
 
-            let response_ok = Stat::ResponseOk.delta(&mut snapshot);
-            let response_ex = Stat::ResponseEx.delta(&mut snapshot);
-            let response_timeout = Stat::ResponseTimeout.delta(&mut snapshot);
+            let response_ok = Metrics::ResponseOk.delta(&mut snapshot);
+            let response_ex = Metrics::ResponseEx.delta(&mut snapshot);
+            let response_timeout = Metrics::ResponseTimeout.delta(&mut snapshot);
             let response_total = response_ok + response_ex + response_timeout;
 
             let responses = Responses {

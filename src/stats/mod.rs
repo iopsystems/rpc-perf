@@ -19,11 +19,11 @@ pub static PERCENTILES: &[(&str, f64)] = &[
 ];
 
 pub struct Snapshot {
-    pub prev: HashMap<Stat, u64>,
+    pub prev: HashMap<Metrics, u64>,
 }
 
 #[derive(Eq, Hash, PartialEq, Copy, Clone)]
-pub enum Stat {
+pub enum Metrics {
     Connect,
     ConnectOk,
     ConnectEx,
@@ -48,7 +48,7 @@ pub enum Stat {
     PubsubRxInvalid,
 }
 
-impl Stat {
+impl Metrics {
     pub fn metric(&self) -> &metriken::Counter {
         match self {
             Self::Connect => &CONNECT,
