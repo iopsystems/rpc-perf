@@ -156,6 +156,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                     }
                 }
 
+                // preserve the connection for reuse
                 stream = Some(s);
 
                 RESPONSE_OK.increment();
@@ -182,18 +183,15 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                         unimplemented!();
                     }
                 }
+
+                CONNECT_CURR.sub(1);
             }
             Err(ResponseError::Timeout) => {
-                error!("timeout");
                 RESPONSE_TIMEOUT.increment();
+                CONNECT_CURR.sub(1);
             }
-            Err(ResponseError::Ratelimited) => {
-                RESPONSE_RATELIMITED.increment();
-                stream = Some(s);
-            }
-            Err(ResponseError::BackendTimeout) => {
-                RESPONSE_BACKEND_TIMEOUT.increment();
-                stream = Some(s);
+            Err(ResponseError::Ratelimited) | Err(ResponseError::BackendTimeout) => {
+                unimplemented!();
             }
         }
     }

@@ -3,7 +3,6 @@ use ahash::{HashMap, HashMapExt};
 use serde::Serialize;
 use std::io::{BufWriter, Write};
 
-
 #[macro_export]
 macro_rules! output {
     () => {

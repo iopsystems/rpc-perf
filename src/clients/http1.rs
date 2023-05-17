@@ -28,12 +28,12 @@ pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiv
 #[allow(clippy::slow_vector_initialization)]
 async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Config) -> Result<()> {
     let connector = Connector::new(&config)?;
-    let mut sender = None;
+    let mut session = None;
     let mut session_requests = 0;
     let mut session_start = Instant::now();
 
     while RUNNING.load(Ordering::Relaxed) {
-        if sender.is_none() {
+        if session.is_none() {
             if session_requests != 0 {
                 let stop = Instant::now();
                 let lifecycle_ns = (stop - session_start).as_nanos();
@@ -76,7 +76,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
             CONNECT_CURR.add(1);
             SESSION.increment();
 
-            sender = Some(s);
+            session = Some(s);
 
             tokio::task::spawn(async move {
                 if let Err(err) = conn.await {
@@ -85,7 +85,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
             });
         }
 
-        let mut s = sender.take().unwrap();
+        let mut s = session.take().unwrap();
 
         let work_item = work_receiver
             .recv()
@@ -117,12 +117,16 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                         .expect("failed to build request")
                 }
                 _ => {
+                    // skip any requests that aren't supported and preserve the
+                    // session for reuse
                     REQUEST_UNSUPPORTED.increment();
-                    sender = Some(s);
+                    session = Some(s);
                     continue;
                 }
             },
             WorkItem::Reconnect => {
+                // we want to reconnect, update stats and implicitly drop the
+                // session
                 SESSION_CLOSED_CLIENT.increment();
                 REQUEST_RECONNECT.increment();
                 CONNECT_CURR.sub(1);
@@ -175,8 +179,22 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                         SESSION_CLOSED_SERVER.increment();
                     }
                 }
+
+                session_requests += 1;
+
+                // if we get an error when checking if the session is ready for
+                // another request, we update the connection gauge and allow the
+                // session to be dropped
+                if let Err(_e) = s.ready().await {
+                    CONNECT_CURR.sub(1);
+                } else {
+                    // preserve the session for reuse
+                    session = Some(s);
+                }
             }
             Ok(Err(_e)) => {
+                // an actual error was returned, do the necessary bookkeeping
+                // and allow the session to be dropped
                 RESPONSE_EX.increment();
 
                 // record execption
@@ -197,24 +215,15 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                 }
                 SESSION_CLOSED_CLIENT.increment();
                 CONNECT_CURR.sub(1);
-                continue;
             }
             Err(_) => {
+                // increment timeout related stats and allow the session to be
+                // dropped
                 RESPONSE_TIMEOUT.increment();
                 SESSION_CLOSED_CLIENT.increment();
                 CONNECT_CURR.sub(1);
-                continue;
             }
         }
-
-        if let Err(_e) = s.ready().await {
-            CONNECT_CURR.sub(1);
-            continue;
-        }
-
-        session_requests += 1;
-
-        sender = Some(s);
     }
 
     Ok(())

@@ -174,15 +174,8 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                 RESPONSE_TIMEOUT.increment();
                 CONNECT_CURR.sub(1);
             }
-            Err(ResponseError::Ratelimited) => {
-                // increment error stats and preserve the connection for reuse
-                RESPONSE_RATELIMITED.increment();
-                stream = Some(s);
-            }
-            Err(ResponseError::BackendTimeout) => {
-                // increment error stats and preserve the connection for reuse
-                RESPONSE_BACKEND_TIMEOUT.increment();
-                stream = Some(s);
+            Err(ResponseError::Ratelimited) | Err(ResponseError::BackendTimeout) => {
+                unimplemented!();
             }
         }
     }
