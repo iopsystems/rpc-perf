@@ -1,9 +1,9 @@
-# An example configuration for testing against a "ping server" such as the
-# Pelikan Pingserver. 
+# An example configuration for benchmarking memcached with an 80/20 read/write
+# mix in a keyspace of 1M keys using 32B keys and 128B values.
 
 [general]
 # specify the protocol to be used
-protocol = "ping"
+protocol = "memcache"
 # the interval for stats integration and reporting
 interval = 60
 # the number of intervals to run the test for
@@ -28,7 +28,7 @@ log_max_size = 1073741824
 [target]
 # specify one or more endpoints as IP:PORT pairs
 endpoints = [
-	"127.0.0.1:12321",
+	"127.0.0.1:11211",
 ]
 
 [client]
@@ -47,13 +47,25 @@ threads = 1
 # set a global ratelimit for the workload
 ratelimit = 10_000
 
-# Note, even though the command does not use keys, it's still a member of a
-# keyspace.
 [[workload.keyspace]]
+# sets the relative weight of this keyspace: defaults to 1
+weight = 1
+# sets the length of the key, in bytes
+klen = 32
+# sets the number of keys that will be generated
+nkeys = 1_000_000
+# sets the value length, in bytes
+vlen = 128
+# use random bytes for the values
+vkind = "bytes"
 # controls what commands will be used in this keyspace
 commands = [
-	# sends a `PING` and expects a `PONG`
-	{ verb = "ping", weight = 100 },
+	# get a value
+	{ verb = "get", weight = 80 },
+	# set a value
+	{ verb = "set", weight = 20 },
+	# delete a value
+	{ verb = "delete", weight = 0 },
 ]
 
 # To enable mTLS, uncomment the `[tls]` section below.

@@ -1,11 +1,11 @@
-# An example configuration for benchmarking Redis and demonstrating using
-# several keyspaces to test a variety of command families. Each command family
-# is using its own keyspace and covers key-value, hash, list, set, and sorted
-# set.
+# An example configuration for benchmarking Momento (https://www.gomomento.com)
+# and demonstrating the use of the preview functionality for collections. Each
+# command family is using its own keyspace and covers key-value, hash, list,
+# set, and sorted set.
 
 [general]
 # specify the protocol to be used
-protocol = "resp"
+protocol = "momento"
 # the interval for stats integration and reporting
 interval = 60
 # the number of intervals to run the test for
@@ -28,16 +28,18 @@ log_backup = "rpc-perf.log.old"
 log_max_size = 1073741824
 
 [target]
-# specify one or more endpoints as IP:PORT pairs
-endpoints = [
-	"127.0.0.1:6379",
-]
+# we don't need to specify any endpoints for momento
+endpoints = []
+# specify the name of the target cache
+cache_name = "preview-cache"
 
 [client]
 # number of threads used to drive client requests
 threads = 4
-# the total number of connections to each endpoint
-poolsize = 20
+# number of gRPC clients to initialize, each maintains at least one TCP stream
+poolsize = 1
+# an upper limit on the number of concurrent requests per gRPC client
+concurrency = 20
 # the connect timeout in milliseconds
 connect_timeout = 10000
 # set the timeout in milliseconds
@@ -47,7 +49,7 @@ request_timeout = 1000
 # the number of threads that will be used to generate the workload
 threads = 1
 # set a global ratelimit for the workload
-ratelimit = 10_000
+ratelimit = 50
 
 # An example keyspace showcasing the use of the `key-value` family of commands.
 #
@@ -74,7 +76,7 @@ commands = [
 	{ verb = "delete", weight = 0 },
 ]
 
-# An example keyspace showcasing the use of the `hash` family of commands.
+# An example keyspace showcasing the use of the `dictionary` family of commands.
 #
 # Note that we use the inner key generator to produce `fields` for these
 # operations. Here we have specified that the value generator produces `i64`
@@ -95,28 +97,28 @@ inner_keys_nkeys = 1_000
 vkind = "i64"
 # controls what commands will be used in this keyspace
 commands = [
-	# request a field from a hash
-	{ verb = "hget", weight = 30 },
+	# request a field from a dictionary
+	{ verb = "dictionary_get", weight = 30 },
 	# set cardinality > 1 to get multiple fields
-	{ verb = "hget", weight = 10, cardinality = 5 },
+	{ verb = "dictionary_get", weight = 10, cardinality = 5 },
 
-	# increment a value for a field in the hash
-	{ verb = "hincrby", weight = 10 },
+	# increment a value for a field in the dictionary
+	{ verb = "dictionary_increment", weight = 10 },
 
-	# retrieve an entire hash
-	{ verb = "hgetall", weight = 5 },
+	# retrieve an entire dictionary
+	{ verb = "dictionary_fetch", weight = 5 },
 
-	# delete a field from a hash
-	{ verb = "hdel", weight = 10 },
+	# delete a field from a dictionary
+	{ verb = "dictionary_delete", weight = 10 },
 	# set cardinality > 1 to remove multiple fields
-	{ verb = "hdel", weight = 5, cardinality = 5 },
+	{ verb = "dictionary_delete", weight = 5, cardinality = 5 },
 
-	# set a field in the hash
-	{ verb = "hset", weight = 20 },
+	# set a field in the dictionary
+	{ verb = "dictionary_set", weight = 20 },
 	# set cardinality > 1 to set multiple fields
-	{ verb = "hset", weight = 5, cardinality = 5 },
+	{ verb = "dictionary_set", weight = 5, cardinality = 5 },
 
-	# delete an entire hash
+	# delete an entire dictionary
 	{ verb = "delete", weight = 5 }
 ]
 
@@ -137,31 +139,31 @@ inner_keys_klen = 4
 inner_keys_nkeys = 1_000
 # controls what commands will be used in this keyspace
 commands = [
-	# retrieves all elements in a list (implemented as `LRANGE [key] 0 -1`)
+	# retrieves all elements in a list
 	{ verb = "list_fetch", weight = 5 },
 
 	# retrieves the length of the list
-	{ verb = "llen", weight = 4 },
+	{ verb = "list_length", weight = 4 },
 
 	# removes and retrieves an element from the back of a list
-	{ verb = "rpop", weight = 20 },
+	{ verb = "list_pop_back", weight = 20 },
 
 	# removes and retrieves an element from the front of a list
-	{ verb = "lpop", weight = 20 },
+	{ verb = "list_pop_front", weight = 20 },
 
 	# pushes an element to the back of a list
-	{ verb = "rpush", weight = 5 },
-	# with truncate to fuse rpush + ltrim
-	{ verb = "rpush", weight = 10, truncate = 10 },
-	# with cardinality to push multiple items and tuncate to fuse a ltrim
-	{ verb = "rpush", weight = 10, cardinality = 3, truncate = 10 },
+	{ verb = "list_push_back", weight = 5 },
+	# with truncate to trim the list
+	{ verb = "list_push_back", weight = 10, truncate = 10 },
+	# with cardinality to use `list_concat_back` and with truncate to trim
+	{ verb = "list_push_back", weight = 10, cardinality = 3, truncate = 10 },
 
 	# pushes an element to the front of a list
-	{ verb = "lpush", weight = 5 },
-	# with truncate to fuse lpush + ltrim
-	{ verb = "lpush", weight = 10, truncate = 10 },
-	# with cardinality to push multiple items and tuncate to fuse a ltrim
-	{ verb = "lpush", weight = 10, cardinality = 3, truncate = 10 },
+	{ verb = "list_push_front", weight = 5 },
+	# with truncate to trim the list
+	{ verb = "list_push_front", weight = 10, truncate = 10 },
+	# with cardinality to use `list_concat_front` and with truncate to trim
+	{ verb = "list_push_front", weight = 10, cardinality = 3, truncate = 10 },
 
 	# delete an entire list
 	{ verb = "delete", weight = 1 },
@@ -179,39 +181,39 @@ weight = 1
 klen = 16
 # sets the number of keys that will be generated
 nkeys = 1_000_000
-# sets the length of the inner key, in bytes
+# sets the length of the inner key, in bytesp
 inner_keys_klen = 4
 # sets the number of inner keys that will be generated
 inner_keys_nkeys = 1_000
 # controls what commands will be used in this keyspace
 commands = [
-	# adds a member to a sorted set
-	{ verb = "zadd", weight = 5 },
-	# with cardinality > 1 to add multiple members
+	# adds an element to a sorted set
+	{ verb = "sorted_set_put", weight = 5 },
+	# with cardinality > 1 to add multiple elements
 	{ verb = "sorted_set_put", weight = 5, cardinality = 5 },
 
-	# fetch all members in a sorted set
-	# NOTE: this is using `ZUNION 1 [key] WITHSCORES` to perform this
-	{ verb = "zmembers", weight = 5 },
+	# NOTE: this currently does not work in the Rust SDK
+	# fetch all elements in a sorted set
+	# { verb = "sorted_set_fetch", weight = 5 },
 
-	# get the score for a member in a sorted set
-	{ verb = "zscore", weight = 5 },
-	# with cardinality > 1 to get scores for multiple members
-	{ verb = "zmscore", weight = 5, cardinality = 5 },
+	# get the score for an element in a sorted set
+	{ verb = "sorted_set_get_score", weight = 5 },
+	# with cardinality > 1 to get scores for multiple elements
+	{ verb = "sorted_set_get_score", weight = 5, cardinality = 5 },
 
-	# remove a member from a sorted set
-	{ verb = "zrem", weight = 2 },
-	# with cardinality > 1 to remove multiple members
-	{ verb = "zrem", weight = 2, cardinality = 5 },
+	# remove an element from a sorted set
+	{ verb = "sorted_set_remove", weight = 2 },
+	# with cardinality > 1 to remove multiple elements
+	{ verb = "sorted_set_remove", weight = 2, cardinality = 5 },
 
 	# delete an entire sorted set
 	{ verb = "delete", weight = 1 },
 
-	# get the rank of a member in a sorted set
-	{ verb = "zrank", weight = 40 },
+	# get the rank of an element in a sorted set
+	{ verb = "sorted_set_get_rank", weight = 40 },
 
-	# adds to the value of a member in a sorted set
-	{ verb = "zincrby", weight = 25 },
+	# adds to the value of an element in a sorted set
+	{ verb = "sorted_set_increment", weight = 25 },
 ]
 
 # An example keyspace showcasing the use of the `set` family of commands.
@@ -231,31 +233,19 @@ inner_keys_klen = 4
 inner_keys_nkeys = 1_000
 # controls what commands will be used in this keyspace
 commands = [
-	# adds a member to a set
-	{ verb = "sadd", weight = 60 },
-	# set the cardinality > 1 to add mutiple members
-	{ verb = "sadd", weight = 5, cardinality = 5 },
+	# adds an element to a set
+	{ verb = "set_add_element", weight = 60 },
+	# set the cardinality > 1 to add mutiple elements
+	{ verb = "set_add_element", weight = 5, cardinality = 5 },
 
-	# retrieve all members in the set
-	{ verb = "smembers", weight = 20},
+	# retrieve all elements in the set
+	{ verb = "set_fetch", weight = 20},
 
-	## remove a member from the set
-	{ verb = "srem", weight = 5},
-	# set the cardinality > 1 to remove multiple members
-	{ verb = "srem", weight = 5, cardinality = 5 },
+	# remove an element from the set
+	{ verb = "set_remove_element", weight = 5},
+	# set the cardinality > 1 to remove multiple elements
+	{ verb = "set_remove_element", weight = 5, cardinality = 5 },
 
 	# remove an entire set with delete
 	{ verb = "delete", weight = 5 }
 ]
-
-# To enable mTLS, uncomment the `[tls]` section below.
-
-#[tls]
-# set the client's TLS private key for mTLS authentication
-#private_key = "path/to/client_key.pem"
-# set the client's TLS certificate for mTLS authentication
-#certificate = "path/to/client_cert.pem"
-# set a path to a root CA PEM, useful if running your own CA
-#ca_file = "path/to/root_ca.pem"
-# require that the server certifcate and hostname match
-#verify_hostname = "true"
