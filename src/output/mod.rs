@@ -217,14 +217,6 @@ fn pubsub_stats(snapshot: &mut Snapshot, elapsed: f64) -> u64 {
 }
 
 #[derive(Serialize)]
-struct Bucket {
-    index: usize,
-    low: u64,
-    high: u64,
-    count: u32,
-}
-
-#[derive(Serialize)]
 struct Connections {
     /// number of current connections (gauge)
     current: i64,
@@ -263,11 +255,22 @@ struct Responses {
 }
 
 #[derive(Serialize)]
+/// Sparse histogram in column-order, i.e., storing a single vector
+/// per-field of non-zero buckets. Assuming index[0] = n,
+/// (index[0], count[0]) corresponds to the nth bucket.
+struct RequestLatencies {
+    /// indices for the non-zero buckets in the histogram
+    index: Vec<usize>,
+    /// histogram bucket counts corresponding to the indices
+    count: Vec<u32>,
+}
+
+#[derive(Serialize)]
 struct Client {
     connections: Connections,
     requests: Requests,
     responses: Responses,
-    request_latency: Vec<Bucket>,
+    request_latency: RequestLatencies,
 }
 
 #[derive(Serialize)]
@@ -297,23 +300,27 @@ struct JsonSnapshot {
 }
 
 // gets the non-zero buckets for the most recent window in the heatmap
-fn heatmap_to_buckets(heatmap: &Heatmap) -> Vec<Bucket> {
+fn heatmap_to_buckets(heatmap: &Heatmap) -> RequestLatencies {
     if let Some(histogram) = heatmap.iter().nth(60).map(|w| w.histogram()) {
-        (*histogram)
+        let mut index = Vec::new();
+        let mut count = Vec::new();
+
+        for (i, bucket) in histogram
             .into_iter()
             .enumerate()
-            // Only include buckets that actually contain values
-            .filter(|(_index, bucket)| bucket.count() != 0)
-            .map(|(index, bucket)| Bucket {
-                index,
-                low: bucket.low(),
-                high: bucket.high(),
-                count: bucket.count(),
-            })
-            .collect()
+            .filter(|(_i, bucket)| bucket.count() != 0)
+        {
+            index.push(i);
+            count.push(bucket.count());
+        }
+
+        RequestLatencies { index, count }
     } else {
         eprintln!("no histogram");
-        vec![]
+        RequestLatencies {
+            index: vec![],
+            count: vec![],
+        }
     }
 }
 
