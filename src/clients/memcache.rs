@@ -24,23 +24,27 @@ pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiv
 async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Config) -> Result<()> {
     let connector = Connector::new(&config)?;
 
+    // we would not be creating a memcache client task if we didn't have a
+    // client config, so this unwrap will succeed.
+    let client_config = config.client().unwrap();
+
     let mut stream = None;
     let parser = protocol_memcache::ResponseParser {};
-    let mut read_buffer = Buffer::new(4096);
-    let mut write_buffer = Buffer::new(4096);
+    let mut read_buffer = Buffer::new(client_config.read_buffer_size());
+    let mut write_buffer = Buffer::new(client_config.write_buffer_size());
 
     while RUNNING.load(Ordering::Relaxed) {
         if stream.is_none() {
             CONNECT.increment();
             stream = match timeout(
-                config.client().unwrap().connect_timeout(),
+                client_config.connect_timeout(),
                 connector.connect(&endpoint),
             )
             .await
             {
                 Ok(Ok(s)) => {
                     CONNECT_OK.increment();
-                    CONNECT_CURR.add(1);
+                    CONNECT_CURR.increment();
                     Some(s)
                 }
                 Ok(Err(_)) => {
@@ -67,7 +71,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
 
         // check if we should reconnect
         if work_item == WorkItem::Reconnect {
-            CONNECT_CURR.sub(1);
+            CONNECT_CURR.decrement();
             continue;
         }
 
@@ -93,9 +97,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
 
         // read until response or timeout
         let response = loop {
-            let remaining_time = config
-                .client()
-                .unwrap()
+            let remaining_time = client_config
                 .request_timeout()
                 .as_millis()
                 .saturating_sub(start.elapsed().as_millis().into());
@@ -149,7 +151,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                 if validate_response(&work_item, &response).is_err() {
                     // increment error stats, connection will be dropped
                     RESPONSE_EX.increment();
-                    CONNECT_CURR.sub(1);
+                    CONNECT_CURR.increment();
                 } else {
                     // increment success stats and latency
                     RESPONSE_OK.increment();
@@ -167,12 +169,12 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
 
                 // increment error stats and allow connection to be dropped
                 RESPONSE_EX.increment();
-                CONNECT_CURR.sub(1);
+                CONNECT_CURR.decrement();
             }
             Err(ResponseError::Timeout) => {
                 // increment error stats and allow connection to be dropped
                 RESPONSE_TIMEOUT.increment();
-                CONNECT_CURR.sub(1);
+                CONNECT_CURR.decrement();
             }
             Err(ResponseError::Ratelimited) | Err(ResponseError::BackendTimeout) => {
                 unimplemented!();

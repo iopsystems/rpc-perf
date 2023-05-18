@@ -33,7 +33,7 @@ pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiv
         };
 
         CONNECT.increment();
-        CONNECT_CURR.add(1);
+        CONNECT_CURR.increment();
 
         // create one task per channel
         for _ in 0..config.client().unwrap().concurrency() {

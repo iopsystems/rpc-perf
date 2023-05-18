@@ -51,7 +51,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
             {
                 Ok(Ok(c)) => {
                     CONNECT_OK.increment();
-                    CONNECT_CURR.add(1);
+                    CONNECT_CURR.increment();
                     if let Ok(c) = ::redis::aio::Connection::new(&redis_connection_info, c).await {
                         Some(c)
                     } else {
@@ -171,11 +171,11 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                 RESPONSE_LATENCY.increment(stop, latency_ns, 1);
             }
             Err(ResponseError::Exception) => {
-                CONNECT_CURR.sub(1);
+                CONNECT_CURR.decrement();
                 RESPONSE_EX.increment();
             }
             Err(ResponseError::Timeout) => {
-                CONNECT_CURR.sub(1);
+                CONNECT_CURR.decrement();
                 RESPONSE_TIMEOUT.increment();
             }
             Err(ResponseError::Ratelimited) => {

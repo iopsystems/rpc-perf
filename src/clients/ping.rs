@@ -26,16 +26,20 @@ pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiv
 async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Config) -> Result<()> {
     let connector = Connector::new(&config)?;
 
+    // this unwrap will succeed because we wouldn't be creating these tasks if
+    // there wasn't a client config.
+    let client_config = config.client().unwrap();
+
     let mut stream = None;
     let parser = protocol_ping::ResponseParser::new();
-    let mut read_buffer = Buffer::new(4096);
-    let mut write_buffer = Buffer::new(4096);
+    let mut read_buffer = Buffer::new(client_config.read_buffer_size());
+    let mut write_buffer = Buffer::new(client_config.write_buffer_size());
 
     while RUNNING.load(Ordering::Relaxed) {
         if stream.is_none() {
             CONNECT.increment();
             stream = match timeout(
-                config.client().unwrap().connect_timeout(),
+                client_config.connect_timeout(),
                 connector.connect(&endpoint),
             )
             .await
@@ -89,7 +93,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
         write_buffer.clear();
 
         // read until response or timeout
-        let mut remaining_time = config.client().unwrap().request_timeout().as_nanos() as u64;
+        let mut remaining_time = client_config.request_timeout().as_nanos() as u64;
         let response = loop {
             match timeout(
                 Duration::from_millis(remaining_time / 1000000),

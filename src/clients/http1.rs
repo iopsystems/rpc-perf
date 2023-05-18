@@ -73,7 +73,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
 
             session_start = Instant::now();
             session_requests = 0;
-            CONNECT_CURR.add(1);
+            CONNECT_CURR.increment();
             SESSION.increment();
 
             session = Some(s);
@@ -129,7 +129,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                 // session
                 SESSION_CLOSED_CLIENT.increment();
                 REQUEST_RECONNECT.increment();
-                CONNECT_CURR.sub(1);
+                CONNECT_CURR.increment();
                 continue;
             }
         };
@@ -186,7 +186,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                 // another request, we update the connection gauge and allow the
                 // session to be dropped
                 if let Err(_e) = s.ready().await {
-                    CONNECT_CURR.sub(1);
+                    CONNECT_CURR.decrement();
                 } else {
                     // preserve the session for reuse
                     session = Some(s);
@@ -214,14 +214,14 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                     }
                 }
                 SESSION_CLOSED_CLIENT.increment();
-                CONNECT_CURR.sub(1);
+                CONNECT_CURR.decrement();
             }
             Err(_) => {
                 // increment timeout related stats and allow the session to be
                 // dropped
                 RESPONSE_TIMEOUT.increment();
                 SESSION_CLOSED_CLIENT.increment();
-                CONNECT_CURR.sub(1);
+                CONNECT_CURR.decrement();
             }
         }
     }

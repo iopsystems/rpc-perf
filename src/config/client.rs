@@ -1,5 +1,7 @@
 use super::*;
 
+const PAGESIZE: usize = 4096;
+
 #[derive(Clone, Deserialize)]
 pub struct Client {
     /// The number of connections this process will have to each endpoint.
@@ -17,6 +19,19 @@ pub struct Client {
     /// is useful to model steady-state connect pressure on a backend.
     #[serde(default)]
     reconnect_rate: u64,
+
+    /// Specify the default sizes for the read and write buffers (in bytes).
+    /// It is useful to increase the sizes if you expect to send and/or receive
+    /// large requests/responses as part of the workload.
+    ///
+    /// The default is a single page (4KB) for each the read and write buffers.
+    ///
+    /// Not all client implementations allow setting these values, so this is a
+    /// best effort basis.
+    #[serde(default)]
+    read_buffer_size: usize,
+    #[serde(default)]
+    write_buffer_size: usize,
 }
 
 impl Client {
@@ -42,5 +57,17 @@ impl Client {
 
     pub fn reconnect_rate(&self) -> Option<NonZeroU64> {
         NonZeroU64::new(self.reconnect_rate)
+    }
+
+    pub fn read_buffer_size(&self) -> usize {
+        // rounds the read buffer size up to the next nearest multiple of the
+        // pagesize
+        ((std::cmp::max(1, self.read_buffer_size) + PAGESIZE - 1) / PAGESIZE) * PAGESIZE
+    }
+
+    pub fn write_buffer_size(&self) -> usize {
+        // rounds the write buffer size up to the next nearest multiple of the
+        // pagesize
+        ((std::cmp::max(1, self.write_buffer_size) + PAGESIZE - 1) / PAGESIZE) * PAGESIZE
     }
 }
