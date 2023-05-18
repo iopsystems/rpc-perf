@@ -16,14 +16,14 @@ use warp::Filter;
 mod admin;
 mod clients;
 mod config;
+mod metrics;
 mod net;
 mod output;
 mod pubsub;
-mod stats;
 mod workload;
 
 use config::*;
-use stats::*;
+use metrics::*;
 
 type Instant = clocksource::Instant<clocksource::Nanoseconds<u64>>;
 type UnixInstant = clocksource::UnixInstant<clocksource::Nanoseconds<u64>>;

@@ -1,4 +1,4 @@
-// for now, we use some of the stats defined in the protocol crates
+// for now, we use some of the metrics defined in the protocol crates
 pub use protocol_memcache::*;
 
 use ahash::HashMap;
