@@ -367,6 +367,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "clocksource"
+version = "0.6.0"
+source = "git+https://github.com/brayniac/rustcommon?branch=ratelimit-fix#02dc2822ced5eb17a3c83a6faf03c464fd0c8709"
+dependencies = [
+ "lazy_static",
+ "libc",
+ "mach",
+ "time",
+ "winapi 0.3.9",
+]
+
+[[package]]
 name = "cmake"
 version = "0.1.50"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -401,7 +413,7 @@ version = "0.3.1"
 source = "git+https://github.com/pelikan-io/pelikan#bb18e0c51712779721fc1d1b1a48b6d26ab02aed"
 dependencies = [
  "boring",
- "clocksource",
+ "clocksource 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "macros",
  "metriken",
  "net",
@@ -722,7 +734,7 @@ version = "0.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dd5215fe8c60b67071fb8d7fe407631449641f2010152db16088c05ae00a00c2"
 dependencies = [
- "clocksource",
+ "clocksource 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "histogram",
  "parking_lot",
  "thiserror",
@@ -1108,7 +1120,7 @@ version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf9ec8699ded843c60ea478d0c41583b447700524f93d5c74bfb1edf8347fd6d"
 dependencies = [
- "clocksource",
+ "clocksource 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "heatmap",
  "linkme",
  "metriken-derive",
@@ -1653,13 +1665,11 @@ dependencies = [
 
 [[package]]
 name = "ratelimit"
-version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4e9c124ab68f28501873b8c5ecfa0de688e37cbe4f1b5440ed1971135e7c84e8"
+version = "0.6.0"
+source = "git+https://github.com/brayniac/rustcommon?branch=ratelimit-fix#02dc2822ced5eb17a3c83a6faf03c464fd0c8709"
 dependencies = [
- "clocksource",
- "rand",
- "rand_distr",
+ "clocksource 0.6.0 (git+https://github.com/brayniac/rustcommon?branch=ratelimit-fix)",
+ "thiserror",
 ]
 
 [[package]]
@@ -1737,7 +1747,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "82db4b27000bac41d738972779f440ed6176ebe82c935b736594eff989aa60f1"
 dependencies = [
  "ahash",
- "clocksource",
+ "clocksource 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log",
  "metriken",
  "mpmc",
@@ -1754,7 +1764,7 @@ dependencies = [
  "boring-sys",
  "bytes 1.4.0",
  "clap",
- "clocksource",
+ "clocksource 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "foreign-types-shared",
  "http-body-util",
  "hyper 1.0.0-rc.3",

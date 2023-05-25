@@ -328,7 +328,7 @@ mod handlers {
         ratelimit: Option<Arc<Ratelimiter>>,
     ) -> Result<impl warp::Reply, Infallible> {
         if let Some(r) = ratelimit {
-            r.set_rate(rate);
+            r.set_refill_interval(Duration::from_nanos(1_000_000_000 / rate));
             Ok(StatusCode::OK)
         } else {
             Ok(StatusCode::NOT_FOUND)
