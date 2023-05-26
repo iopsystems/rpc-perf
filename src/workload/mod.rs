@@ -68,13 +68,10 @@ pub struct Generator {
 
 impl Generator {
     pub fn new(config: &Config) -> Self {
-        let ratelimiter = config.workload().ratelimit().map(|r| {
-            Arc::new(
-                Ratelimiter::builder(1, Duration::from_nanos(1_000_000_000_u64 / r))
-                    .capacity(1000)
-                    .build(),
-            )
-        });
+        let ratelimiter = config
+            .workload()
+            .ratelimit()
+            .map(|r| Arc::new(Ratelimiter::new(1000, 1, r.into())));
 
         let mut components = Vec::new();
         let mut component_weights = Vec::new();
@@ -112,7 +109,13 @@ impl Generator {
         rng: &mut dyn RngCore,
     ) {
         if let Some(ref ratelimiter) = self.ratelimiter {
-            while ratelimiter.try_wait().is_err() {}
+            loop {
+                if ratelimiter.try_wait().is_ok() {
+                    break;
+                }
+
+                std::thread::sleep(std::time::Duration::from_micros(100));
+            }
         }
 
         match &self.components[self.component_dist.sample(rng)] {
@@ -554,13 +557,11 @@ pub async fn reconnect(work_sender: Sender<ClientWorkItem>, config: Config) -> R
         return Ok(());
     }
 
-    let ratelimiter = config.client().unwrap().reconnect_rate().map(|r| {
-        Arc::new(
-            Ratelimiter::builder(1, Duration::from_nanos(1_000_000_000_u64 / r))
-                .capacity(1000)
-                .build(),
-        )
-    });
+    let ratelimiter = config
+        .client()
+        .unwrap()
+        .reconnect_rate()
+        .map(|r| Arc::new(Ratelimiter::new(1000, 1, r.into())));
 
     if ratelimiter.is_none() {
         return Ok(());
@@ -569,9 +570,8 @@ pub async fn reconnect(work_sender: Sender<ClientWorkItem>, config: Config) -> R
     let ratelimiter = ratelimiter.unwrap();
 
     while RUNNING.load(Ordering::Relaxed) {
-        if ratelimiter.try_wait().is_ok() {
-            let _ = work_sender.send(ClientWorkItem::Reconnect).await;
-        }
+        ratelimiter.wait();
+        let _ = work_sender.send(ClientWorkItem::Reconnect).await;
     }
 
     Ok(())
