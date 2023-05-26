@@ -301,7 +301,7 @@ struct JsonSnapshot {
 
 // gets the non-zero buckets for the most recent window in the heatmap
 fn heatmap_to_buckets(heatmap: &Heatmap) -> RequestLatencies {
-    if let Some(histogram) = heatmap.iter().nth(60).map(|w| w.histogram()) {
+    if let Some(histogram) = heatmap.iter().nth(59).map(|w| w.histogram()) {
         let mut index = Vec::new();
         let mut count = Vec::new();
 
