@@ -11,7 +11,7 @@ impl From<&workload::client::Add> for RequestWithValidator {
                 Ttl::none(),
                 false,
             ),
-            validator: Box::new(validate_response)
+            validator: Box::new(validate_response),
         }
     }
 }

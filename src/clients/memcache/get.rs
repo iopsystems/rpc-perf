@@ -4,7 +4,9 @@ impl From<&workload::client::Get> for RequestWithValidator {
     fn from(other: &workload::client::Get) -> Self {
         GET.increment();
         RequestWithValidator {
-            request: Request::get(vec![(*other.key).to_owned().into_boxed_slice()].into_boxed_slice()),
+            request: Request::get(
+                vec![(*other.key).to_owned().into_boxed_slice()].into_boxed_slice(),
+            ),
             validator: Box::new(validate_response),
         }
     }

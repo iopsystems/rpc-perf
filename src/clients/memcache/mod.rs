@@ -13,7 +13,7 @@ mod set;
 struct RequestWithValidator {
     request: Request,
     validator: Box<dyn Fn(Response) -> std::result::Result<(), ()> + Send>,
-} 
+}
 
 /// Launch tasks with one conncetion per task as memcache protocol is not mux-enabled.
 pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiver<WorkItem>) {

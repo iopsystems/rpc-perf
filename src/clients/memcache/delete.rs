@@ -3,12 +3,9 @@ use super::*;
 impl From<&workload::client::Delete> for RequestWithValidator {
     fn from(other: &workload::client::Delete) -> Self {
         DELETE.increment();
-        RequestWithValidator { 
-            request: Request::delete(
-                (*other.key).to_owned().into_boxed_slice(),
-                false,
-            ),
-            validator: Box::new(validate_response)
+        RequestWithValidator {
+            request: Request::delete((*other.key).to_owned().into_boxed_slice(), false),
+            validator: Box::new(validate_response),
         }
     }
 }
