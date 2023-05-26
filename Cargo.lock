@@ -398,7 +398,7 @@ dependencies = [
 [[package]]
 name = "common"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#512ef795dd102bfc483f43a595abe3d850904144"
+source = "git+https://github.com/pelikan-io/pelikan#bb18e0c51712779721fc1d1b1a48b6d26ab02aed"
 dependencies = [
  "boring",
  "clocksource",
@@ -421,7 +421,7 @@ dependencies = [
 [[package]]
 name = "config"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#512ef795dd102bfc483f43a595abe3d850904144"
+source = "git+https://github.com/pelikan-io/pelikan#bb18e0c51712779721fc1d1b1a48b6d26ab02aed"
 dependencies = [
  "common",
  "log",
@@ -1064,7 +1064,7 @@ dependencies = [
 [[package]]
 name = "logger"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#512ef795dd102bfc483f43a595abe3d850904144"
+source = "git+https://github.com/pelikan-io/pelikan#bb18e0c51712779721fc1d1b1a48b6d26ab02aed"
 dependencies = [
  "common",
  "config",
@@ -1083,7 +1083,7 @@ dependencies = [
 [[package]]
 name = "macros"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#512ef795dd102bfc483f43a595abe3d850904144"
+source = "git+https://github.com/pelikan-io/pelikan#bb18e0c51712779721fc1d1b1a48b6d26ab02aed"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1273,7 +1273,7 @@ dependencies = [
 [[package]]
 name = "net"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#512ef795dd102bfc483f43a595abe3d850904144"
+source = "git+https://github.com/pelikan-io/pelikan#bb18e0c51712779721fc1d1b1a48b6d26ab02aed"
 dependencies = [
  "boring",
  "boring-sys",
@@ -1559,7 +1559,7 @@ dependencies = [
 [[package]]
 name = "protocol-common"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#512ef795dd102bfc483f43a595abe3d850904144"
+source = "git+https://github.com/pelikan-io/pelikan#bb18e0c51712779721fc1d1b1a48b6d26ab02aed"
 dependencies = [
  "bytes 1.4.0",
  "common",
@@ -1571,7 +1571,7 @@ dependencies = [
 [[package]]
 name = "protocol-memcache"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#512ef795dd102bfc483f43a595abe3d850904144"
+source = "git+https://github.com/pelikan-io/pelikan#bb18e0c51712779721fc1d1b1a48b6d26ab02aed"
 dependencies = [
  "common",
  "logger",
@@ -1583,7 +1583,7 @@ dependencies = [
 [[package]]
 name = "protocol-ping"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#512ef795dd102bfc483f43a595abe3d850904144"
+source = "git+https://github.com/pelikan-io/pelikan#bb18e0c51712779721fc1d1b1a48b6d26ab02aed"
 dependencies = [
  "common",
  "config",
@@ -1962,7 +1962,7 @@ dependencies = [
 [[package]]
 name = "session"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#512ef795dd102bfc483f43a595abe3d850904144"
+source = "git+https://github.com/pelikan-io/pelikan#bb18e0c51712779721fc1d1b1a48b6d26ab02aed"
 dependencies = [
  "bytes 1.4.0",
  "common",
@@ -2056,7 +2056,7 @@ checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
 [[package]]
 name = "storage-types"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#512ef795dd102bfc483f43a595abe3d850904144"
+source = "git+https://github.com/pelikan-io/pelikan#bb18e0c51712779721fc1d1b1a48b6d26ab02aed"
 
 [[package]]
 name = "strsim"
