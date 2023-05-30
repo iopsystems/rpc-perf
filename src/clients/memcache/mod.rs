@@ -4,11 +4,7 @@ use protocol_memcache::{Compose, Parse, Request, Response, Ttl};
 use session::{Buf, BufMut, Buffer};
 use std::borrow::{Borrow, BorrowMut};
 
-mod add;
-mod delete;
-mod get;
-mod replace;
-mod set;
+mod commands;
 
 struct RequestWithValidator {
     request: Request,
