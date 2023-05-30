@@ -4,6 +4,17 @@ use protocol_memcache::{Compose, Parse, Request, Response, Ttl};
 use session::{Buf, BufMut, Buffer};
 use std::borrow::{Borrow, BorrowMut};
 
+mod add;
+mod delete;
+mod get;
+mod replace;
+mod set;
+
+struct RequestWithValidator {
+    request: Request,
+    validator: Box<dyn Fn(Response) -> std::result::Result<(), ()> + Send>,
+}
+
 /// Launch tasks with one conncetion per task as memcache protocol is not mux-enabled.
 pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiver<WorkItem>) {
     debug!("launching memcache protocol tasks");
@@ -75,7 +86,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
             continue;
         }
 
-        let request = Request::try_from(&work_item);
+        let request = RequestWithValidator::try_from(&work_item);
 
         // skip unsupported work items
         if request.is_err() {
@@ -83,9 +94,11 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
             continue;
         }
 
+        let request = request.unwrap();
+
         // compose request
         REQUEST_OK.increment();
-        request.unwrap().compose(&mut write_buffer);
+        request.request.compose(&mut write_buffer);
 
         // send request
         let start = Instant::now();
@@ -148,7 +161,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                 let latency_ns = stop.duration_since(start).as_nanos();
 
                 // check if the response is valid
-                if validate_response(&work_item, &response).is_err() {
+                if (request.validator)(response).is_err() {
                     // increment error stats, connection will be dropped
                     RESPONSE_EX.increment();
                     CONNECT_CURR.increment();
@@ -165,7 +178,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
             }
             Err(ResponseError::Exception) => {
                 // use validate response to record the exception
-                let _ = validate_response(&work_item, &Response::error());
+                let _ = (request.validator)(Response::error());
 
                 // increment error stats and allow connection to be dropped
                 RESPONSE_EX.increment();
@@ -185,26 +198,6 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
     Ok(())
 }
 
-impl From<&workload::client::Add> for Request {
-    fn from(other: &workload::client::Add) -> Self {
-        ADD.increment();
-        Request::add(
-            (*other.key).to_owned().into_boxed_slice(),
-            (*other.value).to_owned().into_boxed_slice(),
-            0,
-            Ttl::none(),
-            false,
-        )
-    }
-}
-
-impl From<&workload::client::Get> for Request {
-    fn from(other: &workload::client::Get) -> Self {
-        GET.increment();
-        Request::get(vec![(*other.key).to_owned().into_boxed_slice()].into_boxed_slice())
-    }
-}
-
 impl From<&workload::client::Delete> for Request {
     fn from(other: &workload::client::Delete) -> Self {
         DELETE.increment();
@@ -212,35 +205,9 @@ impl From<&workload::client::Delete> for Request {
     }
 }
 
-impl From<&workload::client::Set> for Request {
-    fn from(other: &workload::client::Set) -> Self {
-        SET.increment();
-        Request::set(
-            (*other.key).to_owned().into_boxed_slice(),
-            (*other.value).to_owned().into_boxed_slice(),
-            0,
-            Ttl::none(),
-            false,
-        )
-    }
-}
-
-impl From<&workload::client::Replace> for Request {
-    fn from(other: &workload::client::Replace) -> Self {
-        REPLACE.increment();
-        Request::replace(
-            (*other.key).to_owned().into_boxed_slice(),
-            (*other.value).to_owned().into_boxed_slice(),
-            0,
-            Ttl::none(),
-            false,
-        )
-    }
-}
-
-impl TryFrom<&WorkItem> for Request {
+impl TryFrom<&WorkItem> for RequestWithValidator {
     type Error = ();
-    fn try_from(other: &WorkItem) -> std::result::Result<protocol_memcache::Request, ()> {
+    fn try_from(other: &WorkItem) -> std::result::Result<RequestWithValidator, ()> {
         match other {
             WorkItem::Request { request, .. } => match request {
                 ClientRequest::Add(r) => Ok(Self::from(r)),
@@ -253,61 +220,4 @@ impl TryFrom<&WorkItem> for Request {
             _ => Err(()),
         }
     }
-}
-
-fn validate_response(work_item: &WorkItem, response: &Response) -> std::result::Result<(), ()> {
-    // validate response
-    match &work_item {
-        WorkItem::Request { request, .. } => match request {
-            ClientRequest::Get { .. } => match response {
-                Response::Values(values) => {
-                    if values.values().is_empty() {
-                        RESPONSE_MISS.increment();
-                        GET_KEY_MISS.increment();
-                    } else {
-                        RESPONSE_HIT.increment();
-                        GET_KEY_HIT.increment();
-                    }
-                }
-                _ => {
-                    GET_EX.increment();
-                    return Err(());
-                }
-            },
-            ClientRequest::Replace { .. } => match response {
-                Response::Stored(_) => {
-                    REPLACE_STORED.increment();
-                }
-                Response::NotStored(_) => {
-                    REPLACE_NOT_STORED.increment();
-                }
-                _ => {
-                    REPLACE_EX.increment();
-                    return Err(());
-                }
-            },
-            ClientRequest::Set { .. } => match response {
-                Response::Stored(_) => {
-                    SET_STORED.increment();
-                }
-                Response::NotStored(_) => {
-                    SET_NOT_STORED.increment();
-                }
-                _ => {
-                    SET_EX.increment();
-                    return Err(());
-                }
-            },
-            _ => {
-                error!("unexpected request");
-                unimplemented!();
-            }
-        },
-        _ => {
-            error!("unexpected work item");
-            unimplemented!();
-        }
-    }
-
-    Ok(())
 }
