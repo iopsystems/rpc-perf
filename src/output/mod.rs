@@ -259,6 +259,11 @@ struct Responses {
 /// per-field of non-zero buckets. Assuming index[0] = n,
 /// (index[0], count[0]) corresponds to the nth bucket.
 struct RequestLatencies {
+    /// parameters representing the resolution and the range of
+    /// the histogram tracking request latencies
+    m: u32,
+    r: u32,
+    n: u32,
     /// indices for the non-zero buckets in the histogram
     index: Vec<usize>,
     /// histogram bucket counts corresponding to the indices
@@ -301,7 +306,14 @@ struct JsonSnapshot {
 
 // gets the non-zero buckets for the most recent window in the heatmap
 fn heatmap_to_buckets(heatmap: &Heatmap) -> RequestLatencies {
-    if let Some(histogram) = heatmap.iter().nth(59).map(|w| w.histogram()) {
+    // XXX: The heatmap corrects for wraparound and fixes indices once
+    // the heatmap is full so this returns the histogram for the last
+    // completed epoch, assuming a heatmap with a total of 60 valid
+    // histograms. However, this only kicks in after the entire histogram
+    // has been populated, so for the first minute, no histograms
+    // are returned (the histogram at offset 59 is still invalid).
+    if let Some(histogram) = heatmap.iter().nth(59) {
+        let p = histogram.parameters();
         let mut index = Vec::new();
         let mut count = Vec::new();
 
@@ -314,10 +326,19 @@ fn heatmap_to_buckets(heatmap: &Heatmap) -> RequestLatencies {
             count.push(bucket.count());
         }
 
-        RequestLatencies { index, count }
+        RequestLatencies {
+            m: p.0,
+            r: p.1,
+            n: p.2,
+            index,
+            count,
+        }
     } else {
         eprintln!("no histogram");
         RequestLatencies {
+            m: 0,
+            r: 0,
+            n: 0,
             index: vec![],
             count: vec![],
         }
