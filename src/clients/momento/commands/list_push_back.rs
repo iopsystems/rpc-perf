@@ -15,7 +15,7 @@ pub async fn list_push_back(
                 &*request.key,
                 &*request.elements[0],
                 request.truncate,
-                CollectionTtl::new(None, false),
+                CollectionTtl::new(request.ttl, false),
             ),
         )
         .await

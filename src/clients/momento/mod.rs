@@ -23,7 +23,7 @@ pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiv
             }
             let auth_token = std::env::var("MOMENTO_AUTHENTICATION")
                 .expect("MOMENTO_AUTHENTICATION must be set");
-            match SimpleCacheClientBuilder::new(auth_token, std::time::Duration::from_secs(600)) {
+            match SimpleCacheClientBuilder::new(auth_token, std::time::Duration::from_secs(900)) {
                 Ok(c) => c.build(),
                 Err(e) => {
                     eprintln!("could not create cache client: {}", e);

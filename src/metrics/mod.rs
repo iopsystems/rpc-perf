@@ -280,12 +280,26 @@ counter!(
 counter!(RESPONSE_HIT, "client/response/hit");
 counter!(RESPONSE_MISS, "client/response/miss");
 
+// augment the add stats
+counter!(
+    ADD_TIMEOUT,
+    "add/timeout",
+    "add requests that resulted in timeout"
+);
+
 // augment the get stats
 counter!(GET_OK, "get/ok", "get requests that were successful");
 counter!(
     GET_TIMEOUT,
     "get/timeout",
     "get requests that resulted in timeout"
+);
+
+// augment the replace stats
+counter!(
+    REPLACE_TIMEOUT,
+    "replace/timeout",
+    "replace requests that resulted in timeout"
 );
 
 // augment the set stats

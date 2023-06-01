@@ -6,13 +6,29 @@ pub async fn set(
     request: workload::client::Set,
 ) -> std::result::Result<(), ResponseError> {
     SET.increment();
+
+    let key = &*request.key;
+    let value = &*request.value;
+
+    let mut base_command = ::redis::cmd("SET");
+
+    let mut command = base_command.arg(key).arg(value);
+
+    if let Some(ttl) = request.ttl {
+        if ttl.subsec_nanos() == 0 {
+            command = base_command.arg(key).arg("EX").arg(ttl.as_secs()).arg(value);
+        } else {
+            command = base_command.arg(key).arg("PX").arg(ttl.as_millis() as u64).arg(value);
+        }
+    }
+
     match timeout(
         config.client().unwrap().request_timeout(),
-        connection.set::<&[u8], &[u8], ()>(&request.key, &request.value),
+        command.query_async(connection),
     )
     .await
     {
-        Ok(Ok(_)) => {
+        Ok(Ok(())) => {
             SET_STORED.increment();
             Ok(())
         }

@@ -14,7 +14,7 @@ pub async fn set_add(
             cache_name,
             &*request.key,
             members,
-            CollectionTtl::new(None, false),
+            CollectionTtl::new(request.ttl, false),
         ),
     )
     .await

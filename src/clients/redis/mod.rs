@@ -93,9 +93,11 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                 /*
                  * KEY-VALUE
                  */
-                ClientRequest::Get(r) => get(&mut con, &config, r).await,
-                ClientRequest::Set(r) => set(&mut con, &config, r).await,
+                ClientRequest::Add(r) => add(&mut con, &config, r).await,
                 ClientRequest::Delete(r) => delete(&mut con, &config, r).await,
+                ClientRequest::Get(r) => get(&mut con, &config, r).await,
+                ClientRequest::Replace(r) => replace(&mut con, &config, r).await,
+                ClientRequest::Set(r) => set(&mut con, &config, r).await,
 
                 /*
                  * HASHES (DICTIONARIES)

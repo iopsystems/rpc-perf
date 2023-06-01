@@ -18,7 +18,7 @@ pub async fn hash_set(
             cache_name,
             &*request.key,
             data,
-            CollectionTtl::new(None, false),
+            CollectionTtl::new(request.ttl, false),
         ),
     )
     .await

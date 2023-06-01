@@ -14,7 +14,7 @@ pub async fn sorted_set_increment(
             &*request.key,
             &*request.member,
             request.amount,
-            CollectionTtl::new(None, false),
+            CollectionTtl::new(request.ttl, false),
         ),
     )
     .await

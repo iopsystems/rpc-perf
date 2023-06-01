@@ -13,7 +13,7 @@ pub async fn set(
             cache_name,
             (*request.key).to_owned(),
             (*request.value).to_owned(),
-            None,
+            request.ttl,
         ),
     )
     .await

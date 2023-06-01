@@ -1,3 +1,4 @@
+use core::time::Duration;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -16,7 +17,8 @@ pub struct Ping {}
 #[derive(Debug, PartialEq)]
 pub struct Add {
     pub key: Arc<[u8]>,
-    pub value: Arc<[u8]>,
+    pub value: Vec<u8>,
+    pub ttl: Option<Duration>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -37,13 +39,15 @@ pub struct Delete {
 #[derive(Debug, PartialEq)]
 pub struct Replace {
     pub key: Arc<[u8]>,
-    pub value: Arc<[u8]>,
+    pub value: Vec<u8>,
+    pub ttl: Option<Duration>,
 }
 
 #[derive(Debug, PartialEq)]
 pub struct Set {
     pub key: Arc<[u8]>,
     pub value: Vec<u8>,
+    pub ttl: Option<Duration>,
 }
 
 // Hash
@@ -76,12 +80,14 @@ pub struct HashIncrement {
     pub key: Arc<[u8]>,
     pub field: Arc<[u8]>,
     pub amount: i64,
+    pub ttl: Option<Duration>,
 }
 
 #[derive(Debug, PartialEq)]
 pub struct HashSet {
     pub key: Arc<[u8]>,
     pub data: HashMap<Arc<[u8]>, Vec<u8>>,
+    pub ttl: Option<Duration>,
 }
 
 // List
@@ -111,6 +117,7 @@ pub struct ListPushFront {
     pub key: Arc<[u8]>,
     pub elements: Vec<Arc<[u8]>>,
     pub truncate: Option<u32>,
+    pub ttl: Option<Duration>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -118,6 +125,7 @@ pub struct ListPushBack {
     pub key: Arc<[u8]>,
     pub elements: Vec<Arc<[u8]>>,
     pub truncate: Option<u32>,
+    pub ttl: Option<Duration>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -137,12 +145,14 @@ pub struct ListRemove {
 pub struct ListStore {
     pub key: Arc<[u8]>,
     pub elements: Vec<Arc<[u8]>>,
+    pub ttl: Option<Duration>,
 }
 
 #[derive(Debug, PartialEq)]
 pub struct SetAdd {
     pub key: Arc<[u8]>,
     pub members: Vec<Arc<[u8]>>,
+    pub ttl: Option<Duration>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -160,6 +170,7 @@ pub struct SetRemove {
 pub struct SortedSetAdd {
     pub key: Arc<[u8]>,
     pub members: Vec<(Arc<[u8]>, f64)>,
+    pub ttl: Option<Duration>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -172,6 +183,7 @@ pub struct SortedSetIncrement {
     pub key: Arc<[u8]>,
     pub member: Arc<[u8]>,
     pub amount: f64,
+    pub ttl: Option<Duration>,
 }
 
 #[derive(Debug, PartialEq)]

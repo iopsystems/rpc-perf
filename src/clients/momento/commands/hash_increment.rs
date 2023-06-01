@@ -14,7 +14,7 @@ pub async fn hash_increment(
             &*request.key,
             &*request.field,
             request.amount,
-            CollectionTtl::new(None, false),
+            CollectionTtl::new(request.ttl, false),
         ),
     )
     .await
