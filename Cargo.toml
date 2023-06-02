@@ -30,7 +30,7 @@ protocol-ping = { git = "https://github.com/pelikan-io/pelikan" }
 rand = "0.8.5"
 rand_distr = "0.4.3"
 rand_xoshiro = "0.6.0"
-ratelimit = "0.5.1"
+ratelimit = "0.7.0"
 redis = { version = "0.22.3", features = ["tokio-comp"] }
 ringlog = "0.1.1"
 serde = "1.0.144"

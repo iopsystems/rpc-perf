@@ -68,10 +68,17 @@ pub struct Generator {
 
 impl Generator {
     pub fn new(config: &Config) -> Self {
+
         let ratelimiter = config
             .workload()
             .ratelimit()
-            .map(|r| Arc::new(Ratelimiter::new(1000, 1, r.into())));
+            .map(|rate| {
+                let amount = (rate.get() as f64 / 1_000_000.0).ceil() as u64;
+                let interval = Duration::from_micros(1_000_000 / (rate.get() / amount));
+                let capacity = std::cmp::max(100, amount);
+
+                Arc::new(Ratelimiter::builder(amount, interval).max_tokens(capacity).build().expect("failed to initialize ratelimiter"))
+            });
 
         let mut components = Vec::new();
         let mut component_weights = Vec::new();
@@ -561,7 +568,13 @@ pub async fn reconnect(work_sender: Sender<ClientWorkItem>, config: Config) -> R
         .client()
         .unwrap()
         .reconnect_rate()
-        .map(|r| Arc::new(Ratelimiter::new(1000, 1, r.into())));
+        .map(|rate| {
+            let amount = (rate.get() as f64 / 1_000_000.0).ceil() as u64;
+            let interval = Duration::from_micros(1_000_000 / (rate.get() / amount));
+            let capacity = std::cmp::max(100, amount);
+
+            Arc::new(Ratelimiter::builder(amount, interval).max_tokens(capacity).build().expect("failed to initialize ratelimiter"))
+        });
 
     if ratelimiter.is_none() {
         return Ok(());
@@ -570,8 +583,14 @@ pub async fn reconnect(work_sender: Sender<ClientWorkItem>, config: Config) -> R
     let ratelimiter = ratelimiter.unwrap();
 
     while RUNNING.load(Ordering::Relaxed) {
-        ratelimiter.wait();
-        let _ = work_sender.send(ClientWorkItem::Reconnect).await;
+        match ratelimiter.try_wait() {
+            Ok(_) => {
+                let _ = work_sender.send(ClientWorkItem::Reconnect).await;
+            }
+            Err(d) => {
+                std::thread::sleep(d);
+            }
+        }
     }
 
     Ok(())

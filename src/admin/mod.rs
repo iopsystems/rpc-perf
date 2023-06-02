@@ -328,7 +328,14 @@ mod handlers {
         ratelimit: Option<Arc<Ratelimiter>>,
     ) -> Result<impl warp::Reply, Infallible> {
         if let Some(r) = ratelimit {
-            r.set_rate(rate);
+            let amount = (rate as f64 / 1_000_000.0).ceil() as u64;
+            let interval = Duration::from_micros(1_000_000 / (rate / amount));
+            let capacity = std::cmp::max(100, amount);
+
+            r.set_max_tokens(capacity).expect("failed to set max tokens");
+            r.set_refill_interval(interval).expect("failed to set refill interval");
+            r.set_refill_amount(amount).expect("failed to set refill amount");
+
             Ok(StatusCode::OK)
         } else {
             Ok(StatusCode::NOT_FOUND)
