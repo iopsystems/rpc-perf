@@ -68,17 +68,18 @@ pub struct Generator {
 
 impl Generator {
     pub fn new(config: &Config) -> Self {
+        let ratelimiter = config.workload().ratelimit().map(|rate| {
+            let amount = (rate.get() as f64 / 1_000_000.0).ceil() as u64;
+            let interval = Duration::from_micros(1_000_000 / (rate.get() / amount));
+            let capacity = std::cmp::max(100, amount);
 
-        let ratelimiter = config
-            .workload()
-            .ratelimit()
-            .map(|rate| {
-                let amount = (rate.get() as f64 / 1_000_000.0).ceil() as u64;
-                let interval = Duration::from_micros(1_000_000 / (rate.get() / amount));
-                let capacity = std::cmp::max(100, amount);
-
-                Arc::new(Ratelimiter::builder(amount, interval).max_tokens(capacity).build().expect("failed to initialize ratelimiter"))
-            });
+            Arc::new(
+                Ratelimiter::builder(amount, interval)
+                    .max_tokens(capacity)
+                    .build()
+                    .expect("failed to initialize ratelimiter"),
+            )
+        });
 
         let mut components = Vec::new();
         let mut component_weights = Vec::new();
@@ -564,17 +565,18 @@ pub async fn reconnect(work_sender: Sender<ClientWorkItem>, config: Config) -> R
         return Ok(());
     }
 
-    let ratelimiter = config
-        .client()
-        .unwrap()
-        .reconnect_rate()
-        .map(|rate| {
-            let amount = (rate.get() as f64 / 1_000_000.0).ceil() as u64;
-            let interval = Duration::from_micros(1_000_000 / (rate.get() / amount));
-            let capacity = std::cmp::max(100, amount);
+    let ratelimiter = config.client().unwrap().reconnect_rate().map(|rate| {
+        let amount = (rate.get() as f64 / 1_000_000.0).ceil() as u64;
+        let interval = Duration::from_micros(1_000_000 / (rate.get() / amount));
+        let capacity = std::cmp::max(100, amount);
 
-            Arc::new(Ratelimiter::builder(amount, interval).max_tokens(capacity).build().expect("failed to initialize ratelimiter"))
-        });
+        Arc::new(
+            Ratelimiter::builder(amount, interval)
+                .max_tokens(capacity)
+                .build()
+                .expect("failed to initialize ratelimiter"),
+        )
+    });
 
     if ratelimiter.is_none() {
         return Ok(());

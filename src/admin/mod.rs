@@ -332,9 +332,12 @@ mod handlers {
             let interval = Duration::from_micros(1_000_000 / (rate / amount));
             let capacity = std::cmp::max(100, amount);
 
-            r.set_max_tokens(capacity).expect("failed to set max tokens");
-            r.set_refill_interval(interval).expect("failed to set refill interval");
-            r.set_refill_amount(amount).expect("failed to set refill amount");
+            r.set_max_tokens(capacity)
+                .expect("failed to set max tokens");
+            r.set_refill_interval(interval)
+                .expect("failed to set refill interval");
+            r.set_refill_amount(amount)
+                .expect("failed to set refill amount");
 
             Ok(StatusCode::OK)
         } else {
