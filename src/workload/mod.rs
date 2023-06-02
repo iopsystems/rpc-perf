@@ -70,7 +70,12 @@ impl Generator {
     pub fn new(config: &Config) -> Self {
         let ratelimiter = config.workload().ratelimit().map(|rate| {
             let amount = (rate.get() as f64 / 1_000_000.0).ceil() as u64;
-            let interval = Duration::from_micros(1_000_000 / (rate.get() / amount));
+
+            // even though we might not have nanosecond level clock resolution,
+            // by using a nanosecond level duration, we achieve more accurate
+            // ratelimits.
+            let interval = Duration::from_nanos(1_000_000_000 / (rate.get() / amount));
+
             let capacity = std::cmp::max(100, amount);
 
             Arc::new(
@@ -567,7 +572,12 @@ pub async fn reconnect(work_sender: Sender<ClientWorkItem>, config: Config) -> R
 
     let ratelimiter = config.client().unwrap().reconnect_rate().map(|rate| {
         let amount = (rate.get() as f64 / 1_000_000.0).ceil() as u64;
-        let interval = Duration::from_micros(1_000_000 / (rate.get() / amount));
+
+        // even though we might not have nanosecond level clock resolution,
+        // by using a nanosecond level duration, we achieve more accurate
+        // ratelimits.
+        let interval = Duration::from_nanos(1_000_000_000 / (rate.get() / amount));
+
         let capacity = std::cmp::max(100, amount);
 
         Arc::new(
