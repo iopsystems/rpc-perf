@@ -37,7 +37,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
             if session_requests != 0 {
                 let stop = Instant::now();
                 let lifecycle_ns = (stop - session_start).as_nanos();
-                SESSION_LIFECYCLE_REQUESTS.increment(stop, lifecycle_ns, 1);
+                let _ = SESSION_LIFECYCLE_REQUESTS.increment(stop, lifecycle_ns, 1);
             }
             CONNECT.increment();
             let stream = match timeout(
@@ -168,8 +168,8 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
 
                 let latency = stop.duration_since(start).as_nanos();
 
-                REQUEST_LATENCY.increment(start, latency, 1);
-                RESPONSE_LATENCY.increment(stop, latency, 1);
+                let _ = REQUEST_LATENCY.increment(start, latency, 1);
+                let _ = RESPONSE_LATENCY.increment(stop, latency, 1);
 
                 if let Some(header) = response
                     .headers()
