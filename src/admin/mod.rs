@@ -329,7 +329,12 @@ mod handlers {
     ) -> Result<impl warp::Reply, Infallible> {
         if let Some(r) = ratelimit {
             let amount = (rate as f64 / 1_000_000.0).ceil() as u64;
-            let interval = Duration::from_micros(1_000_000 / (rate / amount));
+
+            // even though we might not have nanosecond level clock resolution,
+            // by using a nanosecond level duration, we achieve more accurate
+            // ratelimits.
+            let interval = Duration::from_nanos(1_000_000_000 / (rate / amount));
+
             let capacity = std::cmp::max(100, amount);
 
             r.set_max_tokens(capacity)
