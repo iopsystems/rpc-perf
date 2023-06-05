@@ -1,5 +1,6 @@
 use super::*;
 
+/// Sets a key-value pair in the cache.
 pub async fn set(
     client: &mut SimpleCacheClient,
     config: &Config,

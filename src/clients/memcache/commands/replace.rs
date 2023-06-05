@@ -1,3 +1,5 @@
+/// Replaces a key-value pair within the cache. The key must already be present.
+
 use super::*;
 
 impl From<&workload::client::Replace> for RequestWithValidator {

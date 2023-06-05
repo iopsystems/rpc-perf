@@ -1,5 +1,9 @@
 use super::*;
 
+/// Increment the score for a member in a sorted set.
+///
+/// NOTE: if a TTL is specified, this command will not refresh the TTL for the
+/// collection.
 pub async fn sorted_set_increment(
     client: &mut SimpleCacheClient,
     config: &Config,

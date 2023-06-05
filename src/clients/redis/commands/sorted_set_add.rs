@@ -3,6 +3,14 @@ use tokio::time::error::Elapsed;
 use std::result::Result;
 use super::*;
 
+/// Adds one or more members to a sorted set.
+///
+/// NOTE: if a TTL is specified for the keyspace, a second command is issued to
+/// set the ttl for the key if a TTL is not already set. The operation to set
+/// the expiration may fail and will not be retried. Both the `ZADD` and
+/// `EXPIRE`/`PEXPIRE` commands will count towards the request latency. The
+/// success/failure of the command to set the expiration does not count towards
+/// the request metrics (such as the number of requests, success rate, etc).
 pub async fn sorted_set_add(
     connection: &mut Connection<net::Stream>,
     config: &Config,

@@ -1,3 +1,5 @@
+// Sets a key-value pair in the cache.
+
 use super::*;
 
 impl From<&workload::client::Set> for RequestWithValidator {

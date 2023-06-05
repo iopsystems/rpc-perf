@@ -3,6 +3,14 @@ use tokio::time::error::Elapsed;
 use std::result::Result;
 use super::*;
 
+/// Pushes an element to the front of a list.
+///
+/// NOTE: if a TTL is specified for the keyspace, a second command is issued to
+/// set the ttl for the key if a TTL is not already set. The operation to set
+/// the expiration may fail and will not be retried. Both the `LPUSH` and
+/// `EXPIRE`/`PEXPIRE` commands will count towards the request latency. The
+/// success/failure of the command to set the expiration does not count towards
+/// the request metrics (such as the number of requests, success rate, etc).
 pub async fn list_push_front(
     connection: &mut Connection<net::Stream>,
     config: &Config,

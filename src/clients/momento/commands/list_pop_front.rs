@@ -1,5 +1,6 @@
 use super::*;
 
+/// Removes and returns the item from the front of a list.
 pub async fn list_pop_front(
     client: &mut SimpleCacheClient,
     config: &Config,

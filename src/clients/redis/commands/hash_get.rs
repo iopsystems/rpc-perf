@@ -1,5 +1,6 @@
 use super::*;
 
+/// Retrieves the value for on or more fields in a hash.
 pub async fn hash_get(
     connection: &mut Connection<net::Stream>,
     config: &Config,

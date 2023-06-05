@@ -1,5 +1,6 @@
 use super::*;
 
+/// Removes a member (element) from a set.
 pub async fn set_remove(
     client: &mut SimpleCacheClient,
     config: &Config,

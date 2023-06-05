@@ -1,5 +1,6 @@
 use super::*;
 
+/// Returns the rank for a member in a sorted set.
 pub async fn sorted_set_rank(
     connection: &mut Connection<net::Stream>,
     config: &Config,

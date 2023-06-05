@@ -1,5 +1,6 @@
 use super::*;
 
+/// Removes a member from a sorted set.
 pub async fn sorted_set_remove(
     connection: &mut Connection<net::Stream>,
     config: &Config,

@@ -1,5 +1,6 @@
 use super::*;
 
+/// Adds a key-value pair to the cache if the key does not exist.
 pub async fn add(
     connection: &mut Connection<net::Stream>,
     config: &Config,

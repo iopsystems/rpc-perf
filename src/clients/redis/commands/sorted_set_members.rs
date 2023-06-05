@@ -1,5 +1,6 @@
 use super::*;
 
+/// Returns the members of a sorted set.
 pub async fn sorted_set_members(
     connection: &mut Connection<net::Stream>,
     config: &Config,

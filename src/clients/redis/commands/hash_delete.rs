@@ -1,5 +1,6 @@
 use super::*;
 
+/// Delete a field from a hash stored in the cache.
 pub async fn hash_delete(
     connection: &mut Connection<net::Stream>,
     config: &Config,

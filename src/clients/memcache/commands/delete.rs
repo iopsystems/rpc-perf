@@ -1,3 +1,5 @@
+/// Removes a key from the cache.
+
 use super::*;
 
 impl From<&workload::client::Delete> for RequestWithValidator {
