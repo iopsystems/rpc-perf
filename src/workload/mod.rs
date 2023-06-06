@@ -4,7 +4,7 @@ use rand::distributions::{Alphanumeric, Uniform};
 use rand::{Rng, RngCore, SeedableRng};
 use rand_distr::Distribution as RandomDistribution;
 use rand_distr::WeightedAliasIndex;
-use rand_xoshiro::Xoshiro512PlusPlus;
+use rand_xoshiro::{Seed512, Xoshiro512PlusPlus};
 use ratelimit::Ratelimiter;
 use std::collections::{HashMap, HashSet};
 use std::io::Result;
@@ -21,6 +21,20 @@ pub use publisher::PublisherWorkItem;
 
 static SEQUENCE_NUMBER: AtomicU64 = AtomicU64::new(0);
 
+const KEY_GENERATOR_SEED: Seed512 = Seed512([
+    0xab, 0xa0, 0x43, 0xe6, 0x2f, 0x1e, 0xa9, 0x18, 0xdc, 0x01, 0x3c, 0x57, 0x7f, 0xe5, 0x0c, 0x92,
+    0x9e, 0x66, 0x6e, 0x60, 0xbe, 0x80, 0x11, 0x06, 0x7a, 0xdb, 0x22, 0x7d, 0xea, 0xdd, 0xd7, 0xc4,
+    0x98, 0x0e, 0x01, 0x71, 0x38, 0x0b, 0x54, 0xb4, 0xeb, 0x9a, 0xa2, 0x35, 0xe5, 0xc3, 0x4e, 0xef,
+    0x67, 0xcc, 0xcb, 0xf3, 0x96, 0x56, 0x3d, 0x94, 0xd0, 0x74, 0xc1, 0x3c, 0x94, 0xde, 0xc9, 0xff,
+]);
+
+const WORKLOAD_SEED: Seed512 = Seed512([
+    0xa3, 0x3f, 0xd0, 0x2c, 0xc4, 0x3f, 0xd0, 0x99, 0xab, 0x49, 0xf4, 0x4e, 0x35, 0x63, 0xda, 0x82,
+    0xa1, 0x5b, 0x53, 0xd2, 0xb8, 0x4b, 0x57, 0xef, 0x7d, 0xe1, 0xc5, 0x3d, 0xbc, 0x46, 0xf9, 0x56,
+    0x60, 0x8b, 0xd0, 0xdc, 0x71, 0x47, 0x01, 0x41, 0x26, 0xbb, 0x99, 0x72, 0x1b, 0x0d, 0x50, 0x55,
+    0x50, 0xc5, 0xd4, 0xb9, 0x35, 0xcf, 0xb1, 0x2e, 0x9d, 0xf1, 0x87, 0x17, 0x5e, 0x4b, 0x9d, 0x68,
+]);
+
 pub fn launch_workload(
     generator: Generator,
     config: &Config,
@@ -36,16 +50,28 @@ pub fn launch_workload(
         .build()
         .expect("failed to initialize tokio runtime");
 
+    // create a PRNG to generate seeds for each workload generating thread by
+    // using a PRNG, individual runs (when there is just one workload thread)
+    // should produce the exact same sequence of requests. When there is more
+    // than one workload thread, the behavior is non-deterministic due to
+    // unpredictable interleaving order between each thread adding requests into
+    // the work queue.
+    let mut rng = Xoshiro512PlusPlus::from_seed(WORKLOAD_SEED);
+
     // spawn the request generators on a blocking threads
     for _ in 0..config.workload().threads() {
         let client_sender = client_sender.clone();
         let pubsub_sender = pubsub_sender.clone();
         let generator = generator.clone();
+
+        // generate the seed for this workload thread
+        let mut seed = [0; 64];
+        rng.fill_bytes(&mut seed);
+
         workload_rt.spawn_blocking(move || {
-            // use a prng seeded from the entropy pool so that request generation is
-            // unpredictable within the space and each individual request generation
-            // task will generate a unique sequence
-            let mut rng = Xoshiro512PlusPlus::from_entropy();
+            // since this seed is unique, each workload thread should produce
+            // requests in a different sequence
+            let mut rng = Xoshiro512PlusPlus::from_seed(Seed512(seed));
 
             while RUNNING.load(Ordering::Relaxed) {
                 generator.generate(&client_sender, &pubsub_sender, &mut rng);
@@ -367,7 +393,7 @@ impl Topics {
         };
 
         // we use a predictable seed to generate the topic names
-        let mut rng = Xoshiro512PlusPlus::seed_from_u64(0);
+        let mut rng = Xoshiro512PlusPlus::from_seed(KEY_GENERATOR_SEED);
         let mut topics = HashSet::with_capacity(ntopics);
         while topics.len() < ntopics {
             let topic = (&mut rng)
@@ -434,7 +460,7 @@ impl Keyspace {
         let klen = keyspace.klen();
 
         // we use a predictable seed to generate the keys in the keyspace
-        let mut rng = Xoshiro512PlusPlus::seed_from_u64(0);
+        let mut rng = Xoshiro512PlusPlus::from_seed(KEY_GENERATOR_SEED);
         let mut keys = HashSet::with_capacity(nkeys);
         while keys.len() <= nkeys {
             let key = (&mut rng)
@@ -455,7 +481,7 @@ impl Keyspace {
         let klen = keyspace.inner_keys_klen().unwrap_or(1);
 
         // we use a predictable seed to generate the keys in the keyspace
-        let mut rng = Xoshiro512PlusPlus::seed_from_u64(0);
+        let mut rng = Xoshiro512PlusPlus::from_seed(KEY_GENERATOR_SEED);
         let mut inner_keys = HashSet::with_capacity(nkeys);
         while inner_keys.len() <= nkeys {
             let key = (&mut rng)
