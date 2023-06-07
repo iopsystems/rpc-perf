@@ -488,7 +488,6 @@ impl Keyspace {
                 .sample_iter(&Alphanumeric)
                 .take(klen)
                 .collect::<Vec<u8>>();
-            println!("inner key: {:?}", key);
             let _ = inner_keys.insert(key);
         }
         let inner_keys: Vec<Arc<[u8]>> = inner_keys.drain().map(|k| k.into()).collect();
