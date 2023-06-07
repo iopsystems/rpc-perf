@@ -334,7 +334,7 @@ fn heatmap_to_buckets(heatmap: &Heatmap) -> RequestLatencies {
             count,
         }
     } else {
-        trace!("no histogram");
+        eprintln!("no histogram");
         RequestLatencies {
             m: 0,
             r: 0,
