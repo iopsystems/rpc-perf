@@ -1,7 +1,7 @@
-use ::redis::RedisError;
-use tokio::time::error::Elapsed;
-use std::result::Result;
 use super::*;
+use ::redis::RedisError;
+use std::result::Result;
+use tokio::time::error::Elapsed;
 
 /// Increment the value for a field within a hash.
 ///
@@ -49,8 +49,13 @@ pub async fn hash_increment(
 
         let _: Result<Result<u64, RedisError>, Elapsed> = timeout(
             config.client().unwrap().request_timeout(),
-            base_command.arg(&*request.key).arg(ttl).arg("NX").query_async(connection)
-        ).await;
+            base_command
+                .arg(&*request.key)
+                .arg(ttl)
+                .arg("NX")
+                .query_async(connection),
+        )
+        .await;
     }
 
     result

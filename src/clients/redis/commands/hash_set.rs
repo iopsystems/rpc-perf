@@ -1,6 +1,6 @@
+use super::*;
 use ::redis::RedisError;
 use tokio::time::error::Elapsed;
-use super::*;
 
 use std::result::Result;
 
@@ -82,8 +82,13 @@ pub async fn hash_set(
 
         let _: Result<Result<u64, RedisError>, Elapsed> = timeout(
             config.client().unwrap().request_timeout(),
-            base_command.arg(&*request.key).arg(ttl).arg("NX").query_async(connection)
-        ).await;
+            base_command
+                .arg(&*request.key)
+                .arg(ttl)
+                .arg("NX")
+                .query_async(connection),
+        )
+        .await;
     }
 
     result

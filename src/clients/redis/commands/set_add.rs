@@ -1,7 +1,7 @@
-use ::redis::RedisError;
-use tokio::time::error::Elapsed;
-use std::result::Result;
 use super::*;
+use ::redis::RedisError;
+use std::result::Result;
+use tokio::time::error::Elapsed;
 
 /// Adds one or more members to a set.
 ///
@@ -77,8 +77,13 @@ pub async fn set_add(
 
         let _: Result<Result<u64, RedisError>, Elapsed> = timeout(
             config.client().unwrap().request_timeout(),
-            base_command.arg(&*request.key).arg(ttl).arg("NX").query_async(connection)
-        ).await;
+            base_command
+                .arg(&*request.key)
+                .arg(ttl)
+                .arg("NX")
+                .query_async(connection),
+        )
+        .await;
     }
 
     result

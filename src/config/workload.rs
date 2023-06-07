@@ -160,7 +160,9 @@ impl Keyspace {
     }
 
     pub fn ttl(&self) -> Option<Duration> {
-        self.ttl.as_ref().map(|ttl| ttl.parse::<humantime::Duration>().unwrap().into())
+        self.ttl
+            .as_ref()
+            .map(|ttl| ttl.parse::<humantime::Duration>().unwrap().into())
     }
 }
 

@@ -1,5 +1,4 @@
 /// Retrieve the value of a key in the cache.
-
 use super::*;
 
 impl From<&workload::client::Get> for RequestWithValidator {
