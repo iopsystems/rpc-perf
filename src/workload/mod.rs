@@ -462,7 +462,7 @@ impl Keyspace {
         // we use a predictable seed to generate the keys in the keyspace
         let mut rng = Xoshiro512PlusPlus::from_seed(KEY_GENERATOR_SEED);
         let mut keys = HashSet::with_capacity(nkeys);
-        while keys.len() <= nkeys {
+        while keys.len() < nkeys {
             let key = (&mut rng)
                 .sample_iter(&Alphanumeric)
                 .take(klen)
@@ -483,11 +483,12 @@ impl Keyspace {
         // we use a predictable seed to generate the keys in the keyspace
         let mut rng = Xoshiro512PlusPlus::from_seed(KEY_GENERATOR_SEED);
         let mut inner_keys = HashSet::with_capacity(nkeys);
-        while inner_keys.len() <= nkeys {
+        while inner_keys.len() < nkeys {
             let key = (&mut rng)
                 .sample_iter(&Alphanumeric)
                 .take(klen)
                 .collect::<Vec<u8>>();
+            println!("inner key: {:?}", key);
             let _ = inner_keys.insert(key);
         }
         let inner_keys: Vec<Arc<[u8]>> = inner_keys.drain().map(|k| k.into()).collect();
