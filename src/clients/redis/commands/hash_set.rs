@@ -80,7 +80,7 @@ pub async fn hash_set(
             (::redis::cmd("PEXPIRE"), ttl.as_nanos() as u64)
         };
 
-        let _: Result<Result<u64, RedisError>, Elapsed> = timeout(
+        let fused_result: Result<Result<u64, RedisError>, Elapsed> = timeout(
             config.client().unwrap().request_timeout(),
             base_command
                 .arg(&*request.key)
@@ -89,6 +89,20 @@ pub async fn hash_set(
                 .query_async(connection),
         )
         .await;
+
+        FUSED_REQUEST.increment();
+
+        match fused_result {
+            Ok(Ok(_)) => {
+                FUSED_REQUEST_OK.increment();
+            }
+            Ok(Err(_)) => {
+                FUSED_REQUEST_TIMEOUT.increment();
+            }
+            Err(_) => {
+                FUSED_REQUEST_EX.increment();
+            }
+        }
     }
 
     result
