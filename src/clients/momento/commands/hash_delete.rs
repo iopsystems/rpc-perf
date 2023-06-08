@@ -1,5 +1,6 @@
 use super::*;
 
+/// Remove one or more fields from a hash (dictionary).
 pub async fn hash_delete(
     client: &mut SimpleCacheClient,
     config: &Config,

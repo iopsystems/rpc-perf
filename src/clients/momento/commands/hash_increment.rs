@@ -1,5 +1,9 @@
 use super::*;
 
+/// Increment the value for a field in a dictionary.
+///
+/// NOTE: if a TTL is specified, this command will not refresh the TTL for the
+/// collection.
 pub async fn hash_increment(
     client: &mut SimpleCacheClient,
     config: &Config,
@@ -14,7 +18,7 @@ pub async fn hash_increment(
             &*request.key,
             &*request.field,
             request.amount,
-            CollectionTtl::new(None, false),
+            CollectionTtl::new(request.ttl, false),
         ),
     )
     .await

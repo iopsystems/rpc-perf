@@ -1,5 +1,9 @@
 use super::*;
 
+/// Pushes an item onto the front of a list.
+///
+/// NOTE: if a TTL is specified, this command will not refresh the TTL for the
+/// collection.
 pub async fn list_push_front(
     client: &mut SimpleCacheClient,
     config: &Config,
@@ -15,7 +19,7 @@ pub async fn list_push_front(
                 &*request.key,
                 &*request.elements[0],
                 request.truncate,
-                CollectionTtl::new(None, false),
+                CollectionTtl::new(request.ttl, false),
             ),
         )
         .await

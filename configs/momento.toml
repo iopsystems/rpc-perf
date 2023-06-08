@@ -2,6 +2,10 @@
 # and demonstrating the use of the preview functionality for collections. Each
 # command family is using its own keyspace and covers key-value, hash, list,
 # set, and sorted set.
+#
+# Expiration: unless otherwise specified, the default TTL of 15 minutes will be
+# used. Commands which operate on collections will not refresh the TTL for the
+# collection.
 
 [general]
 # specify the protocol to be used
@@ -66,6 +70,8 @@ nkeys = 1_000_000
 vlen = 128
 # use random bytes for the values
 vkind = "bytes"
+# override the default ttl for this keyspace setting it to 15 minutes
+ttl = "15m"
 # controls what commands will be used in this keyspace
 commands = [
 	# get a value

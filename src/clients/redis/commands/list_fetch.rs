@@ -1,5 +1,6 @@
 use super::*;
 
+/// Retrieve all elements from a list in the cache.
 pub async fn list_fetch(
     connection: &mut Connection<net::Stream>,
     config: &Config,

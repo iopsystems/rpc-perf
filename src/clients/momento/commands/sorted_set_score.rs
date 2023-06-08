@@ -1,5 +1,6 @@
 use super::*;
 
+/// Retrieve the score of one or more members of a sorted set.
 pub async fn sorted_set_score(
     client: &mut SimpleCacheClient,
     config: &Config,

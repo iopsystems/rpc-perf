@@ -246,6 +246,35 @@ counter!(
     "skipped requests due to protocol incompatibility"
 );
 
+// Fused requests are when we need to send multiple commands to achieve some
+// expected behavior. For example, a follow-up `EXPIRE` command to set a ttl
+// when the command does not allow it. We track these separately, as we do not
+// want them to count towards total QPS or success rate metrics. These are used
+// as an indicator that additional requests are being issued for a particular
+// workload + backend combination and if there are timeouts/errors that might
+// result in the data in the cache getting into an unintended state.
+counter!(
+    FUSED_REQUEST,
+    "client/fused_request/total",
+    "total number of fused requests sent"
+);
+counter!(
+    FUSED_REQUEST_OK,
+    "client/fused_request/ok",
+    "fused requests that completed successfully"
+);
+counter!(
+    FUSED_REQUEST_TIMEOUT,
+    "client/fused_request/timeout",
+    "number of fused requests that failed due to timeout"
+);
+
+counter!(
+    FUSED_REQUEST_EX,
+    "client/fused_request/exception",
+    "number of fused requests that failed with some error"
+);
+
 counter!(
     RESPONSE_EX,
     "client/response/exception",
@@ -280,12 +309,26 @@ counter!(
 counter!(RESPONSE_HIT, "client/response/hit");
 counter!(RESPONSE_MISS, "client/response/miss");
 
+// augment the add stats
+counter!(
+    ADD_TIMEOUT,
+    "add/timeout",
+    "add requests that resulted in timeout"
+);
+
 // augment the get stats
 counter!(GET_OK, "get/ok", "get requests that were successful");
 counter!(
     GET_TIMEOUT,
     "get/timeout",
     "get requests that resulted in timeout"
+);
+
+// augment the replace stats
+counter!(
+    REPLACE_TIMEOUT,
+    "replace/timeout",
+    "replace requests that resulted in timeout"
 );
 
 // augment the set stats

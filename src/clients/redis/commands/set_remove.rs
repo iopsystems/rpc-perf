@@ -1,5 +1,6 @@
 use super::*;
 
+/// Removes one or more members of a set.
 pub async fn set_remove(
     connection: &mut Connection<net::Stream>,
     config: &Config,

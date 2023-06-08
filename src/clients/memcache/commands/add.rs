@@ -1,3 +1,4 @@
+/// Adds a key-value pair to the cache if it does not already exist.
 use super::*;
 
 impl From<&workload::client::Add> for RequestWithValidator {

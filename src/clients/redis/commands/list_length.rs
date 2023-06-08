@@ -1,5 +1,6 @@
 use super::*;
 
+/// Retrieve the length of a list in the cache.
 pub async fn list_length(
     connection: &mut Connection<net::Stream>,
     config: &Config,

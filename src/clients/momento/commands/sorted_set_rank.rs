@@ -1,5 +1,6 @@
 use super::*;
 
+/// Retrieve the rank for a member of a sorted set.
 pub async fn sorted_set_rank(
     client: &mut SimpleCacheClient,
     config: &Config,

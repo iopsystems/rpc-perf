@@ -1,5 +1,6 @@
 use super::*;
 
+/// Retrieve all the members of a list in the cache.
 pub async fn list_fetch(
     client: &mut SimpleCacheClient,
     config: &Config,

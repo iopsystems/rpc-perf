@@ -58,6 +58,8 @@ nkeys = 1_000_000
 vlen = 128
 # use random bytes for the values
 vkind = "bytes"
+# optionally: specify a TTL for the keys, by default there is no expiration
+# ttl = "15m"
 # controls what commands will be used in this keyspace
 commands = [
 	# get a value

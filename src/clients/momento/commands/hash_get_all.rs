@@ -1,5 +1,6 @@
 use super::*;
 
+/// Retrieve all fields for a hash (dictionary).
 pub async fn hash_get_all(
     client: &mut SimpleCacheClient,
     config: &Config,

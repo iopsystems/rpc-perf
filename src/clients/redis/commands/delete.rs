@@ -1,5 +1,7 @@
 use super::*;
 
+/// Delete a key from the cache. This will delete an entire Hash/Set/SortedSet
+/// if used in the same keyspace.
 pub async fn delete(
     connection: &mut Connection<net::Stream>,
     config: &Config,

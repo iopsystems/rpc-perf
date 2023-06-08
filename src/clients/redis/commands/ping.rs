@@ -1,5 +1,6 @@
 use super::*;
 
+/// Sends a `PING` and expects a `PONG` response from the server.
 pub async fn ping(
     connection: &mut Connection<net::Stream>,
     config: &Config,
