@@ -184,15 +184,26 @@ impl Generator {
         let command = &keyspace.commands[keyspace.command_dist.sample(rng)];
 
         let request = match command.verb() {
+            Verb::Add => ClientRequest::Add(client::Add {
+                key: keyspace.sample(rng),
+                value: keyspace.gen_value(rng),
+                ttl: keyspace.ttl(),
+            }),
             Verb::Get => ClientRequest::Get(client::Get {
                 key: keyspace.sample(rng),
             }),
             Verb::Set => ClientRequest::Set(client::Set {
                 key: keyspace.sample(rng),
                 value: keyspace.gen_value(rng),
+                ttl: keyspace.ttl(),
             }),
             Verb::Delete => ClientRequest::Delete(client::Delete {
                 key: keyspace.sample(rng),
+            }),
+            Verb::Replace => ClientRequest::Replace(client::Replace {
+                key: keyspace.sample(rng),
+                value: keyspace.gen_value(rng),
+                ttl: keyspace.ttl(),
             }),
             Verb::HashGet => {
                 let cardinality = command.cardinality();
@@ -229,6 +240,7 @@ impl Generator {
                 key: keyspace.sample(rng),
                 field: keyspace.sample_inner(rng),
                 amount: rng.gen(),
+                ttl: keyspace.ttl(),
             }),
             Verb::HashSet => {
                 let mut data = HashMap::new();
@@ -238,6 +250,7 @@ impl Generator {
                 ClientRequest::HashSet(client::HashSet {
                     key: keyspace.sample(rng),
                     data,
+                    ttl: keyspace.ttl(),
                 })
             }
             Verb::ListPushFront => {
@@ -250,6 +263,7 @@ impl Generator {
                     key: keyspace.sample(rng),
                     elements,
                     truncate: command.truncate(),
+                    ttl: keyspace.ttl(),
                 })
             }
             Verb::ListPushBack => {
@@ -262,6 +276,7 @@ impl Generator {
                     key: keyspace.sample(rng),
                     elements,
                     truncate: command.truncate(),
+                    ttl: keyspace.ttl(),
                 })
             }
             Verb::ListFetch => ClientRequest::ListFetch(client::ListFetch {
@@ -286,6 +301,7 @@ impl Generator {
                 ClientRequest::SetAdd(client::SetAdd {
                     key: keyspace.sample(rng),
                     members,
+                    ttl: keyspace.ttl(),
                 })
             }
             Verb::SetMembers => ClientRequest::SetMembers(client::SetMembers {
@@ -311,6 +327,7 @@ impl Generator {
                 ClientRequest::SortedSetAdd(client::SortedSetAdd {
                     key: keyspace.sample(rng),
                     members,
+                    ttl: keyspace.ttl(),
                 })
             }
             Verb::SortedSetMembers => ClientRequest::SortedSetMembers(client::SortedSetMembers {
@@ -332,6 +349,7 @@ impl Generator {
                     key: keyspace.sample(rng),
                     member: keyspace.sample_inner(rng),
                     amount: rng.gen(),
+                    ttl: keyspace.ttl(),
                 })
             }
             Verb::SortedSetScore => {
@@ -436,6 +454,7 @@ pub struct Keyspace {
     inner_key_dist: Distribution,
     vlen: usize,
     vkind: ValueKind,
+    ttl: Option<Duration>,
 }
 
 #[derive(Clone)]
@@ -566,6 +585,7 @@ impl Keyspace {
             inner_key_dist,
             vlen: keyspace.vlen().unwrap_or(0),
             vkind: keyspace.vkind(),
+            ttl: keyspace.ttl(),
         }
     }
 
@@ -588,6 +608,10 @@ impl Keyspace {
                 buf
             }
         }
+    }
+
+    pub fn ttl(&self) -> Option<Duration> {
+        self.ttl
     }
 }
 

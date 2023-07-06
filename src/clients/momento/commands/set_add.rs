@@ -1,5 +1,9 @@
 use super::*;
 
+/// Adds an memeber (element) to a set.
+///
+/// NOTE: if a TTL is specified, this command will not refresh the TTL for the
+/// collection.
 pub async fn set_add(
     client: &mut SimpleCacheClient,
     config: &Config,
@@ -14,7 +18,7 @@ pub async fn set_add(
             cache_name,
             &*request.key,
             members,
-            CollectionTtl::new(None, false),
+            CollectionTtl::new(request.ttl, false),
         ),
     )
     .await

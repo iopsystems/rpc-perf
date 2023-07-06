@@ -1,5 +1,6 @@
 use super::*;
 
+/// Return the members of a set.
 pub async fn set_members(
     connection: &mut Connection<net::Stream>,
     config: &Config,

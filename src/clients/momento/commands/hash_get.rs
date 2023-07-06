@@ -1,5 +1,6 @@
 use super::*;
 
+/// Retrieve the value for one or more fields in a hash (dictionary).
 pub async fn hash_get(
     client: &mut SimpleCacheClient,
     config: &Config,

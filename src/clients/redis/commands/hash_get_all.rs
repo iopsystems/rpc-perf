@@ -1,5 +1,6 @@
 use super::*;
 
+/// Retrieve all fields for a hash.
 pub async fn hash_get_all(
     connection: &mut Connection<net::Stream>,
     config: &Config,

@@ -1,5 +1,6 @@
 use super::*;
 
+/// Remove a key from the cache.
 pub async fn delete(
     client: &mut SimpleCacheClient,
     config: &Config,

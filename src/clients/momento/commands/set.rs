@@ -1,5 +1,6 @@
 use super::*;
 
+/// Sets a key-value pair in the cache.
 pub async fn set(
     client: &mut SimpleCacheClient,
     config: &Config,
@@ -13,7 +14,7 @@ pub async fn set(
             cache_name,
             (*request.key).to_owned(),
             (*request.value).to_owned(),
-            None,
+            request.ttl,
         ),
     )
     .await

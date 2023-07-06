@@ -1,5 +1,6 @@
 use super::*;
 
+/// Removes and returns the element from the back of a list.
 pub async fn list_pop_back(
     connection: &mut Connection<net::Stream>,
     config: &Config,

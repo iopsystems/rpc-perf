@@ -1,5 +1,6 @@
 use super::*;
 
+/// Retrieve all the members (elements) within a set.
 pub async fn set_members(
     client: &mut SimpleCacheClient,
     config: &Config,

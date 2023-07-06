@@ -1,5 +1,6 @@
 use super::*;
 
+/// Removes and returns the item from the back of a list.
 pub async fn list_pop_back(
     client: &mut SimpleCacheClient,
     config: &Config,

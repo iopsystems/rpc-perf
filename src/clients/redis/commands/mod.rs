@@ -1,5 +1,6 @@
 use super::*;
 
+mod add;
 mod delete;
 mod get;
 mod hash_delete;
@@ -15,6 +16,7 @@ mod list_pop_front;
 mod list_push_back;
 mod list_push_front;
 mod ping;
+mod replace;
 mod set;
 mod set_add;
 mod set_members;
@@ -26,6 +28,7 @@ mod sorted_set_rank;
 mod sorted_set_remove;
 mod sorted_set_score;
 
+pub use add::*;
 pub use delete::*;
 pub use get::*;
 pub use hash_delete::*;
@@ -41,6 +44,7 @@ pub use list_pop_front::*;
 pub use list_push_back::*;
 pub use list_push_front::*;
 pub use ping::*;
+pub use replace::*;
 pub use set::*;
 pub use set_add::*;
 pub use set_members::*;

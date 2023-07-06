@@ -1,5 +1,6 @@
 use super::*;
 
+/// Returns the length of a list in the cache.
 pub async fn list_length(
     client: &mut SimpleCacheClient,
     config: &Config,

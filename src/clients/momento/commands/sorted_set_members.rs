@@ -1,5 +1,6 @@
 use super::*;
 
+/// Return all the members of a sorted set.
 pub async fn sorted_set_members(
     client: &mut SimpleCacheClient,
     config: &Config,

@@ -1,5 +1,9 @@
 use super::*;
 
+/// Set the value for a field in a hash (dictionary).
+///
+/// NOTE: if a TTL is specified, this command will not refresh the TTL for the
+/// collection.
 pub async fn hash_set(
     client: &mut SimpleCacheClient,
     config: &Config,
@@ -18,7 +22,7 @@ pub async fn hash_set(
             cache_name,
             &*request.key,
             data,
-            CollectionTtl::new(None, false),
+            CollectionTtl::new(request.ttl, false),
         ),
     )
     .await

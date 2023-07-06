@@ -11,8 +11,8 @@ pub struct Workload {
     #[serde(default)]
     topics: Vec<Topics>,
     threads: usize,
-    // zero is treated as unlimited
     #[serde(default)]
+    // zero is treated as unlimited
     ratelimit: u64,
 }
 
@@ -117,6 +117,9 @@ pub struct Keyspace {
     vlen: Option<usize>,
     #[serde(default)]
     vkind: Option<ValueKind>,
+    #[serde(default)]
+    // no ttl is treated as no-expires or max ttl for the protocol
+    ttl: Option<String>,
 }
 
 impl Keyspace {
@@ -154,6 +157,12 @@ impl Keyspace {
 
     pub fn vkind(&self) -> ValueKind {
         self.vkind.unwrap_or(ValueKind::Bytes)
+    }
+
+    pub fn ttl(&self) -> Option<Duration> {
+        self.ttl
+            .as_ref()
+            .map(|ttl| ttl.parse::<humantime::Duration>().unwrap().into())
     }
 }
 
@@ -200,6 +209,11 @@ pub enum Verb {
     /*
      * KEY-VALUE
      */
+    /// Set the value for a key if it does not already exist.
+    /// * Memcache: `add`
+    /// * Momento: unsupported
+    /// * RESP: `SET` with `NX` option
+    Add,
     /// Read the value for one or more keys.
     /// * Memcache: `get`
     /// * Momento: `get` (NOTE: cardinality > 1 is not supported)
@@ -216,6 +230,11 @@ pub enum Verb {
     /// * RESP: `DEL`
     #[serde(alias = "del")]
     Delete,
+    /// Set the value for a key only if it already exists.
+    /// * Memcache: `replace`
+    /// * Momento: unsupported
+    /// * RESP: `SET` with `XX` option
+    Replace,
 
     /*
      * HASHES (DICTIONARIES)

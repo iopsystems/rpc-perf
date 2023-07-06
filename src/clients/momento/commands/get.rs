@@ -1,5 +1,6 @@
 use super::*;
 
+/// Retrieve a key-value pair from the cache.
 pub async fn get(
     client: &mut SimpleCacheClient,
     config: &Config,

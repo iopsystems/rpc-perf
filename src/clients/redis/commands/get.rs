@@ -1,5 +1,6 @@
 use super::*;
 
+/// Retrieve a key-value pair from the cache.
 pub async fn get(
     connection: &mut Connection<net::Stream>,
     config: &Config,

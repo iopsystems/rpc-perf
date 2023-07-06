@@ -1,5 +1,6 @@
 use super::*;
 
+/// Removes one or more members of a sorted set.
 pub async fn sorted_set_remove(
     client: &mut SimpleCacheClient,
     config: &Config,
