@@ -200,7 +200,7 @@ commands = [
 
 	# NOTE: this currently does not work in the Rust SDK
 	# fetch all elements in a sorted set
-	# { verb = "sorted_set_fetch", weight = 5 },
+	{ verb = "sorted_set_fetch", weight = 5 },
 
 	# get the score for an element in a sorted set
 	{ verb = "sorted_set_get_score", weight = 5 },
