@@ -21,27 +21,6 @@ pub use publisher::PublisherWorkItem;
 
 static SEQUENCE_NUMBER: AtomicU64 = AtomicU64::new(0);
 
-const DEFAULT_INITIAL_SEED: Seed512 = Seed512([
-    0x98, 0x0e, 0x01, 0x71, 0x38, 0x0b, 0x54, 0xb4, 0xeb, 0x9a, 0xa2, 0x35, 0xe5, 0xc3, 0x4e, 0xef,
-    0xa3, 0x3f, 0xd0, 0x2c, 0xc4, 0x3f, 0xd0, 0x99, 0xab, 0x49, 0xf4, 0x4e, 0x35, 0x63, 0xda, 0x82,
-    0x67, 0xcc, 0xcb, 0xf3, 0x96, 0x56, 0x3d, 0x94, 0xd0, 0x74, 0xc1, 0x3c, 0x94, 0xde, 0xc9, 0xff,
-    0xa1, 0x5b, 0x53, 0xd2, 0xb8, 0x4b, 0x57, 0xef, 0x7d, 0xe1, 0xc5, 0x3d, 0xbc, 0x46, 0xf9, 0x56,
-]);
-
-// const KEY_GENERATOR_SEED: Seed512 = Seed512([
-//     0xab, 0xa0, 0x43, 0xe6, 0x2f, 0x1e, 0xa9, 0x18, 0xdc, 0x01, 0x3c, 0x57, 0x7f, 0xe5, 0x0c, 0x92,
-//     0x9e, 0x66, 0x6e, 0x60, 0xbe, 0x80, 0x11, 0x06, 0x7a, 0xdb, 0x22, 0x7d, 0xea, 0xdd, 0xd7, 0xc4,
-//     0x98, 0x0e, 0x01, 0x71, 0x38, 0x0b, 0x54, 0xb4, 0xeb, 0x9a, 0xa2, 0x35, 0xe5, 0xc3, 0x4e, 0xef,
-//     0x67, 0xcc, 0xcb, 0xf3, 0x96, 0x56, 0x3d, 0x94, 0xd0, 0x74, 0xc1, 0x3c, 0x94, 0xde, 0xc9, 0xff,
-// ]);
-
-// const WORKLOAD_SEED: Seed512 = Seed512([
-//     0xa3, 0x3f, 0xd0, 0x2c, 0xc4, 0x3f, 0xd0, 0x99, 0xab, 0x49, 0xf4, 0x4e, 0x35, 0x63, 0xda, 0x82,
-//     0xa1, 0x5b, 0x53, 0xd2, 0xb8, 0x4b, 0x57, 0xef, 0x7d, 0xe1, 0xc5, 0x3d, 0xbc, 0x46, 0xf9, 0x56,
-//     0x60, 0x8b, 0xd0, 0xdc, 0x71, 0x47, 0x01, 0x41, 0x26, 0xbb, 0x99, 0x72, 0x1b, 0x0d, 0x50, 0x55,
-//     0x50, 0xc5, 0xd4, 0xb9, 0x35, 0xcf, 0xb1, 0x2e, 0x9d, 0xf1, 0x87, 0x17, 0x5e, 0x4b, 0x9d, 0x68,
-// ]);
-
 pub fn launch_workload(
     generator: Generator,
     config: &Config,
@@ -59,7 +38,7 @@ pub fn launch_workload(
 
     // initialize a PRNG with the default initial seed. We will then use this to
     // generate unique seeds for each workload thread.
-    let mut rng = Xoshiro512PlusPlus::from_seed(DEFAULT_INITIAL_SEED);
+    let mut rng = Xoshiro512PlusPlus::from_seed(config.general().initial_seed());
 
     // spawn the request generators on a blocking threads
     for _ in 0..config.workload().threads() {
@@ -119,12 +98,12 @@ impl Generator {
         let mut component_weights = Vec::new();
 
         for keyspace in config.workload().keyspaces() {
-            components.push(Component::Keyspace(Keyspace::new(keyspace)));
+            components.push(Component::Keyspace(Keyspace::new(config, keyspace)));
             component_weights.push(keyspace.weight());
         }
 
         for topics in config.workload().topics() {
-            components.push(Component::Topics(Topics::new(topics)));
+            components.push(Component::Topics(Topics::new(config, topics)));
             component_weights.push(topics.weight());
         }
 
@@ -399,7 +378,7 @@ pub struct Topics {
 }
 
 impl Topics {
-    pub fn new(topics: &config::Topics) -> Self {
+    pub fn new(config: &Config, topics: &config::Topics) -> Self {
         // ntopics must be >= 1
         let ntopics = std::cmp::max(1, topics.topics());
         let topiclen = topics.topic_len();
@@ -414,7 +393,7 @@ impl Topics {
         };
 
         // initialize a PRNG with the default initial seed
-        let mut rng = Xoshiro512PlusPlus::from_seed(DEFAULT_INITIAL_SEED);
+        let mut rng = Xoshiro512PlusPlus::from_seed(config.general().initial_seed());
 
         // generate the seed for topic name PRNG
         let mut raw_seed = [0_u8; 64];
@@ -484,13 +463,13 @@ impl Distribution {
 }
 
 impl Keyspace {
-    pub fn new(keyspace: &config::Keyspace) -> Self {
+    pub fn new(config: &Config, keyspace: &config::Keyspace) -> Self {
         // nkeys must be >= 1
         let nkeys = std::cmp::max(1, keyspace.nkeys());
         let klen = keyspace.klen();
 
         // initialize a PRNG with the default initial seed
-        let mut rng = Xoshiro512PlusPlus::from_seed(DEFAULT_INITIAL_SEED);
+        let mut rng = Xoshiro512PlusPlus::from_seed(config.general().initial_seed());
 
         // generate the seed for key PRNG
         let mut raw_seed = [0_u8; 64];
