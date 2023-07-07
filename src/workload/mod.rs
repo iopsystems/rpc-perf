@@ -4,7 +4,7 @@ use rand::distributions::{Alphanumeric, Uniform};
 use rand::{Rng, RngCore, SeedableRng};
 use rand_distr::Distribution as RandomDistribution;
 use rand_distr::WeightedAliasIndex;
-use rand_xoshiro::Xoshiro512PlusPlus;
+use rand_xoshiro::{Seed512, Xoshiro512PlusPlus};
 use ratelimit::Ratelimiter;
 use std::collections::{HashMap, HashSet};
 use std::io::Result;
@@ -36,16 +36,24 @@ pub fn launch_workload(
         .build()
         .expect("failed to initialize tokio runtime");
 
+    // initialize a PRNG with the default initial seed. We will then use this to
+    // generate unique seeds for each workload thread.
+    let mut rng = Xoshiro512PlusPlus::from_seed(config.general().initial_seed());
+
     // spawn the request generators on a blocking threads
     for _ in 0..config.workload().threads() {
         let client_sender = client_sender.clone();
         let pubsub_sender = pubsub_sender.clone();
         let generator = generator.clone();
+
+        // generate the seed for this workload thread
+        let mut seed = [0; 64];
+        rng.fill_bytes(&mut seed);
+
         workload_rt.spawn_blocking(move || {
-            // use a prng seeded from the entropy pool so that request generation is
-            // unpredictable within the space and each individual request generation
-            // task will generate a unique sequence
-            let mut rng = Xoshiro512PlusPlus::from_entropy();
+            // since this seed is unique, each workload thread should produce
+            // requests in a different sequence
+            let mut rng = Xoshiro512PlusPlus::from_seed(Seed512(seed));
 
             while RUNNING.load(Ordering::Relaxed) {
                 generator.generate(&client_sender, &pubsub_sender, &mut rng);
@@ -90,12 +98,12 @@ impl Generator {
         let mut component_weights = Vec::new();
 
         for keyspace in config.workload().keyspaces() {
-            components.push(Component::Keyspace(Keyspace::new(keyspace)));
+            components.push(Component::Keyspace(Keyspace::new(config, keyspace)));
             component_weights.push(keyspace.weight());
         }
 
         for topics in config.workload().topics() {
-            components.push(Component::Topics(Topics::new(topics)));
+            components.push(Component::Topics(Topics::new(config, topics)));
             component_weights.push(topics.weight());
         }
 
@@ -370,7 +378,7 @@ pub struct Topics {
 }
 
 impl Topics {
-    pub fn new(topics: &config::Topics) -> Self {
+    pub fn new(config: &Config, topics: &config::Topics) -> Self {
         // ntopics must be >= 1
         let ntopics = std::cmp::max(1, topics.topics());
         let topiclen = topics.topic_len();
@@ -384,8 +392,16 @@ impl Topics {
             }
         };
 
-        // we use a predictable seed to generate the topic names
-        let mut rng = Xoshiro512PlusPlus::seed_from_u64(0);
+        // initialize a PRNG with the default initial seed
+        let mut rng = Xoshiro512PlusPlus::from_seed(config.general().initial_seed());
+
+        // generate the seed for topic name PRNG
+        let mut raw_seed = [0_u8; 64];
+        rng.fill_bytes(&mut raw_seed);
+        let topic_name_seed = Seed512(raw_seed);
+
+        // initialize topic name PRNG and generate a set of unique topics
+        let mut rng = Xoshiro512PlusPlus::from_seed(topic_name_seed);
         let mut topics = HashSet::with_capacity(ntopics);
         while topics.len() < ntopics {
             let topic = (&mut rng)
@@ -447,15 +463,28 @@ impl Distribution {
 }
 
 impl Keyspace {
-    pub fn new(keyspace: &config::Keyspace) -> Self {
+    pub fn new(config: &Config, keyspace: &config::Keyspace) -> Self {
         // nkeys must be >= 1
         let nkeys = std::cmp::max(1, keyspace.nkeys());
         let klen = keyspace.klen();
 
+        // initialize a PRNG with the default initial seed
+        let mut rng = Xoshiro512PlusPlus::from_seed(config.general().initial_seed());
+
+        // generate the seed for key PRNG
+        let mut raw_seed = [0_u8; 64];
+        rng.fill_bytes(&mut raw_seed);
+        let key_seed = Seed512(raw_seed);
+
+        // generate the seed for inner key PRNG
+        let mut raw_seed = [0_u8; 64];
+        rng.fill_bytes(&mut raw_seed);
+        let inner_key_seed = Seed512(raw_seed);
+
         // we use a predictable seed to generate the keys in the keyspace
-        let mut rng = Xoshiro512PlusPlus::seed_from_u64(0);
+        let mut rng = Xoshiro512PlusPlus::from_seed(key_seed);
         let mut keys = HashSet::with_capacity(nkeys);
-        while keys.len() <= nkeys {
+        while keys.len() < nkeys {
             let key = (&mut rng)
                 .sample_iter(&Alphanumeric)
                 .take(klen)
@@ -474,9 +503,9 @@ impl Keyspace {
         let klen = keyspace.inner_keys_klen().unwrap_or(1);
 
         // we use a predictable seed to generate the keys in the keyspace
-        let mut rng = Xoshiro512PlusPlus::seed_from_u64(0);
+        let mut rng = Xoshiro512PlusPlus::from_seed(inner_key_seed);
         let mut inner_keys = HashSet::with_capacity(nkeys);
-        while inner_keys.len() <= nkeys {
+        while inner_keys.len() < nkeys {
             let key = (&mut rng)
                 .sample_iter(&Alphanumeric)
                 .take(klen)

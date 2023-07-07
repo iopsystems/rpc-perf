@@ -1,4 +1,7 @@
 use super::*;
+use rand::Rng;
+use rand_xoshiro::Seed512;
+use sha2::{Digest, Sha512};
 
 #[derive(Clone, Deserialize)]
 pub struct General {
@@ -13,6 +16,9 @@ pub struct General {
     json_output: Option<String>,
     /// The admin listen address
     admin: String,
+    /// The initial seed for initializing the PRNGs. This can be any string and
+    /// we will hash it to determine a corresponding seed.
+    initial_seed: Option<String>,
 }
 
 impl General {
@@ -35,18 +41,17 @@ impl General {
     pub fn admin(&self) -> String {
         self.admin.clone()
     }
+
+    pub fn initial_seed(&self) -> Seed512 {
+        if let Some(initial_seed) = &self.initial_seed {
+            let mut hasher = Sha512::new();
+            hasher.update(initial_seed.as_bytes());
+            Seed512(hasher.finalize().into())
+        } else {
+            let mut rng = rand::thread_rng();
+            let mut seed = [0_u8; 64];
+            rng.fill(&mut seed);
+            Seed512(seed)
+        }
+    }
 }
-
-// #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Deserialize)]
-// #[serde(rename_all = "snake_case")]
-// #[serde(deny_unknown_fields)]
-// pub enum OutputFormat {
-//     Log,
-//     Json,
-// }
-
-// impl Default for OutputFormat {
-//     fn default() -> Self {
-//         Self::Log
-//     }
-// }
