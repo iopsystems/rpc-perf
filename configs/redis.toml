@@ -190,11 +190,14 @@ commands = [
 	# adds a member to a sorted set
 	{ verb = "zadd", weight = 5 },
 	# with cardinality > 1 to add multiple members
-	{ verb = "sorted_set_put", weight = 5, cardinality = 5 },
+	{ verb = "zadd", weight = 5, cardinality = 5 },
 
-	# fetch all members in a sorted set
-	# NOTE: this is using `ZUNION 1 [key] WITHSCORES` to perform this
-	{ verb = "zmembers", weight = 5 },
+	# get a all elements in a sorted set, sorted by index
+	{ verb = "zrange", weight = 5 },
+	# get a range of elements in a sorted set, by index from 0..end
+	{ verb = "zrange", weight = 5, end = 5 },
+	# get a range of elements in a sorted set, by index from 5..10
+	{ verb = "zrange", weight = 5, start = 5, end = 10 },
 
 	# get the score for a member in a sorted set
 	{ verb = "zscore", weight = 5 },

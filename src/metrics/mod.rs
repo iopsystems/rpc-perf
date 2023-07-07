@@ -420,7 +420,7 @@ request!(SORTED_SET_ADD, "sorted_set_add");
 
 request!(SORTED_SET_INCR, "sorted_set_incr");
 
-request!(SORTED_SET_MEMBERS, "sorted_set_members");
+request!(SORTED_SET_RANGE, "sorted_set_range");
 
 request!(SORTED_SET_RANK, "sorted_set_rank");
 

@@ -174,8 +174,10 @@ pub struct SortedSetAdd {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct SortedSetMembers {
+pub struct SortedSetRange {
     pub key: Arc<[u8]>,
+    pub start: Option<i32>,
+    pub end: Option<i32>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -256,8 +258,8 @@ pub enum ClientRequest {
 
     // Sorted Set
     SortedSetAdd(SortedSetAdd),
-    SortedSetMembers(SortedSetMembers),
     SortedSetIncrement(SortedSetIncrement),
+    SortedSetRange(SortedSetRange),
     SortedSetRank(SortedSetRank),
     SortedSetRemove(SortedSetRemove),
     SortedSetScore(SortedSetScore),

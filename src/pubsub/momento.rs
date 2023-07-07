@@ -1,8 +1,8 @@
-use futures::stream::StreamExt;
-use ::momento::CredentialProviderBuilder;
 use super::*;
 use ::momento::preview::topics::{SubscriptionItem, TopicClient, ValueKind};
+use ::momento::CredentialProviderBuilder;
 use ahash::RandomState;
+use futures::stream::StreamExt;
 use std::sync::Arc;
 use tokio::time::timeout;
 
@@ -39,10 +39,12 @@ pub fn launch_subscribers(
                     }
                     let auth_token = std::env::var("MOMENTO_AUTHENTICATION")
                         .expect("MOMENTO_AUTHENTICATION must be set");
-                    let credential_provider = CredentialProviderBuilder::from_string(auth_token).build().unwrap_or_else(|e| {
-                        eprintln!("failed to initialize credential provider. error: {e}");
-                        std::process::exit(1);
-                    });
+                    let credential_provider = CredentialProviderBuilder::from_string(auth_token)
+                        .build()
+                        .unwrap_or_else(|e| {
+                            eprintln!("failed to initialize credential provider. error: {e}");
+                            std::process::exit(1);
+                        });
                     match TopicClient::connect(credential_provider, None) {
                         Ok(c) => Arc::new(c),
                         Err(e) => {
@@ -163,10 +165,12 @@ pub fn launch_publishers(runtime: &mut Runtime, config: Config, work_receiver: R
             }
             let auth_token = std::env::var("MOMENTO_AUTHENTICATION")
                 .expect("MOMENTO_AUTHENTICATION must be set");
-            let credential_provider = CredentialProviderBuilder::from_string(auth_token).build().unwrap_or_else(|e| {
-                eprintln!("failed to initialize credential provider. error: {e}");
-                std::process::exit(1);
-            });
+            let credential_provider = CredentialProviderBuilder::from_string(auth_token)
+                .build()
+                .unwrap_or_else(|e| {
+                    eprintln!("failed to initialize credential provider. error: {e}");
+                    std::process::exit(1);
+                });
             match TopicClient::connect(credential_provider, None) {
                 Ok(c) => Arc::new(c),
                 Err(e) => {
