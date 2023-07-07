@@ -502,8 +502,6 @@ impl Keyspace {
         let nkeys = keyspace.inner_keys_nkeys().unwrap_or(1);
         let klen = keyspace.inner_keys_klen().unwrap_or(1);
 
-
-
         // we use a predictable seed to generate the keys in the keyspace
         let mut rng = Xoshiro512PlusPlus::from_seed(inner_key_seed);
         let mut inner_keys = HashSet::with_capacity(nkeys);

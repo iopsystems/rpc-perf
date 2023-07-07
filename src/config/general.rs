@@ -1,7 +1,7 @@
-use rand::Rng;
-use sha2::{Digest, Sha512};
-use rand_xoshiro::Seed512;
 use super::*;
+use rand::Rng;
+use rand_xoshiro::Seed512;
+use sha2::{Digest, Sha512};
 
 #[derive(Clone, Deserialize)]
 pub struct General {
