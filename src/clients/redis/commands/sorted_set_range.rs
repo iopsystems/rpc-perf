@@ -1,8 +1,7 @@
 use super::*;
 
 /// Performs a range query on a sorted set, returning the specified range of
-/// elements. Currently, this only supports selecting by index (rank) and
-/// selects all members of the sorted set.
+/// elements. Supports selecting a range of keys by index (rank).
 pub async fn sorted_set_range(
     connection: &mut Connection<net::Stream>,
     config: &Config,
