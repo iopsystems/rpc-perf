@@ -312,8 +312,10 @@ impl Generator {
                     ttl: keyspace.ttl(),
                 })
             }
-            Verb::SortedSetMembers => ClientRequest::SortedSetMembers(client::SortedSetMembers {
+            Verb::SortedSetRange => ClientRequest::SortedSetRange(client::SortedSetRange {
                 key: keyspace.sample(rng),
+                start: command.start(),
+                end: command.end(),
             }),
             Verb::SortedSetRemove => {
                 let mut members = HashSet::new();
@@ -550,6 +552,20 @@ impl Keyspace {
                     command.verb()
                 );
                 std::process::exit(2);
+            }
+
+            if command.start().is_some() && !command.verb().supports_start() {
+                eprintln!(
+                    "verb: {:?} does not support the `start` argument",
+                    command.verb()
+                );
+            }
+
+            if command.end().is_some() && !command.verb().supports_end() {
+                eprintln!(
+                    "verb: {:?} does not support the `end` argument",
+                    command.verb()
+                );
             }
 
             if command.truncate().is_some() {

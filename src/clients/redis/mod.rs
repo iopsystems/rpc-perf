@@ -133,9 +133,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                  * SORTED SETS
                  */
                 ClientRequest::SortedSetAdd(r) => sorted_set_add(&mut con, &config, r).await,
-                ClientRequest::SortedSetMembers(r) => {
-                    sorted_set_members(&mut con, &config, r).await
-                }
+                ClientRequest::SortedSetRange(r) => sorted_set_range(&mut con, &config, r).await,
                 ClientRequest::SortedSetIncrement(r) => {
                     sorted_set_increment(&mut con, &config, r).await
                 }

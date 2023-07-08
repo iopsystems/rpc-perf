@@ -14,22 +14,18 @@ pub async fn get(
     )
     .await
     {
-        Ok(Ok(r)) => match r.result {
-            MomentoGetStatus::HIT => {
+        Ok(Ok(r)) => match r {
+            Get::Hit { .. } => {
                 GET_OK.increment();
                 RESPONSE_HIT.increment();
                 GET_KEY_HIT.increment();
                 Ok(())
             }
-            MomentoGetStatus::MISS => {
+            Get::Miss => {
                 GET_OK.increment();
                 RESPONSE_MISS.increment();
                 GET_KEY_MISS.increment();
                 Ok(())
-            }
-            MomentoGetStatus::ERROR => {
-                GET_EX.increment();
-                Err(ResponseError::Exception)
             }
         },
         Ok(Err(e)) => {

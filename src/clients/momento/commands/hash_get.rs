@@ -18,10 +18,11 @@ pub async fn hash_get(
     )
     .await
     {
-        Ok(Ok(r)) => match r.dictionary {
-            Some(dict) => {
+        Ok(Ok(r)) => match r {
+            DictionaryGet::Hit { value } => {
                 let mut hit = 0;
                 let mut miss = 0;
+                let dict: HashMap<Vec<u8>, Vec<u8>> = value.collect_into();
                 for field in request.fields {
                     if dict.contains_key(&*field) {
                         hit += 1;
@@ -35,7 +36,7 @@ pub async fn hash_get(
                 HASH_GET_FIELD_MISS.add(miss);
                 Ok(())
             }
-            None => {
+            DictionaryGet::Miss => {
                 RESPONSE_MISS.add(request.fields.len() as _);
                 HASH_GET_FIELD_MISS.add(request.fields.len() as _);
                 Ok(())

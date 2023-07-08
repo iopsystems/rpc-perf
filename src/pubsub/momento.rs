@@ -1,6 +1,8 @@
 use super::*;
 use ::momento::preview::topics::{SubscriptionItem, TopicClient, ValueKind};
+use ::momento::CredentialProviderBuilder;
 use ahash::RandomState;
+use futures::stream::StreamExt;
 use std::sync::Arc;
 use tokio::time::timeout;
 
@@ -30,14 +32,20 @@ pub fn launch_subscribers(
                 let client = {
                     let _guard = runtime.enter();
 
-                    // initialize the Momento cache client
+                    // initialize the Momento topic client
                     if std::env::var("MOMENTO_AUTHENTICATION").is_err() {
                         eprintln!("environment variable `MOMENTO_AUTHENTICATION` is not set");
                         std::process::exit(1);
                     }
                     let auth_token = std::env::var("MOMENTO_AUTHENTICATION")
                         .expect("MOMENTO_AUTHENTICATION must be set");
-                    match TopicClient::connect(auth_token, None, None) {
+                    let credential_provider = CredentialProviderBuilder::from_string(auth_token)
+                        .build()
+                        .unwrap_or_else(|e| {
+                            eprintln!("failed to initialize credential provider. error: {e}");
+                            std::process::exit(1);
+                        });
+                    match TopicClient::connect(credential_provider, None) {
                         Ok(c) => Arc::new(c),
                         Err(e) => {
                             eprintln!("could not create cache client: {}", e);
@@ -80,8 +88,8 @@ async fn subscriber_task(client: Arc<TopicClient>, cache_name: String, topic: St
         );
 
         while RUNNING.load(Ordering::Relaxed) {
-            match subscription.item().await {
-                Ok(Some(SubscriptionItem::Value(v))) => {
+            match subscription.next().await {
+                Some(SubscriptionItem::Value(v)) => {
                     if let ValueKind::Binary(mut v) = v.kind {
                         let now = Instant::now();
                         let now_unix = UnixInstant::now();
@@ -126,18 +134,12 @@ async fn subscriber_task(client: Arc<TopicClient>, cache_name: String, topic: St
                         PUBSUB_RECEIVE_EX.increment();
                     }
                 }
-                Ok(Some(SubscriptionItem::Discontinuity(_))) => {
+                Some(SubscriptionItem::Discontinuity(_)) => {
                     // todo: do something about discontinuities?
                 }
-                Ok(None) => {
+                None => {
                     PUBSUB_RECEIVE.increment();
                     PUBSUB_RECEIVE_CLOSED.increment();
-                    PUBSUB_SUBSCRIBER_CURR.sub(1);
-                    break;
-                }
-                Err(_) => {
-                    PUBSUB_RECEIVE.increment();
-                    PUBSUB_RECEIVE_EX.increment();
                     PUBSUB_SUBSCRIBER_CURR.sub(1);
                     break;
                 }
@@ -156,14 +158,20 @@ pub fn launch_publishers(runtime: &mut Runtime, config: Config, work_receiver: R
         let client = {
             let _guard = runtime.enter();
 
-            // initialize the Momento cache client
+            // initialize the Momento topic client
             if std::env::var("MOMENTO_AUTHENTICATION").is_err() {
                 eprintln!("environment variable `MOMENTO_AUTHENTICATION` is not set");
                 std::process::exit(1);
             }
             let auth_token = std::env::var("MOMENTO_AUTHENTICATION")
                 .expect("MOMENTO_AUTHENTICATION must be set");
-            match TopicClient::connect(auth_token, None, None) {
+            let credential_provider = CredentialProviderBuilder::from_string(auth_token)
+                .build()
+                .unwrap_or_else(|e| {
+                    eprintln!("failed to initialize credential provider. error: {e}");
+                    std::process::exit(1);
+                });
+            match TopicClient::connect(credential_provider, None) {
                 Ok(c) => Arc::new(c),
                 Err(e) => {
                     eprintln!("could not create cache client: {}", e);

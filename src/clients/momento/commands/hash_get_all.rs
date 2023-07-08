@@ -14,13 +14,13 @@ pub async fn hash_get_all(
     )
     .await
     {
-        Ok(Ok(r)) => match r.dictionary {
-            Some(_) => {
+        Ok(Ok(r)) => match r {
+            DictionaryFetch::Hit { .. } => {
                 RESPONSE_HIT.increment();
                 HASH_GET_ALL_HIT.increment();
                 Ok(())
             }
-            None => {
+            DictionaryFetch::Miss => {
                 RESPONSE_MISS.increment();
                 HASH_GET_ALL_MISS.increment();
                 Ok(())

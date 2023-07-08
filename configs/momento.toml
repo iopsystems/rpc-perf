@@ -201,9 +201,15 @@ commands = [
 	# with cardinality > 1 to add multiple elements
 	{ verb = "sorted_set_put", weight = 5, cardinality = 5 },
 
-	# NOTE: this currently does not work in the Rust SDK
-	# fetch all elements in a sorted set
-	# { verb = "sorted_set_fetch", weight = 5 },
+	# NOTE: some ranges cannot be represented currently, specifically where
+	# start is positive and end is some negative index below -1
+
+	# get a all elements in a sorted set, sorted by index
+	{ verb = "sorted_set_range", weight = 5 },
+	# get a range of elements in a sorted set, by index from 0..end
+	{ verb = "sorted_set_range", weight = 5, end = 5 },
+	# get a range of elements in a sorted set, by index from 5..10
+	{ verb = "sorted_set_range", weight = 5, start = 5, end = 10 },
 
 	# get the score for an element in a sorted set
 	{ verb = "sorted_set_get_score", weight = 5 },

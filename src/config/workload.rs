@@ -175,6 +175,10 @@ pub struct Command {
     cardinality: usize,
     #[serde(default)]
     truncate: Option<u32>,
+    #[serde(default)]
+    start: Option<i32>,
+    #[serde(default)]
+    end: Option<i32>,
 }
 
 impl Command {
@@ -192,6 +196,14 @@ impl Command {
 
     pub fn truncate(&self) -> Option<u32> {
         self.truncate
+    }
+
+    pub fn start(&self) -> Option<i32> {
+        self.start
+    }
+
+    pub fn end(&self) -> Option<i32> {
+        self.end
     }
 }
 
@@ -340,12 +352,13 @@ pub enum Verb {
     #[serde(alias = "sorted_set_put")]
     #[serde(alias = "zadd")]
     SortedSetAdd,
-    /// Retrieves the members of a sorted set with their scores
-    /// * Moment: `sorted_set_fetch`
-    /// * RESP: `ZUNION 1 [key] WITHSCORES`
-    #[serde(alias = "sorted_set_fetch")]
-    #[serde(alias = "zmembers")]
-    SortedSetMembers,
+    /// Retrieves a range of members of a sorted set (with scores), sorted by
+    /// index.
+    /// * Momento: `sorted_set_fetch_by_index`
+    /// * RESP: `ZRANGE`
+    #[serde(alias = "sorted_set_fetch_by_index")]
+    #[serde(alias = "zrange")]
+    SortedSetRange,
     /// Increment the score for a member of a sorted set.
     /// * Moemento: `sorted_set_increment`
     /// * RESP: `ZINCRBY`
@@ -389,6 +402,14 @@ impl Verb {
                 | Self::SortedSetScore
                 | Self::SortedSetRemove
         )
+    }
+
+    pub fn supports_start(&self) -> bool {
+        matches!(self, Self::SortedSetRange)
+    }
+
+    pub fn supports_end(&self) -> bool {
+        matches!(self, Self::SortedSetRange)
     }
 
     pub fn needs_inner_key(&self) -> bool {
