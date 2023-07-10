@@ -1,5 +1,5 @@
-use core::ops::Bound;
 use super::*;
+use core::ops::Bound;
 
 /// Performs a range query on a sorted set, returning the specified range of
 /// elements. Supports selecting a range of keys by index (rank).
