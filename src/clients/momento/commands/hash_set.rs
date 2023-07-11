@@ -16,7 +16,7 @@ pub async fn hash_set(
         .iter()
         .map(|(k, v)| (k.to_vec(), v.to_vec()))
         .collect();
-    match timeout(
+    let result = timeout(
         config.client().unwrap().request_timeout(),
         client.dictionary_set(
             cache_name,
@@ -25,19 +25,6 @@ pub async fn hash_set(
             CollectionTtl::new(request.ttl, false),
         ),
     )
-    .await
-    {
-        Ok(Ok(_)) => {
-            HASH_SET_OK.increment();
-            Ok(())
-        }
-        Ok(Err(e)) => {
-            HASH_SET_EX.increment();
-            Err(e.into())
-        }
-        Err(_) => {
-            HASH_SET_TIMEOUT.increment();
-            Err(ResponseError::Timeout)
-        }
-    }
+    .await;
+    record_result!(result, HASH_SET)
 }

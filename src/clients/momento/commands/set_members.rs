@@ -8,23 +8,10 @@ pub async fn set_members(
     request: workload::client::SetMembers,
 ) -> std::result::Result<(), ResponseError> {
     SET_MEMBERS.increment();
-    match timeout(
+    let result = timeout(
         config.client().unwrap().request_timeout(),
         client.set_fetch(cache_name, &*request.key),
     )
-    .await
-    {
-        Ok(Ok(_)) => {
-            SET_MEMBERS_OK.increment();
-            Ok(())
-        }
-        Ok(Err(e)) => {
-            SET_MEMBERS_EX.increment();
-            Err(e.into())
-        }
-        Err(_) => {
-            SET_MEMBERS_TIMEOUT.increment();
-            Err(ResponseError::Timeout)
-        }
-    }
+    .await;
+    record_result!(result, SET_MEMBERS)
 }
