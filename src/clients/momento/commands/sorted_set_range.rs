@@ -32,18 +32,5 @@ pub async fn sorted_set_range(
     )
     .await;
 
-    match result {
-        Ok(Ok(_)) => {
-            SORTED_SET_RANGE_OK.increment();
-            Ok(())
-        }
-        Ok(Err(e)) => {
-            SORTED_SET_RANGE_EX.increment();
-            Err(e.into())
-        }
-        Err(_) => {
-            SORTED_SET_RANGE_TIMEOUT.increment();
-            Err(ResponseError::Timeout)
-        }
-    }
+    record_result!(result, SORTED_SET_RANGE)
 }
