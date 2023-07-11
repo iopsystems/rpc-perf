@@ -9,23 +9,10 @@ pub async fn sorted_set_score(
 ) -> std::result::Result<(), ResponseError> {
     SORTED_SET_SCORE.increment();
     let members: Vec<&[u8]> = request.members.iter().map(|v| v.borrow()).collect();
-    match timeout(
+    let result = timeout(
         config.client().unwrap().request_timeout(),
         client.sorted_set_get_score(cache_name, &*request.key, members),
     )
-    .await
-    {
-        Ok(Ok(_)) => {
-            SORTED_SET_SCORE_OK.increment();
-            Ok(())
-        }
-        Ok(Err(e)) => {
-            SORTED_SET_SCORE_EX.increment();
-            Err(e.into())
-        }
-        Err(_) => {
-            SORTED_SET_SCORE_TIMEOUT.increment();
-            Err(ResponseError::Timeout)
-        }
-    }
+    .await;
+    record_result!(result, SORTED_SET_SCORE)
 }

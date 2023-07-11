@@ -1,4 +1,5 @@
 use super::*;
+use paste::paste;
 
 mod delete;
 mod get;
@@ -47,3 +48,45 @@ pub use sorted_set_range::*;
 pub use sorted_set_rank::*;
 pub use sorted_set_remove::*;
 pub use sorted_set_score::*;
+
+#[macro_export]
+#[rustfmt::skip]
+macro_rules! record_result {
+    ($result:ident, $command:ident) => {
+        paste! {
+            match $result {
+		        Ok(Ok(_)) => {
+		            [<$command _OK>].increment();
+		            Ok(())
+		        }
+		        Ok(Err(e)) => {
+		            [<$command _EX>].increment();
+		            Err(e.into())
+		        }
+		        Err(_) => {
+		            [<$command _TIMEOUT>].increment();
+		            Err(ResponseError::Timeout)
+		        }
+		    }
+        }
+    };
+
+    ($result:ident, $command:ident, $ok:ident) => {
+        paste! {
+            match $result {
+		        Ok(Ok(_)) => {
+		            [<$ok>].increment();
+		            Ok(())
+		        }
+		        Ok(Err(e)) => {
+		            [<$command _EX>].increment();
+		            Err(e.into())
+		        }
+		        Err(_) => {
+		            [<$command _TIMEOUT>].increment();
+		            Err(ResponseError::Timeout)
+		        }
+		    }
+        }
+    };
+}

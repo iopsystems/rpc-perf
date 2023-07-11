@@ -15,7 +15,7 @@ pub async fn sorted_set_add(
             score: *score,
         })
         .collect();
-    match timeout(
+    let result = timeout(
         config.client().unwrap().request_timeout(),
         client.sorted_set_put(
             cache_name,
@@ -24,19 +24,6 @@ pub async fn sorted_set_add(
             CollectionTtl::new(request.ttl, false),
         ),
     )
-    .await
-    {
-        Ok(Ok(_)) => {
-            SORTED_SET_ADD_OK.increment();
-            Ok(())
-        }
-        Ok(Err(e)) => {
-            SORTED_SET_ADD_EX.increment();
-            Err(e.into())
-        }
-        Err(_) => {
-            SORTED_SET_ADD_TIMEOUT.increment();
-            Err(ResponseError::Timeout)
-        }
-    }
+    .await;
+    record_result!(result, SORTED_SET_ADD)
 }

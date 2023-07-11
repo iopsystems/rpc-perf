@@ -8,23 +8,10 @@ pub async fn list_length(
     request: workload::client::ListLength,
 ) -> std::result::Result<(), ResponseError> {
     LIST_LENGTH.increment();
-    match timeout(
+    let result = timeout(
         config.client().unwrap().request_timeout(),
         client.list_fetch(cache_name, &*request.key),
     )
-    .await
-    {
-        Ok(Ok(_)) => {
-            LIST_LENGTH_OK.increment();
-            Ok(())
-        }
-        Ok(Err(e)) => {
-            LIST_LENGTH_EX.increment();
-            Err(e.into())
-        }
-        Err(_) => {
-            LIST_LENGTH_TIMEOUT.increment();
-            Err(ResponseError::Timeout)
-        }
-    }
+    .await;
+    record_result!(result, LIST_LENGTH)
 }

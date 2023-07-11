@@ -25,7 +25,6 @@ pub async fn hash_increment(
     {
         Ok(Ok(r)) => {
             HASH_INCR_OK.increment();
-            #[allow(clippy::if_same_then_else)]
             if r.value == request.amount {
                 RESPONSE_MISS.increment();
                 HASH_INCR_MISS.increment();

@@ -8,7 +8,7 @@ pub async fn set(
     request: workload::client::Set,
 ) -> std::result::Result<(), ResponseError> {
     SET.increment();
-    match timeout(
+    let result = timeout(
         config.client().unwrap().request_timeout(),
         client.set(
             cache_name,
@@ -17,19 +17,6 @@ pub async fn set(
             request.ttl,
         ),
     )
-    .await
-    {
-        Ok(Ok(_)) => {
-            SET_STORED.increment();
-            Ok(())
-        }
-        Ok(Err(e)) => {
-            SET_EX.increment();
-            Err(e.into())
-        }
-        Err(_) => {
-            SET_TIMEOUT.increment();
-            Err(ResponseError::Timeout)
-        }
-    }
+    .await;
+    record_result!(result, SET, SET_STORED)
 }
