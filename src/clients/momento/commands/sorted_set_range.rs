@@ -1,4 +1,5 @@
 use super::*;
+use core::ops::Bound;
 
 /// Performs a range query on a sorted set, returning the specified range of
 /// elements. Supports selecting a range of keys by index (rank).
@@ -10,56 +11,26 @@ pub async fn sorted_set_range(
 ) -> std::result::Result<(), ResponseError> {
     SORTED_SET_RANGE.increment();
 
-    let result = match (request.start, request.end) {
-        (None, None) => {
-            timeout(
-                config.client().unwrap().request_timeout(),
-                client.sorted_set_fetch_by_index(
-                    cache_name,
-                    &*request.key,
-                    momento::sorted_set::Order::Ascending,
-                    ..,
-                ),
-            )
-            .await
-        }
-        (Some(start), None) => {
-            timeout(
-                config.client().unwrap().request_timeout(),
-                client.sorted_set_fetch_by_index(
-                    cache_name,
-                    &*request.key,
-                    momento::sorted_set::Order::Ascending,
-                    start..,
-                ),
-            )
-            .await
-        }
-        (None, Some(end)) => {
-            timeout(
-                config.client().unwrap().request_timeout(),
-                client.sorted_set_fetch_by_index(
-                    cache_name,
-                    &*request.key,
-                    momento::sorted_set::Order::Ascending,
-                    ..end,
-                ),
-            )
-            .await
-        }
-        (Some(start), Some(end)) => {
-            timeout(
-                config.client().unwrap().request_timeout(),
-                client.sorted_set_fetch_by_index(
-                    cache_name,
-                    &*request.key,
-                    momento::sorted_set::Order::Ascending,
-                    start..end,
-                ),
-            )
-            .await
-        }
+    let start = match request.start {
+        None => Bound::Unbounded,
+        Some(v) => Bound::Included(v),
     };
+
+    let end = match request.end {
+        None => Bound::Unbounded,
+        Some(v) => Bound::Included(v),
+    };
+
+    let result = timeout(
+        config.client().unwrap().request_timeout(),
+        client.sorted_set_fetch_by_index(
+            cache_name,
+            &*request.key,
+            momento::sorted_set::Order::Ascending,
+            (start, end),
+        ),
+    )
+    .await;
 
     match result {
         Ok(Ok(_)) => {
