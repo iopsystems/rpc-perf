@@ -300,6 +300,8 @@ struct Subscribers {
 struct JsonSnapshot {
     window: u64,
     elapsed: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    target_qps: Option<u64>,
     client: Client,
     pubsub: Pubsub,
 }
@@ -413,6 +415,7 @@ pub fn json(config: Config) {
             let json = JsonSnapshot {
                 window: window_id,
                 elapsed,
+                target_qps: traffic_ratelimit.as_ref().map(|ratelimit| ratelimit.rate()),
                 client: Client {
                     connections,
                     requests,
