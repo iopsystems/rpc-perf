@@ -1,5 +1,6 @@
 use crate::*;
 use ahash::{HashMap, HashMapExt};
+use ratelimit::Ratelimiter;
 use serde::Serialize;
 use std::io::{BufWriter, Write};
 
@@ -301,7 +302,7 @@ struct JsonSnapshot {
     window: u64,
     elapsed: f64,
     #[serde(skip_serializing_if = "Option::is_none")]
-    target_qps: Option<u64>,
+    target_qps: Option<f64>,
     client: Client,
     pubsub: Pubsub,
 }
@@ -347,7 +348,7 @@ fn heatmap_to_buckets(heatmap: &Heatmap) -> RequestLatencies {
     }
 }
 
-pub fn json(config: Config) {
+pub fn json(config: Config, ratelimit: Option<&Ratelimiter>) {
     if config.general().json_output().is_none() {
         return;
     }
@@ -415,7 +416,7 @@ pub fn json(config: Config) {
             let json = JsonSnapshot {
                 window: window_id,
                 elapsed,
-                target_qps: traffic_ratelimit.as_ref().map(|ratelimit| ratelimit.rate()),
+                target_qps: ratelimit.as_ref().map(|ratelimit| ratelimit.rate()),
                 client: Client {
                     connections,
                     requests,
