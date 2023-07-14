@@ -24,6 +24,12 @@ env:
   # Most docker images seem to get this right but not ubuntu:focal
   DEBIAN_FRONTEND: noninteractive
 
+  # Use zstd maximum compression for versions of dpkg which support it.
+  #
+  # Note that dpkg only checks these environment variables after version 1.21.10
+  DPKG_DEB_COMPRESSOR_TYPE: zstd
+  DPKG_DEB_COMPRESSOR_LEVEL: 22
+
 jobs:
   build-deb:
     name: ${{ matrix.distro }}
