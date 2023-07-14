@@ -58,7 +58,7 @@ jobs:
         run: |
           apt-get update
           apt-get install -y curl build-essential pkg-config libssl-dev jq debhelper lsb-release \
-            cmake libclang-dev
+            cmake libclang-dev protobuf-compiler
 
       - name: install rust
         shell: bash
