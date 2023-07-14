@@ -7,6 +7,7 @@ name: package
     paths:
       - .github/actions/**
       - .github/workflows/package.yml
+      - debian/**
   release:
     types: [published]
   workflow_dispatch:
