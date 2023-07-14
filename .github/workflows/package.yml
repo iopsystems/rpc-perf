@@ -104,6 +104,7 @@ jobs:
 
       - uses: actions/upload-artifact@v3
         with:
+          name: ${{ steps.vars.outputs.distro }}_${{ steps.vars.outputs.release }}.tar.xz
           path: target/${{ steps.vars.outputs.distro }}_${{ steps.vars.outputs.release }}.tar.xz
 
   upload-to-apt-repo:
@@ -112,6 +113,7 @@ jobs:
     needs:
       - build-deb
     steps:
+      - uses: actions/checkout@v3
       - uses: google-github-actions/auth@v1
         id: auth
         with:
@@ -119,15 +121,22 @@ jobs:
       - uses: google-github-actions/setup-gcloud@v1
       - uses: actions/download-artifact@v3
         with:
-          path: .
+          path: target/debian/
 
       - name: configure artifact registry
         run: |
           gcloud config set artifacts/repository systemslab
           gcloud config set artifacts/location us
 
+      - name: extract artifacts
+        run: |
+          cd target/debian
+          for archive in *.tar.xz; do
+            tar xf "$archive"
+          done
+          ls -lah
+
       - name: upload package
-        if: false
         run: |
           for artifact in target/debian/*/*; do
             name="$(basename "$artifact")"
@@ -135,6 +144,6 @@ jobs:
             release="$(echo "$artifact" | cut -d _ -f 2)"
 
             echo "::group::upload $release $name"
-            gcloud artifacts apt upload "$release" --source "$artifact"
+            # gcloud artifacts apt upload "$release" --source "$artifact"
             echo "::endgroup::"
           done
