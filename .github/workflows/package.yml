@@ -98,7 +98,7 @@ jobs:
         run: |
           shopt -s nullglob
           mkdir -p target/debian
-          cp ../*.deb ../*.ddeb target/debian/ 
+          cp ../*.deb ../*.ddeb target/debian/
           tar cJf target/${{ steps.vars.outputs.distro }}_${{ steps.vars.outputs.release}}.tar.xz target/debian/*
 
       - uses: actions/upload-artifact@v3
