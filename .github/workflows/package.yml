@@ -139,7 +139,9 @@ jobs:
         run: |
           cd target/debian
           for archive in **/*.tar.xz; do
-            tar xf "$archive"
+            echo "::group::$archive"
+            tar xvf "$archive"
+            echo "::endgroup"
           done
           ls -lah
 
