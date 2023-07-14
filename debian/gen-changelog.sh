@@ -4,7 +4,7 @@ VERSION=$(cargo metadata --format-version 1 | jq -r '.packages[] | select(.name 
 RELEASE=${RELEASE:-1}
 
 cat <<EOM
- ($VERSION-$RELEASE) $(lsb_release -sc); urgency=medium
+rpc-perf ($VERSION-$RELEASE) $(lsb_release -sc); urgency=medium
 
   * Automated update package for rpc-perf $VERSION
 
