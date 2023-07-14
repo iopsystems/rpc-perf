@@ -138,7 +138,7 @@ jobs:
       - name: extract artifacts
         run: |
           cd target/debian
-          for archive in *.tar.xz; do
+          for archive in **/*.tar.xz; do
             tar xf "$archive"
           done
           ls -lah
