@@ -104,18 +104,14 @@ jobs:
       - name: copy debs
         shell: bash
         run: |
-          set -x
           shopt -s nullglob
           mkdir -p target/debian
           cp ../*.deb ../*.ddeb target/debian/
-          
-          cd target/debian
-          tar cJf ../${{ steps.vars.outputs.distro }}_${{ steps.vars.outputs.release}}.tar.xz *
 
       - uses: actions/upload-artifact@v3
         with:
-          name: ${{ steps.vars.outputs.distro }}_${{ steps.vars.outputs.release }}.tar.xz
-          path: target/${{ steps.vars.outputs.distro }}_${{ steps.vars.outputs.release }}.tar.xz
+          path: target/debian/*
+          name: ${{ steps.vars.outputs.distro }}_${{ steps.vars.outputs.release }}_all
 
   upload-to-apt-repo:
     # if: ${{ github.event_name == 'release' || github.event_name == 'workflow_dispatch' }}
@@ -140,23 +136,12 @@ jobs:
 
       - name: upload package
         run: |
-          set -x
-          for artifact in target/debian/**/*.tar.xz; do
+          for artifact in target/debian/*/*; do
             name="$(basename "$artifact")"
-            distro="$( echo "$name" | cut -d . -f 1 | cut -d _ -f 1)"
-            release="$(echo "$name" | cut -d . -f 1 | cut -d _ -f 2)"
+            distro="$(echo "$artifact" | cut -d _ -f 1)"
+            release="$(echo "$artifact" | cut -d _ -f 2)"
 
             echo "::group::upload $release $name"
-            mkdir -p target/artifacts
-            cd target/artifacts
-            tar xvf "$artifact"
-            ls -lah
-            cd -
-
-            for package in target/artifacts/*; do
-              echo gcloud artifacts apt upload "$release" --source "$package"
-            done
-
-            rm -rf target/artifacts
+            echo gcloud artifacts apt upload "$release" --source "$artifact"
             echo "::endgroup::"
           done
