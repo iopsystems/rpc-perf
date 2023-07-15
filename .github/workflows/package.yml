@@ -104,8 +104,9 @@ jobs:
       - name: copy debs
         shell: bash
         run: |
+          set -x
           shopt -s nullglob
-          mkdir -p ${{ steps.vars.outputs.distro }}_${{ steps.vars.outputs.release}}
+          mkdir -p target/debian
           cp ../*.deb ../*.ddeb target/debian/
           
           cd target/debian
@@ -139,6 +140,7 @@ jobs:
 
       - name: upload package
         run: |
+          set -x
           for artifact in target/debian/**/*.tar.xz; do
             name="$(basename "$artifact")"
             distro="$( echo "$name" | cut -d . -f 1 | cut -d _ -f 1)"
@@ -154,7 +156,7 @@ jobs:
             for package in target/artifacts/*; do
               echo gcloud artifacts apt upload "$release" --source "$package"
             done
-            
+
             rm -rf target/artifacts
             echo "::endgroup::"
           done
