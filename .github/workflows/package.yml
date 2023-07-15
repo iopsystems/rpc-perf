@@ -38,17 +38,17 @@ jobs:
     strategy:
       matrix:
         distro:
-          # - debian:buster   # oldstable
-          # - debian:bullseye # stable
+          - debian:buster   # oldstable
+          - debian:bullseye # stable
           - debian:bookworm # testing
 
-          # - ubuntu:trusty   # LTS until Apr 2024
-          # - ubuntu:xenial   # LTS until Apr 2026
-          # - ubuntu:bionic   # LTS until Apr 2028
-          # - ubuntu:focal    # LTS until Apr 2030
-          # - ubuntu:jammy    # LTS until Apr 2032
-          # - ubuntu:kinetic  # Previous release
-          # - ubuntu:lunar    # Current release
+          - ubuntu:trusty   # LTS until Apr 2024
+          - ubuntu:xenial   # LTS until Apr 2026
+          - ubuntu:bionic   # LTS until Apr 2028
+          - ubuntu:focal    # LTS until Apr 2030
+          - ubuntu:jammy    # LTS until Apr 2032
+          - ubuntu:kinetic  # Previous release
+          - ubuntu:lunar    # Current release
       fail-fast: false
     steps:
       - uses: actions/checkout@v3
@@ -114,7 +114,7 @@ jobs:
           name: ${{ steps.vars.outputs.distro }}_${{ steps.vars.outputs.release }}_all
 
   upload-to-apt-repo:
-    # if: ${{ github.event_name == 'release' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ github.event_name == 'release' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     needs:
       - build-deb
@@ -142,6 +142,6 @@ jobs:
             release="$(echo "$artifact" | cut -d _ -f 2)"
 
             echo "::group::upload $release $name"
-            echo gcloud artifacts apt upload "$release" --source "$artifact"
+            gcloud artifacts apt upload "$release" --source "$artifact"
             echo "::endgroup::"
           done
