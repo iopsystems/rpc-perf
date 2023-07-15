@@ -105,9 +105,11 @@ jobs:
         shell: bash
         run: |
           shopt -s nullglob
-          mkdir -p target/debian
+          mkdir -p ${{ steps.vars.outputs.distro }}_${{ steps.vars.outputs.release}}
           cp ../*.deb ../*.ddeb target/debian/
-          tar cJf target/${{ steps.vars.outputs.distro }}_${{ steps.vars.outputs.release}}.tar.xz target/debian/*
+          
+          cd target/debian
+          tar cJf ../${{ steps.vars.outputs.distro }}_${{ steps.vars.outputs.release}}.tar.xz *
 
       - uses: actions/upload-artifact@v3
         with:
@@ -135,24 +137,24 @@ jobs:
           gcloud config set artifacts/repository systemslab
           gcloud config set artifacts/location us
 
-      - name: extract artifacts
-        run: |
-          cd target/debian
-          for archive in **/*.tar.xz; do
-            echo "::group::$archive"
-            tar xvf "$archive"
-            echo "::endgroup"
-          done
-          ls -lah
-
       - name: upload package
         run: |
-          for artifact in target/debian/*/*; do
+          for artifact in target/debian/**/*.tar.xz; do
             name="$(basename "$artifact")"
-            distro="$(echo "$artifact" | cut -d _ -f 1)"
-            release="$(echo "$artifact" | cut -d _ -f 2)"
+            distro="$( echo "$name" | cut -d . -f 1 | cut -d _ -f 1)"
+            release="$(echo "$name" | cut -d . -f 1 | cut -d _ -f 2)"
 
             echo "::group::upload $release $name"
-            # gcloud artifacts apt upload "$release" --source "$artifact"
+            mkdir -p target/artifacts
+            cd target/artifacts
+            tar xvf "$artifact"
+            ls -lah
+            cd -
+
+            for package in target/artifacts/*; do
+              echo gcloud artifacts apt upload "$release" --source "$package"
+            done
+            
+            rm -rf target/artifacts
             echo "::endgroup::"
           done
