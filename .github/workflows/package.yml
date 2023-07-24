@@ -30,6 +30,8 @@ env:
   DPKG_DEB_COMPRESSOR_TYPE: zstd
   DPKG_DEB_COMPRESSOR_LEVEL: 22
 
+  PROTOC_VERSION: "23.4"
+
 jobs:
   build-deb:
     name: ${{ matrix.distro }}
@@ -42,8 +44,8 @@ jobs:
           - debian:bullseye # stable
           - debian:bookworm # testing
 
-          # - ubuntu:trusty   # LTS until Apr 2024
-          # - ubuntu:xenial   # LTS until Apr 2026
+          - ubuntu:trusty   # LTS until Apr 2024
+          - ubuntu:xenial   # LTS until Apr 2026
           - ubuntu:bionic   # LTS until Apr 2028
           - ubuntu:focal    # LTS until Apr 2030
           - ubuntu:jammy    # LTS until Apr 2032
@@ -65,7 +67,17 @@ jobs:
         run: |
           apt-get update
           apt-get install -y curl build-essential pkg-config libssl-dev jq debhelper lsb-release \
-            cmake libclang-dev protobuf-compiler clang
+            cmake libclang-dev protobuf-compiler clang unzip
+
+      # Older ubuntu versions have a protoc version that is too old to build
+      # momento-protos. To work around this we manually install protoc.
+      - name: Manually install protoc
+        if: ${{ steps.vars.outputs.distro == 'ubuntu' }}
+        shell: bash
+        run: |
+          curl -sSL https://github.com/protocolbuffers/protobuf/releases/download/v${{ env.PROTOC_VERSION }}/protoc-${{ env.PROTOC_VERSION }}-linux-x86_64.zip -o protoc.zip
+          unzip protoc.zip -d /usr/local/bin
+          rm protoc.zip
 
       - name: install rust
         shell: bash
