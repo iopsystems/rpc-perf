@@ -76,7 +76,7 @@ jobs:
         shell: bash
         run: |
           curl -sSL https://github.com/protocolbuffers/protobuf/releases/download/v${{ env.PROTOC_VERSION }}/protoc-${{ env.PROTOC_VERSION }}-linux-x86_64.zip -o protoc.zip
-          unzip protoc.zip -d /usr/local/bin
+          unzip protoc.zip -d /usr/local
           rm protoc.zip
 
       - name: Manually install protoc
