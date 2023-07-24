@@ -85,6 +85,8 @@ jobs:
         run: |
           apt-get install -y protobuf-compiler
 
+      - run: protoc --version
+
       - name: install rust
         shell: bash
         run: |
