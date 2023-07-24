@@ -67,7 +67,7 @@ jobs:
         run: |
           apt-get update
           apt-get install -y curl build-essential pkg-config libssl-dev jq debhelper lsb-release \
-            cmake libclang-dev protobuf-compiler clang unzip
+            cmake libclang-dev clang unzip
 
       # Older ubuntu versions have a protoc version that is too old to build
       # momento-protos. To work around this we manually install protoc.
@@ -78,6 +78,12 @@ jobs:
           curl -sSL https://github.com/protocolbuffers/protobuf/releases/download/v${{ env.PROTOC_VERSION }}/protoc-${{ env.PROTOC_VERSION }}-linux-x86_64.zip -o protoc.zip
           unzip protoc.zip -d /usr/local/bin
           rm protoc.zip
+
+      - name: Manually install protoc
+        if: ${{ steps.vars.outputs.distro != 'ubuntu' }}
+        shell: bash
+        run: |
+          apt-get install -y protobuf-compiler
 
       - name: install rust
         shell: bash
