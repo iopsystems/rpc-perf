@@ -82,52 +82,55 @@ impl Metrics {
 }
 
 #[macro_export]
+#[rustfmt::skip]
 macro_rules! counter {
     ($ident:ident, $name:tt) => {
         #[metriken::metric(
-                                    name = $name,
-                                    crate = metriken
-                                )]
+            name = $name,
+            crate = metriken
+        )]
         pub static $ident: Lazy<metriken::Counter> =
             metriken::Lazy::new(|| metriken::Counter::new());
     };
     ($ident:ident, $name:tt, $description:tt) => {
         #[metriken::metric(
-                                    name = $name,
-                                    description = $description,
-                                    crate = metriken
-                                )]
+                                            name = $name,
+                                            description = $description,
+                                            crate = metriken
+                                        )]
         pub static $ident: Lazy<metriken::Counter> =
             metriken::Lazy::new(|| metriken::Counter::new());
     };
 }
 
 #[macro_export]
+#[rustfmt::skip]
 macro_rules! gauge {
     ($ident:ident, $name:tt) => {
         #[metriken::metric(
-                            name = $name,
-                            crate = metriken
-                        )]
+            name = $name,
+            crate = metriken
+        )]
         pub static $ident: Lazy<metriken::Gauge> = metriken::Lazy::new(|| metriken::Gauge::new());
     };
     ($ident:ident, $name:tt, $description:tt) => {
         #[metriken::metric(
-                            name = $name,
-                            description = $description,
-                            crate = metriken
-                        )]
+            name = $name,
+            description = $description,
+            crate = metriken
+        )]
         pub static $ident: Lazy<metriken::Gauge> = metriken::Lazy::new(|| metriken::Gauge::new());
     };
 }
 
 #[macro_export]
+#[rustfmt::skip]
 macro_rules! heatmap {
     ($ident:ident, $name:tt) => {
         #[metriken::metric(
-                            name = $name,
-                            crate = metriken
-                        )]
+            name = $name,
+            crate = metriken
+        )]
         pub static $ident: metriken::Heatmap = metriken::Heatmap::new(
             0,
             8,
@@ -138,10 +141,10 @@ macro_rules! heatmap {
     };
     ($ident:ident, $name:tt, $description:tt) => {
         #[metriken::metric(
-                            name = $name,
-                            description = $description,
-                            crate = metriken
-                        )]
+            name = $name,
+            description = $description,
+            crate = metriken
+        )]
         pub static $ident: metriken::Heatmap = metriken::Heatmap::new(
             0,
             8,
@@ -153,6 +156,7 @@ macro_rules! heatmap {
 }
 
 #[macro_export]
+#[rustfmt::skip]
 macro_rules! request {
     ($ident:ident, $name:tt) => {
         #[metriken::metric(
