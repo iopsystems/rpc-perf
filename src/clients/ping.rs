@@ -167,8 +167,8 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
 
                 let latency = stop.duration_since(start).as_nanos();
 
-                let _ = REQUEST_LATENCY.increment(start, latency, 1);
-                let _ = RESPONSE_LATENCY.increment(stop, latency, 1);
+                let _ = REQUEST_LATENCY.increment(start, latency);
+                let _ = RESPONSE_LATENCY.increment(stop, latency);
             }
             Err(ResponseError::Exception) => {
                 // record execption

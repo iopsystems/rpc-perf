@@ -130,10 +130,10 @@ fn client_stats(snapshot: &mut Snapshot, elapsed: f64) -> u64 {
 
     let mut latencies = "Client Response Latency (us):".to_owned();
     for (label, percentile) in PERCENTILES {
-        let value = RESPONSE_LATENCY
-            .percentile(*percentile)
-            .map(|b| format!("{}", b.high() / 1000))
-            .unwrap_or_else(|_| "ERR".to_string());
+        let value = match RESPONSE_LATENCY.percentile(*percentile) {
+            Some(Ok(b)) => format!("{}", b.high() / 1000),
+            _ => "ERR".to_string(),
+        };
         latencies.push_str(&format!(" {label}: {value}"))
     }
 
@@ -194,10 +194,10 @@ fn pubsub_stats(snapshot: &mut Snapshot, elapsed: f64) -> u64 {
 
     let mut latencies = "Pubsub Publish Latency (us):".to_owned();
     for (label, percentile) in PERCENTILES {
-        let value = PUBSUB_PUBLISH_LATENCY
-            .percentile(*percentile)
-            .map(|b| format!("{}", b.high() / 1000))
-            .unwrap_or_else(|_| "ERR".to_string());
+        let value = match RESPONSE_LATENCY.percentile(*percentile) {
+            Some(Ok(b)) => format!("{}", b.high() / 1000),
+            _ => "ERR".to_string(),
+        };
         latencies.push_str(&format!(" {label}: {value}"))
     }
 
@@ -205,10 +205,10 @@ fn pubsub_stats(snapshot: &mut Snapshot, elapsed: f64) -> u64 {
 
     let mut latencies = "Pubsub End-to-End Latency (us):".to_owned();
     for (label, percentile) in PERCENTILES {
-        let value = PUBSUB_LATENCY
-            .percentile(*percentile)
-            .map(|b| format!("{}", b.high() / 1000))
-            .unwrap_or_else(|_| "ERR".to_string());
+        let value = match RESPONSE_LATENCY.percentile(*percentile) {
+            Some(Ok(b)) => format!("{}", b.high() / 1000),
+            _ => "ERR".to_string(),
+        };
         latencies.push_str(&format!(" {label}: {value}"))
     }
 
@@ -315,7 +315,7 @@ fn heatmap_to_buckets(heatmap: &Heatmap) -> RequestLatencies {
     // histograms. However, this only kicks in after the entire histogram
     // has been populated, so for the first minute, no histograms
     // are returned (the histogram at offset 59 is still invalid).
-    if let Some(histogram) = heatmap.iter().nth(59) {
+    if let Some(Some(histogram)) = heatmap.iter().map(|mut i| i.nth(59)) {
         let p = histogram.parameters();
         let mut index = Vec::new();
         let mut count = Vec::new();

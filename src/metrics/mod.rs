@@ -6,8 +6,6 @@ use metriken::Lazy;
 use paste::paste;
 use std::concat;
 
-type Duration = clocksource::Duration<clocksource::Nanoseconds<u64>>;
-
 pub static PERCENTILES: &[(&str, f64)] = &[
     ("p25", 25.0),
     ("p50", 50.0),
@@ -91,19 +89,17 @@ macro_rules! counter {
             name = $name,
             crate = metriken
         )]
-        pub static $ident: Lazy<metriken::Counter> = metriken::Lazy::new(|| {
-            metriken::Counter::new()
-        });
+        pub static $ident: Lazy<metriken::Counter> =
+            metriken::Lazy::new(|| metriken::Counter::new());
     };
     ($ident:ident, $name:tt, $description:tt) => {
         #[metriken::metric(
-            name = $name,
-            description = $description,
-            crate = metriken
-        )]
-        pub static $ident: Lazy<metriken::Counter> = metriken::Lazy::new(|| {
-            metriken::Counter::new()
-        });
+                                            name = $name,
+                                            description = $description,
+                                            crate = metriken
+                                        )]
+        pub static $ident: Lazy<metriken::Counter> =
+            metriken::Lazy::new(|| metriken::Counter::new());
     };
 }
 
@@ -115,9 +111,7 @@ macro_rules! gauge {
             name = $name,
             crate = metriken
         )]
-        pub static $ident: Lazy<metriken::Gauge> = metriken::Lazy::new(|| {
-            metriken::Gauge::new()
-        });
+        pub static $ident: Lazy<metriken::Gauge> = metriken::Lazy::new(|| metriken::Gauge::new());
     };
     ($ident:ident, $name:tt, $description:tt) => {
         #[metriken::metric(
@@ -125,9 +119,7 @@ macro_rules! gauge {
             description = $description,
             crate = metriken
         )]
-        pub static $ident: Lazy<metriken::Gauge> = metriken::Lazy::new(|| {
-            metriken::Gauge::new()
-        });
+        pub static $ident: Lazy<metriken::Gauge> = metriken::Lazy::new(|| metriken::Gauge::new());
     };
 }
 
@@ -139,9 +131,13 @@ macro_rules! heatmap {
             name = $name,
             crate = metriken
         )]
-        pub static $ident: Lazy<metriken::Heatmap> = metriken::Lazy::new(|| {
-            metriken::Heatmap::new(0, 8, 64, Duration::from_secs(60), Duration::from_secs(1), None, None).unwrap()
-        });
+        pub static $ident: metriken::Heatmap = metriken::Heatmap::new(
+            0,
+            8,
+            64,
+            core::time::Duration::from_secs(60),
+            core::time::Duration::from_secs(1),
+        );
     };
     ($ident:ident, $name:tt, $description:tt) => {
         #[metriken::metric(
@@ -149,9 +145,13 @@ macro_rules! heatmap {
             description = $description,
             crate = metriken
         )]
-        pub static $ident: Lazy<metriken::Heatmap> = metriken::Lazy::new(|| {
-            metriken::Heatmap::new(0, 8, 64, Duration::from_secs(60), Duration::from_secs(1), None, None).unwrap()
-        });
+        pub static $ident: metriken::Heatmap = metriken::Heatmap::new(
+            0,
+            8,
+            64,
+            core::time::Duration::from_secs(60),
+            core::time::Duration::from_secs(1),
+        );
     };
 }
 

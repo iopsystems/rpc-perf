@@ -403,9 +403,9 @@ dependencies = [
  "boring",
  "clocksource",
  "macros",
- "metriken",
+ "metriken 0.1.4",
  "net",
- "ringlog",
+ "ringlog 0.1.1",
  "serde",
 ]
 
@@ -765,9 +765,9 @@ dependencies = [
 
 [[package]]
 name = "heatmap"
-version = "0.7.5"
+version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fdeff4026a4e69d8ae19b51fa661841da47c3448ba67ad44affe893a2c985e31"
+checksum = "d8cbf90780d798f8068becac8b922ab9901af29e2406e6327c4fda70353c58fa"
 dependencies = [
  "clocksource",
  "histogram",
@@ -1121,7 +1121,7 @@ source = "git+https://github.com/pelikan-io/pelikan#bb18e0c51712779721fc1d1b1a48
 dependencies = [
  "common",
  "config",
- "ringlog",
+ "ringlog 0.1.1",
 ]
 
 [[package]]
@@ -1164,9 +1164,24 @@ dependencies = [
  "clocksource",
  "heatmap",
  "linkme",
- "metriken-derive",
+ "metriken-derive 0.1.0",
  "once_cell",
  "parking_lot",
+]
+
+[[package]]
+name = "metriken"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "283da0f4c6ea37b3d8f932e02d368f1c1f77b3072653a91a5cdef6931b6db889"
+dependencies = [
+ "heatmap",
+ "histogram",
+ "linkme",
+ "metriken-derive 0.2.0",
+ "once_cell",
+ "parking_lot",
+ "phf",
 ]
 
 [[package]]
@@ -1174,6 +1189,18 @@ name = "metriken-derive"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3e58941ebb3d827378ea64a769df9cf65e47f75d78227969d70431c19578e5dc"
+dependencies = [
+ "proc-macro-crate",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
+name = "metriken-derive"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0213a7a12e01c66357d1f3491e2d7d74b2373540ea0a4bfd928a4c0e5e02f432"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -1333,7 +1360,7 @@ dependencies = [
  "boring-sys",
  "foreign-types-shared",
  "libc",
- "metriken",
+ "metriken 0.1.4",
  "mio 0.8.6",
 ]
 
@@ -1490,6 +1517,48 @@ dependencies = [
 ]
 
 [[package]]
+name = "phf"
+version = "0.11.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ade2d8b8f33c7333b51bcf0428d37e217e9f32192ae4772156f65063b8ce03dc"
+dependencies = [
+ "phf_macros",
+ "phf_shared",
+]
+
+[[package]]
+name = "phf_generator"
+version = "0.11.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "48e4cc64c2ad9ebe670cb8fd69dd50ae301650392e81c05f9bfcb2d5bdbc24b0"
+dependencies = [
+ "phf_shared",
+ "rand",
+]
+
+[[package]]
+name = "phf_macros"
+version = "0.11.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3444646e286606587e49f3bcf1679b8cef1dc2c5ecc29ddacaffc305180d464b"
+dependencies = [
+ "phf_generator",
+ "phf_shared",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.15",
+]
+
+[[package]]
+name = "phf_shared"
+version = "0.11.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "90fcb95eef784c2ac79119d1dd819e162b5da872ce6f3c3abe1e8ca1c082f72b"
+dependencies = [
+ "siphasher",
+]
+
+[[package]]
 name = "pin-project"
 version = "1.0.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1629,7 +1698,7 @@ source = "git+https://github.com/pelikan-io/pelikan#bb18e0c51712779721fc1d1b1a48
 dependencies = [
  "common",
  "logger",
- "metriken",
+ "metriken 0.1.4",
  "nom",
  "protocol-common",
 ]
@@ -1642,7 +1711,7 @@ dependencies = [
  "common",
  "config",
  "logger",
- "metriken",
+ "metriken 0.1.4",
  "protocol-common",
  "storage-types",
 ]
@@ -1793,7 +1862,20 @@ dependencies = [
  "ahash",
  "clocksource",
  "log",
- "metriken",
+ "metriken 0.1.4",
+ "mpmc",
+]
+
+[[package]]
+name = "ringlog"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c90d3d1e4db43daedfdae26373e7b4cb4f56b26f217fc8f661e4f439827b4a46"
+dependencies = [
+ "ahash",
+ "clocksource",
+ "log",
+ "metriken 0.2.1",
  "mpmc",
 ]
 
@@ -1814,7 +1896,7 @@ dependencies = [
  "http-body-util",
  "humantime",
  "hyper 1.0.0-rc.3",
- "metriken",
+ "metriken 0.2.1",
  "mio 0.8.6",
  "momento",
  "net",
@@ -1826,7 +1908,7 @@ dependencies = [
  "rand_xoshiro",
  "ratelimit",
  "redis",
- "ringlog",
+ "ringlog 0.2.0",
  "serde",
  "serde_json",
  "session",
@@ -2024,7 +2106,7 @@ dependencies = [
  "bytes 1.4.0",
  "common",
  "log",
- "metriken",
+ "metriken 0.1.4",
  "net",
  "protocol-common",
 ]
@@ -2083,6 +2165,12 @@ dependencies = [
  "thiserror",
  "time",
 ]
+
+[[package]]
+name = "siphasher"
+version = "0.3.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7bd3e3206899af3f8b12af284fafc038cc1dc2b41d1b89dd17297221c5d225de"
 
 [[package]]
 name = "slab"
