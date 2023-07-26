@@ -138,8 +138,10 @@ impl<'a> TryFrom<&'a metriken::MetricEntry> for Metric<'a> {
             let percentiles = PERCENTILES
                 .iter()
                 .map(|(label, percentile)| {
-                    let value = heatmap.percentile(*percentile).map(|b| b.high()).ok();
-
+                    let value = match heatmap.percentile(*percentile) {
+                        Some(Ok(bucket)) => Some(bucket.high()),
+                        _ => None,
+                    };
                     (*label, *percentile, value)
                 })
                 .collect();

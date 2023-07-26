@@ -167,8 +167,8 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                 connection = Some(con);
                 RESPONSE_OK.increment();
 
-                let _ = REQUEST_LATENCY.increment(start, latency_ns, 1);
-                let _ = RESPONSE_LATENCY.increment(stop, latency_ns, 1);
+                let _ = REQUEST_LATENCY.increment(start, latency_ns);
+                let _ = RESPONSE_LATENCY.increment(stop, latency_ns);
             }
             Err(ResponseError::Exception) => {
                 CONNECT_CURR.decrement();

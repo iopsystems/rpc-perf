@@ -232,8 +232,8 @@ async fn task(
 
                 let latency = stop.duration_since(start).as_nanos();
 
-                let _ = REQUEST_LATENCY.increment(start, latency, 1);
-                let _ = RESPONSE_LATENCY.increment(stop, latency, 1);
+                let _ = REQUEST_LATENCY.increment(start, latency);
+                let _ = RESPONSE_LATENCY.increment(stop, latency);
 
                 if let Some(header) = response
                     .headers()

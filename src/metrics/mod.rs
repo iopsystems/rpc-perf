@@ -6,8 +6,6 @@ use metriken::Lazy;
 use paste::paste;
 use std::concat;
 
-type Duration = clocksource::Duration<clocksource::Nanoseconds<u64>>;
-
 pub static PERCENTILES: &[(&str, f64)] = &[
     ("p25", 25.0),
     ("p50", 50.0),
@@ -84,79 +82,77 @@ impl Metrics {
 }
 
 #[macro_export]
-#[rustfmt::skip]
 macro_rules! counter {
     ($ident:ident, $name:tt) => {
         #[metriken::metric(
-            name = $name,
-            crate = metriken
-        )]
-        pub static $ident: Lazy<metriken::Counter> = metriken::Lazy::new(|| {
-            metriken::Counter::new()
-        });
+                            name = $name,
+                            crate = metriken
+                        )]
+        pub static $ident: Lazy<metriken::Counter> =
+            metriken::Lazy::new(|| metriken::Counter::new());
     };
     ($ident:ident, $name:tt, $description:tt) => {
         #[metriken::metric(
-            name = $name,
-            description = $description,
-            crate = metriken
-        )]
-        pub static $ident: Lazy<metriken::Counter> = metriken::Lazy::new(|| {
-            metriken::Counter::new()
-        });
+                            name = $name,
+                            description = $description,
+                            crate = metriken
+                        )]
+        pub static $ident: Lazy<metriken::Counter> =
+            metriken::Lazy::new(|| metriken::Counter::new());
     };
 }
 
 #[macro_export]
-#[rustfmt::skip]
 macro_rules! gauge {
     ($ident:ident, $name:tt) => {
         #[metriken::metric(
-            name = $name,
-            crate = metriken
-        )]
-        pub static $ident: Lazy<metriken::Gauge> = metriken::Lazy::new(|| {
-            metriken::Gauge::new()
-        });
+                    name = $name,
+                    crate = metriken
+                )]
+        pub static $ident: Lazy<metriken::Gauge> = metriken::Lazy::new(|| metriken::Gauge::new());
     };
     ($ident:ident, $name:tt, $description:tt) => {
         #[metriken::metric(
-            name = $name,
-            description = $description,
-            crate = metriken
-        )]
-        pub static $ident: Lazy<metriken::Gauge> = metriken::Lazy::new(|| {
-            metriken::Gauge::new()
-        });
+                    name = $name,
+                    description = $description,
+                    crate = metriken
+                )]
+        pub static $ident: Lazy<metriken::Gauge> = metriken::Lazy::new(|| metriken::Gauge::new());
     };
 }
 
 #[macro_export]
-#[rustfmt::skip]
 macro_rules! heatmap {
     ($ident:ident, $name:tt) => {
         #[metriken::metric(
-            name = $name,
-            crate = metriken
-        )]
-        pub static $ident: Lazy<metriken::Heatmap> = metriken::Lazy::new(|| {
-            metriken::Heatmap::new(0, 8, 64, Duration::from_secs(60), Duration::from_secs(1), None, None).unwrap()
-        });
+                    name = $name,
+                    crate = metriken
+                )]
+        pub static $ident: metriken::Heatmap = metriken::Heatmap::new(
+            0,
+            8,
+            64,
+            core::time::Duration::from_secs(60),
+            core::time::Duration::from_secs(1),
+        );
     };
     ($ident:ident, $name:tt, $description:tt) => {
         #[metriken::metric(
-            name = $name,
-            description = $description,
-            crate = metriken
-        )]
-        pub static $ident: Lazy<metriken::Heatmap> = metriken::Lazy::new(|| {
-            metriken::Heatmap::new(0, 8, 64, Duration::from_secs(60), Duration::from_secs(1), None, None).unwrap()
-        });
+                    name = $name,
+                    description = $description,
+                    crate = metriken
+                )]
+        pub static $ident: metriken::Heatmap = metriken::Heatmap::new(
+            0,
+            8,
+            64,
+            core::time::Duration::from_secs(60),
+            core::time::Duration::from_secs(1),
+        );
     };
 }
 
 #[macro_export]
-#[rustfmt::skip]
 macro_rules! request {
     ($ident:ident, $name:tt) => {
         #[metriken::metric(

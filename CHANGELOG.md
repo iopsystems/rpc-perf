@@ -9,5 +9,5 @@
 
 ### Added
 
-- Support Redis pubsub and Momento topics.
+- Support Momento topics.
 - Basic HTTP/1.1 and HTTP/2.0 load generation.
