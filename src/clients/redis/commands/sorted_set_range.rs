@@ -17,7 +17,8 @@ pub async fn sorted_set_range(
                 request.start.unwrap_or(0).try_into().unwrap(),
                 request.end.unwrap_or(-1).try_into().unwrap(),
             ),
-        ).await
+        )
+        .await
     } else {
         timeout(
             config.client().unwrap().request_timeout(),
@@ -26,7 +27,8 @@ pub async fn sorted_set_range(
                 request.start.map(|v| v as f64).unwrap_or(f64::MIN),
                 request.end.map(|v| v as f64).unwrap_or(f64::MAX),
             ),
-        ).await
+        )
+        .await
     };
 
     match result {
