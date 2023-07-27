@@ -210,6 +210,8 @@ commands = [
 	{ verb = "sorted_set_range", weight = 5, end = 5 },
 	# get a range of elements in a sorted set, by index from 5..10
 	{ verb = "sorted_set_range", weight = 5, start = 5, end = 10 },
+	# get a range of elements in a sorted set, by score with scores from -1..1
+	{ verb = "sorted_set_range", weight = 5, start = -1, end = 1, by_score = true },
 
 	# get the score for an element in a sorted set
 	{ verb = "sorted_set_get_score", weight = 5 },

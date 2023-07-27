@@ -316,6 +316,7 @@ impl Generator {
                 key: keyspace.sample(rng),
                 start: command.start(),
                 end: command.end(),
+                by_score: command.by_score(),
             }),
             Verb::SortedSetRemove => {
                 let mut members = HashSet::new();
@@ -564,6 +565,13 @@ impl Keyspace {
             if command.end().is_some() && !command.verb().supports_end() {
                 eprintln!(
                     "verb: {:?} does not support the `end` argument",
+                    command.verb()
+                );
+            }
+
+            if command.by_score() && !command.verb().supports_by_score() {
+                eprintln!(
+                    "verb: {:?} does not support the `by_score` option",
                     command.verb()
                 );
             }

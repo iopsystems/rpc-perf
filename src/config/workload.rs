@@ -179,6 +179,8 @@ pub struct Command {
     start: Option<i32>,
     #[serde(default)]
     end: Option<i32>,
+    #[serde(default)]
+    by_score: bool,
 }
 
 impl Command {
@@ -204,6 +206,10 @@ impl Command {
 
     pub fn end(&self) -> Option<i32> {
         self.end
+    }
+
+    pub fn by_score(&self) -> bool {
+        self.by_score
     }
 }
 
@@ -409,6 +415,10 @@ impl Verb {
     }
 
     pub fn supports_end(&self) -> bool {
+        matches!(self, Self::SortedSetRange)
+    }
+
+    pub fn supports_by_score(&self) -> bool {
         matches!(self, Self::SortedSetRange)
     }
 
