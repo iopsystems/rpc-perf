@@ -403,14 +403,16 @@ pub fn json(config: Config, ratelimit: Option<&Ratelimiter>) {
             let response_ex = Metrics::ResponseEx.delta(&mut snapshot);
             let response_timeout = Metrics::ResponseTimeout.delta(&mut snapshot);
             let response_total = response_ok + response_ex + response_timeout;
+            let response_hit = Metrics::ResponseHit.delta(&mut snapshot);
+            let response_miss = Metrics::ResponseHit.delta(&mut snapshot);
 
             let responses = Responses {
                 total: response_total,
                 ok: response_ok,
                 error: response_ex,
                 timeout: response_timeout,
-                hit: 0,
-                miss: 0,
+                hit: response_hit,
+                miss: response_miss,
             };
 
             let json = JsonSnapshot {
