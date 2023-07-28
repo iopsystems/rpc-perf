@@ -178,6 +178,7 @@ pub struct SortedSetRange {
     pub key: Arc<[u8]>,
     pub start: Option<i32>,
     pub end: Option<i32>,
+    pub by_score: bool,
 }
 
 #[derive(Debug, PartialEq)]
