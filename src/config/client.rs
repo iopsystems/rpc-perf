@@ -1,6 +1,11 @@
 use super::*;
 
 const PAGESIZE: usize = 4096;
+const DEFAULT_BUFFER_SIZE: usize = 4 * PAGESIZE;
+
+fn default_buffer_size() -> usize {
+    DEFAULT_BUFFER_SIZE
+}
 
 #[derive(Clone, Deserialize)]
 pub struct Client {
@@ -28,9 +33,9 @@ pub struct Client {
     ///
     /// Not all client implementations allow setting these values, so this is a
     /// best effort basis.
-    #[serde(default)]
+    #[serde(default = "default_buffer_size")]
     read_buffer_size: usize,
-    #[serde(default)]
+    #[serde(default = "default_buffer_size")]
     write_buffer_size: usize,
 }
 
