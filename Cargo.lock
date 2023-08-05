@@ -1871,6 +1871,7 @@ dependencies = [
  "ratelimit",
  "redis",
  "ringlog",
+ "rpcperf-dataspec",
  "serde",
  "serde_json",
  "session",
@@ -1881,6 +1882,14 @@ dependencies = [
  "toml 0.7.3",
  "warp",
  "zipf",
+]
+
+[[package]]
+name = "rpcperf-dataspec"
+version = "0.1.0"
+dependencies = [
+ "histogram",
+ "serde",
 ]
 
 [[package]]
