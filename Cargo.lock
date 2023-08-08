@@ -398,14 +398,14 @@ dependencies = [
 [[package]]
 name = "common"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#bb18e0c51712779721fc1d1b1a48b6d26ab02aed"
+source = "git+https://github.com/pelikan-io/pelikan#294b67991cd14c8362bd7aa9b688d5dac1375c7d"
 dependencies = [
  "boring",
  "clocksource",
  "macros",
- "metriken 0.1.4",
+ "metriken",
  "net",
- "ringlog 0.1.1",
+ "ringlog",
  "serde",
 ]
 
@@ -421,7 +421,7 @@ dependencies = [
 [[package]]
 name = "config"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#bb18e0c51712779721fc1d1b1a48b6d26ab02aed"
+source = "git+https://github.com/pelikan-io/pelikan#294b67991cd14c8362bd7aa9b688d5dac1375c7d"
 dependencies = [
  "common",
  "log",
@@ -1118,11 +1118,11 @@ dependencies = [
 [[package]]
 name = "logger"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#bb18e0c51712779721fc1d1b1a48b6d26ab02aed"
+source = "git+https://github.com/pelikan-io/pelikan#294b67991cd14c8362bd7aa9b688d5dac1375c7d"
 dependencies = [
  "common",
  "config",
- "ringlog 0.1.1",
+ "ringlog",
 ]
 
 [[package]]
@@ -1137,7 +1137,7 @@ dependencies = [
 [[package]]
 name = "macros"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#bb18e0c51712779721fc1d1b1a48b6d26ab02aed"
+source = "git+https://github.com/pelikan-io/pelikan#294b67991cd14c8362bd7aa9b688d5dac1375c7d"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1158,42 +1158,16 @@ checksum = "2dffe52ecf27772e601905b7522cb4ef790d2cc203488bbd0e2fe85fcb74566d"
 
 [[package]]
 name = "metriken"
-version = "0.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2c7be5d59844605ce7e2e1952b34a708cbc221b459247988dcde96140508bc6f"
-dependencies = [
- "clocksource",
- "heatmap",
- "linkme",
- "metriken-derive 0.1.0",
- "once_cell",
- "parking_lot",
-]
-
-[[package]]
-name = "metriken"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d081482206e965281c71f40f1899160b9578bb8f7688b7821b144a43bc3e701a"
 dependencies = [
  "heatmap",
  "linkme",
- "metriken-derive 0.2.0",
+ "metriken-derive",
  "once_cell",
  "parking_lot",
  "phf",
-]
-
-[[package]]
-name = "metriken-derive"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3e58941ebb3d827378ea64a769df9cf65e47f75d78227969d70431c19578e5dc"
-dependencies = [
- "proc-macro-crate",
- "proc-macro2",
- "quote",
- "syn 1.0.109",
 ]
 
 [[package]]
@@ -1354,13 +1328,13 @@ dependencies = [
 [[package]]
 name = "net"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#bb18e0c51712779721fc1d1b1a48b6d26ab02aed"
+source = "git+https://github.com/pelikan-io/pelikan#294b67991cd14c8362bd7aa9b688d5dac1375c7d"
 dependencies = [
  "boring",
  "boring-sys",
  "foreign-types-shared",
  "libc",
- "metriken 0.1.4",
+ "metriken",
  "mio 0.8.6",
 ]
 
@@ -1682,7 +1656,7 @@ dependencies = [
 [[package]]
 name = "protocol-common"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#bb18e0c51712779721fc1d1b1a48b6d26ab02aed"
+source = "git+https://github.com/pelikan-io/pelikan#294b67991cd14c8362bd7aa9b688d5dac1375c7d"
 dependencies = [
  "bytes 1.4.0",
  "common",
@@ -1694,11 +1668,11 @@ dependencies = [
 [[package]]
 name = "protocol-memcache"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#bb18e0c51712779721fc1d1b1a48b6d26ab02aed"
+source = "git+https://github.com/pelikan-io/pelikan#294b67991cd14c8362bd7aa9b688d5dac1375c7d"
 dependencies = [
  "common",
  "logger",
- "metriken 0.1.4",
+ "metriken",
  "nom",
  "protocol-common",
 ]
@@ -1706,12 +1680,12 @@ dependencies = [
 [[package]]
 name = "protocol-ping"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#bb18e0c51712779721fc1d1b1a48b6d26ab02aed"
+source = "git+https://github.com/pelikan-io/pelikan#294b67991cd14c8362bd7aa9b688d5dac1375c7d"
 dependencies = [
  "common",
  "config",
  "logger",
- "metriken 0.1.4",
+ "metriken",
  "protocol-common",
  "storage-types",
 ]
@@ -1855,19 +1829,6 @@ dependencies = [
 
 [[package]]
 name = "ringlog"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "82db4b27000bac41d738972779f440ed6176ebe82c935b736594eff989aa60f1"
-dependencies = [
- "ahash",
- "clocksource",
- "log",
- "metriken 0.1.4",
- "mpmc",
-]
-
-[[package]]
-name = "ringlog"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c90d3d1e4db43daedfdae26373e7b4cb4f56b26f217fc8f661e4f439827b4a46"
@@ -1875,7 +1836,7 @@ dependencies = [
  "ahash",
  "clocksource",
  "log",
- "metriken 0.2.3",
+ "metriken",
  "mpmc",
 ]
 
@@ -1897,7 +1858,7 @@ dependencies = [
  "http-body-util",
  "humantime",
  "hyper 1.0.0-rc.3",
- "metriken 0.2.3",
+ "metriken",
  "mio 0.8.6",
  "momento",
  "net",
@@ -1909,7 +1870,7 @@ dependencies = [
  "rand_xoshiro",
  "ratelimit",
  "redis",
- "ringlog 0.2.0",
+ "ringlog",
  "serde",
  "serde_json",
  "session",
@@ -2102,12 +2063,12 @@ dependencies = [
 [[package]]
 name = "session"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#bb18e0c51712779721fc1d1b1a48b6d26ab02aed"
+source = "git+https://github.com/pelikan-io/pelikan#294b67991cd14c8362bd7aa9b688d5dac1375c7d"
 dependencies = [
  "bytes 1.4.0",
  "common",
  "log",
- "metriken 0.1.4",
+ "metriken",
  "net",
  "protocol-common",
 ]
@@ -2213,7 +2174,7 @@ checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
 [[package]]
 name = "storage-types"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#bb18e0c51712779721fc1d1b1a48b6d26ab02aed"
+source = "git+https://github.com/pelikan-io/pelikan#294b67991cd14c8362bd7aa9b688d5dac1375c7d"
 
 [[package]]
 name = "strsim"
