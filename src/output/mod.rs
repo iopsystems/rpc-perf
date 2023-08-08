@@ -4,6 +4,8 @@ use ratelimit::Ratelimiter;
 use serde::Serialize;
 use std::io::{BufWriter, Write};
 
+use histogram::CompactHistogram;
+
 #[macro_export]
 macro_rules! output {
     () => {
@@ -256,27 +258,11 @@ struct Responses {
 }
 
 #[derive(Serialize)]
-/// Sparse histogram in column-order, i.e., storing a single vector
-/// per-field of non-zero buckets. Assuming index[0] = n,
-/// (index[0], count[0]) corresponds to the nth bucket.
-struct RequestLatencies {
-    /// parameters representing the resolution and the range of
-    /// the histogram tracking request latencies
-    m: u32,
-    r: u32,
-    n: u32,
-    /// indices for the non-zero buckets in the histogram
-    index: Vec<usize>,
-    /// histogram bucket counts corresponding to the indices
-    count: Vec<u32>,
-}
-
-#[derive(Serialize)]
 struct Client {
     connections: Connections,
     requests: Requests,
     responses: Responses,
-    request_latency: RequestLatencies,
+    request_latency: CompactHistogram,
 }
 
 #[derive(Serialize)]
@@ -308,7 +294,7 @@ struct JsonSnapshot {
 }
 
 // gets the non-zero buckets for the most recent window in the heatmap
-fn heatmap_to_buckets(heatmap: &Heatmap) -> RequestLatencies {
+fn heatmap_to_buckets(heatmap: &Heatmap) -> CompactHistogram {
     // XXX: The heatmap corrects for wraparound and fixes indices once
     // the heatmap is full so this returns the histogram for the last
     // completed epoch, assuming a heatmap with a total of 60 valid
@@ -316,35 +302,10 @@ fn heatmap_to_buckets(heatmap: &Heatmap) -> RequestLatencies {
     // has been populated, so for the first minute, no histograms
     // are returned (the histogram at offset 59 is still invalid).
     if let Some(Some(histogram)) = heatmap.iter().map(|mut i| i.nth(59)) {
-        let p = histogram.parameters();
-        let mut index = Vec::new();
-        let mut count = Vec::new();
-
-        for (i, bucket) in histogram
-            .into_iter()
-            .enumerate()
-            .filter(|(_i, bucket)| bucket.count() != 0)
-        {
-            index.push(i);
-            count.push(bucket.count());
-        }
-
-        RequestLatencies {
-            m: p.0,
-            r: p.1,
-            n: p.2,
-            index,
-            count,
-        }
+        CompactHistogram::from(histogram)
     } else {
         trace!("no histogram");
-        RequestLatencies {
-            m: 0,
-            r: 0,
-            n: 0,
-            index: vec![],
-            count: vec![],
-        }
+        CompactHistogram::default()
     }
 }
 
