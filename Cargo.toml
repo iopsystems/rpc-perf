@@ -21,9 +21,10 @@ foreign-types-shared = "0.3.1"
 futures = "0.3.28"
 http-body-util = "0.1.0-rc.2"
 hyper = { version = "1.0.0-rc.3", features = ["http1", "http2", "client"]}
+histogram = "0.7.4"
 humantime = "2.1.0"
 momento = "0.31.0"
-metriken = "0.2.1"
+metriken = "0.2.3"
 mio = "0.8.5"
 net = { git = "https://github.com/pelikan-io/pelikan" }
 paste = "1.0.12"
