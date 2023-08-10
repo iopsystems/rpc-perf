@@ -69,9 +69,16 @@ impl Connector {
 
     pub async fn connect(&self, addr: &str) -> Result<Stream> {
         match &self.inner {
-            ConnectorImpl::Tcp => Ok(Stream {
-                inner: StreamImpl::Tcp(tokio::net::TcpStream::connect(addr).await?),
-            }),
+            ConnectorImpl::Tcp => {
+                let s = tokio::net::TcpStream::connect(addr).await?;
+                let res = s.set_nodelay(true);
+                if res.is_err() {
+                    eprintln!("Error setting TCP_NODELAY: {:?}", res.err());
+                }
+                Ok(Stream {
+                    inner: StreamImpl::Tcp(s),
+                })
+            }
             ConnectorImpl::TlsTcp(connector) => {
                 let stream = tokio::net::TcpStream::connect(addr).await?;
                 let domain = addr.split(':').next().unwrap().to_owned();
