@@ -1,5 +1,24 @@
 ## [Unreleased]
 
+## [5.0.1] - 2023-08-10
+
+### Added
+
+- rpc-perf can now generate zrange commands with the by_score option for both
+  the momento and redis protocols.
+
+### Changed
+
+- rpc-perf will now set TCP_NODELAY by default on all TCP connections it
+  creates.
+
+### Fixed
+
+- The default buffer size for the memcached client has been increased from 4KB
+  to 16KB.
+- Hit/miss statistics in the output json will now have their correct values
+  instead of always being 0.
+
 ## [5.0.0] - 2023-07-25
 
 ### Changed
