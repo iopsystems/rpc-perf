@@ -1,6 +1,6 @@
 [package]
 name = "rpc-perf"
-version = "5.0.1"
+version = "5.0.2-alpha.0"
 authors = ["Brian Martin <brian@iop.systems>"]
 edition = "2021"
 description = "RPC Performance Testing"
