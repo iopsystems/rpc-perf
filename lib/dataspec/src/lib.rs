@@ -49,7 +49,7 @@ pub struct ClientStats {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct PubSub {
+pub struct PubsubStats {
     pub publishers: Publishers,
     pub subscribers: Subscribers,
 }
@@ -73,5 +73,5 @@ pub struct RpcPerfSnapshot {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub target_qps: Option<f64>,
     pub client: ClientStats,
-    pub pubsub: PubSub,
+    pub pubsub: PubsubStats,
 }

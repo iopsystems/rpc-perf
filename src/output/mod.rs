@@ -313,7 +313,7 @@ pub fn json(config: Config, ratelimit: Option<&Ratelimiter>) {
                     responses,
                     request_latency: heatmap_to_buckets(&REQUEST_LATENCY),
                 },
-                pubsub: PubSub {
+                pubsub: PubsubStats {
                     publishers: Publishers {
                         current: PUBSUB_PUBLISHER_CURR.value(),
                     },
