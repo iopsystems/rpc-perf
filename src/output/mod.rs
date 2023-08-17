@@ -303,7 +303,7 @@ pub fn json(config: Config, ratelimit: Option<&Ratelimiter>) {
                 miss: response_miss,
             };
 
-            let json = RpcPerfSnapshot {
+            let json = JsonSnapshot {
                 window: window_id,
                 elapsed,
                 target_qps: ratelimit.as_ref().map(|ratelimit| ratelimit.rate()),
