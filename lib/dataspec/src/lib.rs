@@ -1,3 +1,6 @@
+//! Format of JSON output from rpc-perf. These structures can be used
+//! by any consumer of the produced data to parse the files.
+
 use serde::{Deserialize, Serialize};
 
 use histogram::CompactHistogram;
