@@ -1,7 +1,8 @@
 use crate::*;
+use rpcperf_dataspec::*;
+
 use ahash::{HashMap, HashMapExt};
 use ratelimit::Ratelimiter;
-use serde::Serialize;
 use std::io::{BufWriter, Write};
 
 use histogram::CompactHistogram;
@@ -219,80 +220,6 @@ fn pubsub_stats(snapshot: &mut Snapshot, elapsed: f64) -> u64 {
     pubsub_tx_ok
 }
 
-#[derive(Serialize)]
-struct Connections {
-    /// number of current connections (gauge)
-    current: i64,
-    /// number of total connect attempts
-    total: u64,
-    /// number of connections established
-    opened: u64,
-    /// number of connect attempts that failed
-    error: u64,
-    /// number of connect attempts that hit timeout
-    timeout: u64,
-}
-
-#[derive(Serialize, Copy, Clone)]
-struct Requests {
-    total: u64,
-    ok: u64,
-    reconnect: u64,
-    unsupported: u64,
-}
-
-#[derive(Serialize)]
-struct Responses {
-    /// total number of responses
-    total: u64,
-    /// number of responses that were successful
-    ok: u64,
-    /// number of responses that were unsuccessful
-    error: u64,
-    /// number of responses that were missed due to timeout
-    timeout: u64,
-    /// number of read requests with a hit response
-    hit: u64,
-    /// number of read requests with a miss response
-    miss: u64,
-}
-
-#[derive(Serialize)]
-struct Client {
-    connections: Connections,
-    requests: Requests,
-    responses: Responses,
-    request_latency: CompactHistogram,
-}
-
-#[derive(Serialize)]
-struct Pubsub {
-    publishers: Publishers,
-    subscribers: Subscribers,
-}
-
-#[derive(Serialize)]
-struct Publishers {
-    // current number of publishers
-    current: i64,
-}
-
-#[derive(Serialize)]
-struct Subscribers {
-    // current number of subscribers
-    current: i64,
-}
-
-#[derive(Serialize)]
-struct JsonSnapshot {
-    window: u64,
-    elapsed: f64,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    target_qps: Option<f64>,
-    client: Client,
-    pubsub: Pubsub,
-}
-
 // gets the non-zero buckets for the most recent window in the heatmap
 fn heatmap_to_buckets(heatmap: &Heatmap) -> CompactHistogram {
     // XXX: The heatmap corrects for wraparound and fixes indices once
@@ -380,13 +307,13 @@ pub fn json(config: Config, ratelimit: Option<&Ratelimiter>) {
                 window: window_id,
                 elapsed,
                 target_qps: ratelimit.as_ref().map(|ratelimit| ratelimit.rate()),
-                client: Client {
+                client: ClientStats {
                     connections,
                     requests,
                     responses,
                     request_latency: heatmap_to_buckets(&REQUEST_LATENCY),
                 },
-                pubsub: Pubsub {
+                pubsub: PubsubStats {
                     publishers: Publishers {
                         current: PUBSUB_PUBLISHER_CURR.value(),
                     },
