@@ -1,8 +1,8 @@
-use tokio::io::ReadBuf;
 use crate::Config;
 use boring::ssl::{SslFiletype, SslMethod};
 use boring::x509::X509;
 use std::io::{Error, ErrorKind, Result};
+use tokio::io::ReadBuf;
 use tokio::io::{AsyncRead, AsyncWrite};
 
 pub struct Connector {
@@ -172,17 +172,17 @@ impl hyper::rt::Read for Stream {
     fn poll_read(
         mut self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
-        mut rbc: hyper::rt::ReadBufCursor<'_>
+        mut rbc: hyper::rt::ReadBufCursor<'_>,
     ) -> std::task::Poll<std::result::Result<(), std::io::Error>> {
         match &mut self.inner {
             StreamImpl::Tcp(s) => {
                 let mut buf = ReadBuf::uninit(unsafe { rbc.as_mut() });
                 std::pin::Pin::new(s).poll_read(cx, &mut buf)
-            },
+            }
             StreamImpl::TlsTcp(s) => {
                 let mut buf = ReadBuf::uninit(unsafe { rbc.as_mut() });
                 std::pin::Pin::new(s).poll_read(cx, &mut buf)
-            },
+            }
         }
     }
 }
@@ -191,7 +191,7 @@ impl hyper::rt::Write for Stream {
     fn poll_write(
         mut self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
-        buf: &[u8]
+        buf: &[u8],
     ) -> std::task::Poll<std::result::Result<usize, std::io::Error>> {
         match &mut self.inner {
             StreamImpl::Tcp(s) => std::pin::Pin::new(s).poll_write(cx, buf),
@@ -199,8 +199,9 @@ impl hyper::rt::Write for Stream {
         }
     }
 
-    fn poll_flush(mut self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>
+    fn poll_flush(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<std::result::Result<(), std::io::Error>> {
         match &mut self.inner {
             StreamImpl::Tcp(s) => std::pin::Pin::new(s).poll_flush(cx),
@@ -208,7 +209,10 @@ impl hyper::rt::Write for Stream {
         }
     }
 
-    fn poll_shutdown(mut self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<std::result::Result<(), std::io::Error>> {
+    fn poll_shutdown(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<std::result::Result<(), std::io::Error>> {
         match &mut self.inner {
             StreamImpl::Tcp(s) => std::pin::Pin::new(s).poll_shutdown(cx),
             StreamImpl::TlsTcp(s) => std::pin::Pin::new(s).poll_shutdown(cx),
