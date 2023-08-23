@@ -61,6 +61,7 @@ pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiv
     }
 }
 
+#[derive(Clone)]
 struct TokioExecutor;
 
 impl<F> Executor<F> for TokioExecutor
