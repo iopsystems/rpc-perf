@@ -7,7 +7,6 @@ Build-Depends:
  debhelper (>= 10),
  jq,
  clang:native,
- libclang-dev,
  protobuf-compiler,
  cmake,
  libstdc++6
