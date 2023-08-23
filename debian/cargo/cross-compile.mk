@@ -10,6 +10,10 @@ ifneq ($(DEB_HOST_GNU_TYPE), $(DEB_BUILD_GNU_TYPE))
 # any cross compiling.
 export PKG_CONFIG_ALLOW_CROSS := 1
 
+# The clang driver used by bindgen uses native headers unless you explicitly set
+# the sysroot so we do it here.
+export BINDGEN_EXTRA_CLANG_ARGS := --sysroot /usr/$(DEB_HOST_GNU_TYPE)
+
 endif
 
 export TARGET_AR         := $(AR)
