@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-VERSION=$(cargo metadata --format-version 1 | jq -r '.packages[] | select(.name == "rpc-perf") | .version')
+VERSION=$(cargo metadata --format-version 1 --no-deps | jq -r '.packages[] | select(.name == "rpc-perf") | .version')
 RELEASE=${RELEASE:-1}
 
 cat <<EOM
