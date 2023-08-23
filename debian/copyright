@@ -1,2 +1,5 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Source: https://github.com/iopsystems/rpc-perf
+
 Files: *
 License: MIT or Apache-2.0
