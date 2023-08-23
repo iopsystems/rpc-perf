@@ -1,1 +1,1 @@
-target/rpc-perf usr/bin/
+bin/rpc-perf usr/bin/

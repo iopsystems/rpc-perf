@@ -2,7 +2,16 @@ Source: rpc-perf
 Section: devel
 Priority: optional
 Maintainer: IOP Systems <team@iop.systems>
-Build-Depends: build-essential, debhelper (>= 10), jq, clang
+Standards-Version: 4.6.2
+Build-Depends:
+ debhelper (>= 10),
+ jq,
+ clang:native,
+ protobuf-compiler,
+ cmake,
+ libstdc++6
+# Note the libstd++6 dependency is to pull in dependencies that are needed when
+# identifying the shlib deps of the rpc-perf binary.
 
 Package: rpc-perf
 Architecture: any
