@@ -1,11 +1,10 @@
 use crate::*;
+use rpcperf_dataspec::compact::CompactHistogram;
 use rpcperf_dataspec::*;
 
 use ahash::{HashMap, HashMapExt};
 use ratelimit::Ratelimiter;
 use std::io::{BufWriter, Write};
-
-use histogram::CompactHistogram;
 
 #[macro_export]
 macro_rules! output {
