@@ -1,0 +1,4 @@
+# audit config file: specify advisories to ignore
+
+[advisories]
+ignore = ["RUSTSEC-2023-0052"] # comma-separated IDs to ignore e.g. ["RUSTSEC-2019-0001", ...]
