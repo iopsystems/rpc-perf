@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use histogram::Histogram;
+use histogram::Histogram as _Histogram;
 
 /// A `CompactHistogram` is a sparse, columnar representation of the
 /// Histogram. It is significantly smaller than a regular Histogram
@@ -10,7 +10,7 @@ use histogram::Histogram;
 /// of non-zero buckets. Assuming index[0] = n, (index[0], count[0])
 /// corresponds to the nth bucket.
 #[derive(Default, Serialize, Deserialize)]
-pub struct CompactHistogram {
+pub struct Histogram {
     /// parameters representing the resolution and the range of
     /// the histogram tracking request latencies
     pub m: u32,
@@ -22,8 +22,8 @@ pub struct CompactHistogram {
     pub count: Vec<u32>,
 }
 
-impl From<&Histogram> for CompactHistogram {
-    fn from(histogram: &Histogram) -> Self {
+impl From<&_Histogram> for Histogram {
+    fn from(histogram: &_Histogram) -> Self {
         let mut index = Vec::new();
         let mut count = Vec::new();
 
