@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use histogram::Histogram as _Histogram;
 
-/// A `CompactHistogram` is a sparse, columnar representation of the
+/// This histogram is a sparse, columnar representation of the regular
 /// Histogram. It is significantly smaller than a regular Histogram
 /// when a large number of buckets are zero, which is a frequent
 /// occurence; consequently it is used as the serialization format
