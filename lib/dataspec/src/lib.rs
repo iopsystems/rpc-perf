@@ -1,9 +1,10 @@
 //! Format of JSON output from rpc-perf. These structures can be used
 //! by any consumer of the produced data to parse the files.
 
-use serde::{Deserialize, Serialize};
+pub mod histogram;
+pub use crate::histogram::Histogram;
 
-use histogram::CompactHistogram;
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
 pub struct Connections {
@@ -48,7 +49,7 @@ pub struct ClientStats {
     pub connections: Connections,
     pub requests: Requests,
     pub responses: Responses,
-    pub request_latency: CompactHistogram,
+    pub request_latency: Histogram,
 }
 
 #[derive(Serialize, Deserialize)]

@@ -5,8 +5,6 @@ use ahash::{HashMap, HashMapExt};
 use ratelimit::Ratelimiter;
 use std::io::{BufWriter, Write};
 
-use histogram::CompactHistogram;
-
 #[macro_export]
 macro_rules! output {
     () => {
@@ -221,7 +219,7 @@ fn pubsub_stats(snapshot: &mut Snapshot, elapsed: f64) -> u64 {
 }
 
 // gets the non-zero buckets for the most recent window in the heatmap
-fn heatmap_to_buckets(heatmap: &Heatmap) -> CompactHistogram {
+fn heatmap_to_buckets(heatmap: &Heatmap) -> Histogram {
     // XXX: The heatmap corrects for wraparound and fixes indices once
     // the heatmap is full so this returns the histogram for the last
     // completed epoch, assuming a heatmap with a total of 60 valid
@@ -229,10 +227,10 @@ fn heatmap_to_buckets(heatmap: &Heatmap) -> CompactHistogram {
     // has been populated, so for the first minute, no histograms
     // are returned (the histogram at offset 59 is still invalid).
     if let Some(Some(histogram)) = heatmap.iter().map(|mut i| i.nth(59)) {
-        CompactHistogram::from(histogram)
+        Histogram::from(histogram)
     } else {
         trace!("no histogram");
-        CompactHistogram::default()
+        Histogram::default()
     }
 }
 
