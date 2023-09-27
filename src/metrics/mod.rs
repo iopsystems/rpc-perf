@@ -131,12 +131,9 @@ macro_rules! heatmap {
             name = $name,
             crate = metriken
         )]
-        pub static $ident: metriken::Heatmap = metriken::Heatmap::new(
-            0,
-            8,
+        pub static $ident: metriken::AtomicHistogram = metriken::AtomicHistogram::new(
+            7,
             64,
-            core::time::Duration::from_secs(60),
-            core::time::Duration::from_secs(1),
         );
     };
     ($ident:ident, $name:tt, $description:tt) => {
@@ -145,12 +142,9 @@ macro_rules! heatmap {
             description = $description,
             crate = metriken
         )]
-        pub static $ident: metriken::Heatmap = metriken::Heatmap::new(
-            0,
-            8,
+        pub static $ident: metriken::AtomicHistogram = metriken::AtomicHistogram::new(
+            7,
             64,
-            core::time::Duration::from_secs(60),
-            core::time::Duration::from_secs(1),
         );
     };
 }
@@ -204,15 +198,9 @@ macro_rules! request {
 }
 
 heatmap!(
-    REQUEST_LATENCY,
-    "request_latency",
-    "distribution of request latencies in nanoseconds. incremented at time of requests disbatch."
-);
-
-heatmap!(
     RESPONSE_LATENCY,
     "response_latency",
-    "distribution of response latencies in nanoseconds. incremented at time of response receipt."
+    "distribution of response latencies in nanoseconds."
 );
 
 heatmap!(

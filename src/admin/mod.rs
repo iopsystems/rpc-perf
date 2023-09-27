@@ -123,37 +123,34 @@ impl<'a> TryFrom<&'a metriken::MetricEntry> for Metric<'a> {
         };
 
         if let Some(counter) = any.downcast_ref::<Counter>() {
-            Ok(Metric::Counter(
+            return Ok(Metric::Counter(
                 (*metric).name(),
                 metric.description(),
                 counter.value(),
-            ))
+            ));
         } else if let Some(gauge) = any.downcast_ref::<Gauge>() {
-            Ok(Metric::Gauge(
+            return Ok(Metric::Gauge(
                 metric.name(),
                 metric.description(),
                 gauge.value(),
-            ))
-        } else if let Some(heatmap) = any.downcast_ref::<Heatmap>() {
-            let percentiles = PERCENTILES
-                .iter()
-                .map(|(label, percentile)| {
-                    let value = match heatmap.percentile(*percentile) {
-                        Some(Ok(bucket)) => Some(bucket.high()),
-                        _ => None,
-                    };
-                    (*label, *percentile, value)
-                })
-                .collect();
-
-            Ok(Metric::Percentiles(
-                metric.name(),
-                metric.description(),
-                percentiles,
-            ))
-        } else {
-            Err(())
+            ));
+        } else if let Some(histogram) = any.downcast_ref::<AtomicHistogram>() {
+            if let Some(snapshot) = histogram.snapshot() {
+                let p: Vec<f64> = PERCENTILES.iter().map(|(_, p)| *p).collect();
+                if let Ok(result) = snapshot.percentiles(&p) {
+                    let percentiles = result.iter().zip(PERCENTILES.iter()).map(|((p, b), (l, _))| {
+                        (*l, *p, Some(b.end()))
+                    }).collect();
+                    return Ok(Metric::Percentiles(
+                        metric.name(),
+                        metric.description(),
+                        percentiles,
+                    ));
+                }
+            }
         }
+
+        Err(())
     }
 }
 

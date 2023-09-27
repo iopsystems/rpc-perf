@@ -130,12 +130,19 @@ fn client_stats(snapshot: &mut Snapshot, elapsed: f64) -> u64 {
     );
 
     let mut latencies = "Client Response Latency (us):".to_owned();
-    for (label, percentile) in PERCENTILES {
-        let value = match RESPONSE_LATENCY.percentile(*percentile) {
-            Some(Ok(b)) => format!("{}", b.high() / 1000),
-            _ => "ERR".to_string(),
-        };
-        latencies.push_str(&format!(" {label}: {value}"))
+
+    if let Some(snapshot) = RESPONSE_LATENCY.snapshot() {
+        let p: Vec<f64> = PERCENTILES.iter().map(|(_, v)| *v).collect();
+
+        if let Ok(result) = snapshot.percentiles(&p) {
+            let percentiles: Vec<(&str, u64)> = result.iter().zip(PERCENTILES.iter()).map(|((_, b), (l, _))| {
+                (*l, b.end())
+            }).collect();
+
+            for (label, value) in percentiles {
+                latencies.push_str(&format!(" {label}: {value}"))
+            } 
+        }
     }
 
     output!("{latencies}");
@@ -194,44 +201,42 @@ fn pubsub_stats(snapshot: &mut Snapshot, elapsed: f64) -> u64 {
     );
 
     let mut latencies = "Pubsub Publish Latency (us):".to_owned();
-    for (label, percentile) in PERCENTILES {
-        let value = match RESPONSE_LATENCY.percentile(*percentile) {
-            Some(Ok(b)) => format!("{}", b.high() / 1000),
-            _ => "ERR".to_string(),
-        };
-        latencies.push_str(&format!(" {label}: {value}"))
+
+    if let Some(snapshot) = PUBSUB_PUBLISH_LATENCY.snapshot() {
+        let p: Vec<f64> = PERCENTILES.iter().map(|(_, v)| *v).collect();
+
+        if let Ok(result) = snapshot.percentiles(&p) {
+            let percentiles: Vec<(&str, u64)> = result.iter().zip(PERCENTILES.iter()).map(|((_, b), (l, _))| {
+                (*l, b.end())
+            }).collect();
+
+            for (label, value) in percentiles {
+                latencies.push_str(&format!(" {label}: {value}"))
+            } 
+        }
     }
 
     output!("{latencies}");
 
     let mut latencies = "Pubsub End-to-End Latency (us):".to_owned();
-    for (label, percentile) in PERCENTILES {
-        let value = match RESPONSE_LATENCY.percentile(*percentile) {
-            Some(Ok(b)) => format!("{}", b.high() / 1000),
-            _ => "ERR".to_string(),
-        };
-        latencies.push_str(&format!(" {label}: {value}"))
+
+    if let Some(snapshot) = PUBSUB_LATENCY.snapshot() {
+        let p: Vec<f64> = PERCENTILES.iter().map(|(_, v)| *v).collect();
+
+        if let Ok(result) = snapshot.percentiles(&p) {
+            let percentiles: Vec<(&str, u64)> = result.iter().zip(PERCENTILES.iter()).map(|((_, b), (l, _))| {
+                (*l, b.end())
+            }).collect();
+
+            for (label, value) in percentiles {
+                latencies.push_str(&format!(" {label}: {value}"))
+            } 
+        }
     }
 
     output!("{latencies}");
 
     pubsub_tx_ok
-}
-
-// gets the non-zero buckets for the most recent window in the heatmap
-fn heatmap_to_buckets(heatmap: &Heatmap) -> Histogram {
-    // XXX: The heatmap corrects for wraparound and fixes indices once
-    // the heatmap is full so this returns the histogram for the last
-    // completed epoch, assuming a heatmap with a total of 60 valid
-    // histograms. However, this only kicks in after the entire histogram
-    // has been populated, so for the first minute, no histograms
-    // are returned (the histogram at offset 59 is still invalid).
-    if let Some(Some(histogram)) = heatmap.iter().map(|mut i| i.nth(59)) {
-        Histogram::from(histogram)
-    } else {
-        trace!("no histogram");
-        Histogram::default()
-    }
 }
 
 pub fn json(config: Config, ratelimit: Option<&Ratelimiter>) {
@@ -309,7 +314,7 @@ pub fn json(config: Config, ratelimit: Option<&Ratelimiter>) {
                     connections,
                     requests,
                     responses,
-                    request_latency: heatmap_to_buckets(&REQUEST_LATENCY),
+                    response_latency: RESPONSE_LATENCY.snapshot().into(),
                 },
                 pubsub: PubsubStats {
                     publishers: Publishers {

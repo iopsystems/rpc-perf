@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use histogram::Histogram as _Histogram;
+use histogram::Snapshot;
 
 /// This histogram is a sparse, columnar representation of the regular
 /// Histogram. It is significantly smaller than a regular Histogram
@@ -13,21 +13,31 @@ use histogram::Histogram as _Histogram;
 pub struct Histogram {
     /// parameters representing the resolution and the range of
     /// the histogram tracking request latencies
-    pub m: u32,
-    pub r: u32,
-    pub n: u32,
+    pub grouping_power: u8,
+    pub max_value_power: u8,
     /// indices for the non-zero buckets in the histogram
     pub index: Vec<usize>,
     /// histogram bucket counts corresponding to the indices
-    pub count: Vec<u32>,
+    pub count: Vec<u64>,
 }
 
-impl From<&_Histogram> for Histogram {
-    fn from(histogram: &_Histogram) -> Self {
+impl From<Option<Snapshot>> for Histogram {
+    fn from(snapshot: Option<Snapshot>) -> Self {
+        if snapshot.is_none() {
+            return Self {
+                grouping_power: 7,
+                max_value_power: 64,
+                index: Vec::new(),
+                count: Vec::new(),
+            }
+        }
+
+        let snapshot = snapshot.unwrap();
+
         let mut index = Vec::new();
         let mut count = Vec::new();
 
-        for (i, bucket) in histogram
+        for (i, bucket) in snapshot
             .into_iter()
             .enumerate()
             .filter(|(_i, bucket)| bucket.count() != 0)
@@ -36,11 +46,10 @@ impl From<&_Histogram> for Histogram {
             count.push(bucket.count());
         }
 
-        let p = histogram.parameters();
+        let config = snapshot.config();
         Self {
-            m: p.0,
-            r: p.1,
-            n: p.2,
+            grouping_power: config.grouping_power(),
+            max_value_power: config.max_value_power(),
             index,
             count,
         }

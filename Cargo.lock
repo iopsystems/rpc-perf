@@ -420,7 +420,7 @@ dependencies = [
  "boring",
  "clocksource",
  "macros",
- "metriken",
+ "metriken 0.2.3",
  "net",
  "ringlog",
  "serde",
@@ -811,7 +811,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0ff337aee5a51159480a1c9bc225f36a7d87543023aa118d5843ece2f125bccb"
 dependencies = [
  "clocksource",
- "histogram",
+ "histogram 0.7.4",
  "parking_lot",
  "thiserror",
 ]
@@ -835,6 +835,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e673d137229619d5c2c8903b6ed5852b43636c0017ff2e66b1aafb8ccf04b80b"
 dependencies = [
  "serde",
+ "thiserror",
+]
+
+[[package]]
+name = "histogram"
+version = "0.8.0"
+source = "git+https://github.com/brayniac/rustcommon?branch=metriken-histograms#7f469354734ed4a4b5d0397da022f0568f0b9255"
+dependencies = [
  "thiserror",
 ]
 
@@ -1181,7 +1189,20 @@ checksum = "d081482206e965281c71f40f1899160b9578bb8f7688b7821b144a43bc3e701a"
 dependencies = [
  "heatmap",
  "linkme",
- "metriken-derive",
+ "metriken-derive 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "once_cell",
+ "parking_lot",
+ "phf",
+]
+
+[[package]]
+name = "metriken"
+version = "0.2.4"
+source = "git+https://github.com/brayniac/rustcommon?branch=metriken-histograms#7f469354734ed4a4b5d0397da022f0568f0b9255"
+dependencies = [
+ "histogram 0.8.0",
+ "linkme",
+ "metriken-derive 0.2.0 (git+https://github.com/brayniac/rustcommon?branch=metriken-histograms)",
  "once_cell",
  "parking_lot",
  "phf",
@@ -1192,6 +1213,17 @@ name = "metriken-derive"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0213a7a12e01c66357d1f3491e2d7d74b2373540ea0a4bfd928a4c0e5e02f432"
+dependencies = [
+ "proc-macro-crate",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
+name = "metriken-derive"
+version = "0.2.0"
+source = "git+https://github.com/brayniac/rustcommon?branch=metriken-histograms#7f469354734ed4a4b5d0397da022f0568f0b9255"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -1355,7 +1387,7 @@ dependencies = [
  "boring-sys",
  "foreign-types-shared",
  "libc",
- "metriken",
+ "metriken 0.2.3",
  "mio 0.8.8",
 ]
 
@@ -1693,7 +1725,7 @@ source = "git+https://github.com/pelikan-io/pelikan#294b67991cd14c8362bd7aa9b688
 dependencies = [
  "common",
  "logger",
- "metriken",
+ "metriken 0.2.3",
  "nom",
  "protocol-common",
 ]
@@ -1706,7 +1738,7 @@ dependencies = [
  "common",
  "config",
  "logger",
- "metriken",
+ "metriken 0.2.3",
  "protocol-common",
  "storage-types",
 ]
@@ -1862,7 +1894,7 @@ dependencies = [
  "ahash",
  "clocksource",
  "log",
- "metriken",
+ "metriken 0.2.3",
  "mpmc",
 ]
 
@@ -1880,11 +1912,11 @@ dependencies = [
  "clocksource",
  "foreign-types-shared",
  "futures",
- "histogram",
+ "histogram 0.8.0",
  "http-body-util",
  "humantime",
  "hyper 1.0.0-rc.4",
- "metriken",
+ "metriken 0.2.4",
  "mio 0.8.8",
  "momento",
  "net",
@@ -1914,7 +1946,7 @@ dependencies = [
 name = "rpcperf-dataspec"
 version = "0.1.1"
 dependencies = [
- "histogram",
+ "histogram 0.8.0",
  "serde",
 ]
 
@@ -2102,7 +2134,7 @@ dependencies = [
  "bytes 1.4.0",
  "common",
  "log",
- "metriken",
+ "metriken 0.2.3",
  "net",
  "protocol-common",
 ]

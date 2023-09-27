@@ -6,7 +6,7 @@ use backtrace::Backtrace;
 use clap::{Arg, Command};
 use core::sync::atomic::{AtomicBool, Ordering};
 use core::time::Duration;
-use metriken::{Counter, Gauge, Heatmap};
+use metriken::{Counter, Gauge, AtomicHistogram};
 use ringlog::*;
 use std::collections::HashMap;
 use tokio::runtime::Builder;

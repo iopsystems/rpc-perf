@@ -16,8 +16,8 @@ repository = { workspace = true }
 license = { workspace = true }
 
 [workspace.dependencies]
-histogram = "0.7.4"
-serde = "1.0.185"
+histogram = { git = "https://github.com/brayniac/rustcommon", branch = "metriken-histograms" }
+serde = { version = "1.0.185", features = ["derive"] }
 
 [dependencies]
 ahash = "0.8.3"
@@ -35,7 +35,7 @@ hyper = { version = "1.0.0-rc.4", features = ["http1", "http2", "client"]}
 histogram = { workspace = true }
 humantime = "2.1.0"
 momento = "0.31.0"
-metriken = "0.2.3"
+metriken = { git = "https://github.com/brayniac/rustcommon", branch = "metriken-histograms" }
 mio = "0.8.8"
 net = { git = "https://github.com/pelikan-io/pelikan" }
 paste = "1.0.14"

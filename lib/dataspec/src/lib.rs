@@ -2,6 +2,7 @@
 //! by any consumer of the produced data to parse the files.
 
 pub mod histogram;
+// use ::histogram::Snapshot;
 pub use crate::histogram::Histogram;
 
 use serde::{Deserialize, Serialize};
@@ -49,7 +50,7 @@ pub struct ClientStats {
     pub connections: Connections,
     pub requests: Requests,
     pub responses: Responses,
-    pub request_latency: Histogram,
+    pub response_latency: Histogram,
 }
 
 #[derive(Serialize, Deserialize)]
