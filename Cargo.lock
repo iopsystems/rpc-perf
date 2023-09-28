@@ -841,7 +841,7 @@ dependencies = [
 [[package]]
 name = "histogram"
 version = "0.8.0"
-source = "git+https://github.com/brayniac/rustcommon?branch=metriken-histograms#94519075f41cee206c6f16a6f0cc6c3030481896"
+source = "git+https://github.com/brayniac/rustcommon?branch=metriken-histograms#e283f6e7943ca6c85752265210bf8e239e0c54a2"
 dependencies = [
  "thiserror",
 ]
@@ -1198,7 +1198,7 @@ dependencies = [
 [[package]]
 name = "metriken"
 version = "0.2.4"
-source = "git+https://github.com/brayniac/rustcommon?branch=metriken-histograms#94519075f41cee206c6f16a6f0cc6c3030481896"
+source = "git+https://github.com/brayniac/rustcommon?branch=metriken-histograms#e283f6e7943ca6c85752265210bf8e239e0c54a2"
 dependencies = [
  "histogram 0.8.0",
  "linkme",
@@ -1223,7 +1223,7 @@ dependencies = [
 [[package]]
 name = "metriken-derive"
 version = "0.2.0"
-source = "git+https://github.com/brayniac/rustcommon?branch=metriken-histograms#94519075f41cee206c6f16a6f0cc6c3030481896"
+source = "git+https://github.com/brayniac/rustcommon?branch=metriken-histograms#e283f6e7943ca6c85752265210bf8e239e0c54a2"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",

@@ -16,12 +16,14 @@ pub static PERCENTILES: &[(&str, f64)] = &[
     ("p9999", 99.99),
 ];
 
+#[derive(Default)]
 pub struct Snapshot {
-    pub prev: HashMap<Metrics, u64>,
+    pub counters: HashMap<Counters, u64>,
+    pub histograms: HashMap<Histograms, histogram::Snapshot>,
 }
 
 #[derive(Eq, Hash, PartialEq, Copy, Clone)]
-pub enum Metrics {
+pub enum Counters {
     Connect,
     ConnectOk,
     ConnectEx,
@@ -46,8 +48,8 @@ pub enum Metrics {
     PubsubRxInvalid,
 }
 
-impl Metrics {
-    pub fn metric(&self) -> &metriken::Counter {
+impl Counters {
+    pub fn counter(&self) -> &metriken::Counter {
         match self {
             Self::Connect => &CONNECT,
             Self::ConnectOk => &CONNECT_OK,
@@ -75,9 +77,37 @@ impl Metrics {
     }
 
     pub fn delta(&self, snapshot: &mut Snapshot) -> u64 {
-        let curr = self.metric().value();
-        let prev = snapshot.prev.insert(*self, curr).unwrap_or(0);
+        let curr = self.counter().value();
+        let prev = snapshot.counters.insert(*self, curr).unwrap_or(0);
         curr.wrapping_sub(prev)
+    }
+}
+
+#[derive(Eq, Hash, PartialEq, Copy, Clone)]
+pub enum Histograms {
+    PubsubLatency,
+    PubsubPublishLatency,
+    ResponseLatency,
+}
+
+impl Histograms {
+    pub fn histogram(&self) -> &metriken::AtomicHistogram {
+        match self {
+            Self::PubsubLatency => &PUBSUB_LATENCY,
+            Self::PubsubPublishLatency => &PUBSUB_PUBLISH_LATENCY,
+            Self::ResponseLatency => &RESPONSE_LATENCY,
+        }
+    }
+
+    pub fn delta(&self, snapshot: &mut Snapshot) -> Option<histogram::Snapshot> {
+        if let Some(curr) = self.histogram().snapshot() {
+            match snapshot.histograms.insert(*self, curr.clone()) {
+                Some(prev) => Some(curr.wrapping_sub(&prev).unwrap()),
+                None => Some(curr),
+            }
+        } else {
+            None
+        }
     }
 }
 

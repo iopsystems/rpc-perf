@@ -29,7 +29,7 @@ impl From<Option<Snapshot>> for Histogram {
                 max_value_power: 64,
                 index: Vec::new(),
                 count: Vec::new(),
-            }
+            };
         }
 
         let snapshot = snapshot.unwrap();

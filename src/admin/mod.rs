@@ -138,9 +138,11 @@ impl<'a> TryFrom<&'a metriken::MetricEntry> for Metric<'a> {
             if let Some(snapshot) = histogram.snapshot() {
                 let p: Vec<f64> = PERCENTILES.iter().map(|(_, p)| *p).collect();
                 if let Ok(result) = snapshot.percentiles(&p) {
-                    let percentiles = result.iter().zip(PERCENTILES.iter()).map(|((p, b), (l, _))| {
-                        (*l, *p, Some(b.end()))
-                    }).collect();
+                    let percentiles = result
+                        .iter()
+                        .zip(PERCENTILES.iter())
+                        .map(|((p, b), (l, _))| (*l, *p, Some(b.end())))
+                        .collect();
                     return Ok(Metric::Percentiles(
                         metric.name(),
                         metric.description(),

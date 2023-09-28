@@ -1,8 +1,6 @@
 use crate::*;
-use rpcperf_dataspec::*;
-
-use ahash::{HashMap, HashMapExt};
 use ratelimit::Ratelimiter;
+use rpcperf_dataspec::*;
 use std::io::{BufWriter, Write};
 
 #[macro_export]
@@ -23,9 +21,7 @@ pub fn log(config: &Config) {
 
     let mut window_id = 0;
 
-    let mut snapshot = Snapshot {
-        prev: HashMap::new(),
-    };
+    let mut snapshot = Snapshot::default();
 
     let mut prev = Instant::now();
 
@@ -64,23 +60,25 @@ pub fn log(config: &Config) {
 
 /// Outputs client stats and returns the number of requests successfully sent
 fn client_stats(snapshot: &mut Snapshot, elapsed: f64) -> u64 {
-    let connect_ok = Metrics::ConnectOk.delta(snapshot);
-    let connect_ex = Metrics::ConnectEx.delta(snapshot);
-    let connect_timeout = Metrics::ConnectTimeout.delta(snapshot);
-    let connect_total = Metrics::Connect.delta(snapshot);
+    let connect_ok = Counters::ConnectOk.delta(snapshot);
+    let connect_ex = Counters::ConnectEx.delta(snapshot);
+    let connect_timeout = Counters::ConnectTimeout.delta(snapshot);
+    let connect_total = Counters::Connect.delta(snapshot);
 
-    let request_reconnect = Metrics::RequestReconnect.delta(snapshot);
-    let request_ok = Metrics::RequestOk.delta(snapshot);
-    let request_unsupported = Metrics::RequestUnsupported.delta(snapshot);
-    let request_total = Metrics::Request.delta(snapshot);
+    let request_reconnect = Counters::RequestReconnect.delta(snapshot);
+    let request_ok = Counters::RequestOk.delta(snapshot);
+    let request_unsupported = Counters::RequestUnsupported.delta(snapshot);
+    let request_total = Counters::Request.delta(snapshot);
 
-    let response_ok = Metrics::ResponseOk.delta(snapshot);
-    let response_ex = Metrics::ResponseEx.delta(snapshot);
-    let response_timeout = Metrics::ResponseTimeout.delta(snapshot);
-    let response_hit = Metrics::ResponseHit.delta(snapshot);
-    let response_miss = Metrics::ResponseMiss.delta(snapshot);
+    let response_ok = Counters::ResponseOk.delta(snapshot);
+    let response_ex = Counters::ResponseEx.delta(snapshot);
+    let response_timeout = Counters::ResponseTimeout.delta(snapshot);
+    let response_hit = Counters::ResponseHit.delta(snapshot);
+    let response_miss = Counters::ResponseMiss.delta(snapshot);
 
     let connect_sr = 100.0 * connect_ok as f64 / connect_total as f64;
+
+    let response_latency = Histograms::ResponseLatency.delta(snapshot);
 
     output!(
         "Client Connection: Open: {} Success Rate: {:.2} %",
@@ -131,17 +129,19 @@ fn client_stats(snapshot: &mut Snapshot, elapsed: f64) -> u64 {
 
     let mut latencies = "Client Response Latency (us):".to_owned();
 
-    if let Some(snapshot) = RESPONSE_LATENCY.snapshot() {
+    if let Some(snapshot) = response_latency {
         let p: Vec<f64> = PERCENTILES.iter().map(|(_, v)| *v).collect();
 
         if let Ok(result) = snapshot.percentiles(&p) {
-            let percentiles: Vec<(&str, u64)> = result.iter().zip(PERCENTILES.iter()).map(|((_, b), (l, _))| {
-                (*l, b.end())
-            }).collect();
+            let percentiles: Vec<(&str, u64)> = result
+                .iter()
+                .zip(PERCENTILES.iter())
+                .map(|((_, b), (l, _))| (*l, b.end()))
+                .collect();
 
             for (label, value) in percentiles {
                 latencies.push_str(&format!(" {label}: {value}"))
-            } 
+            }
         }
     }
 
@@ -153,17 +153,22 @@ fn client_stats(snapshot: &mut Snapshot, elapsed: f64) -> u64 {
 /// Output pubsub metrics and return the number of successful publish operations
 fn pubsub_stats(snapshot: &mut Snapshot, elapsed: f64) -> u64 {
     // publisher stats
-    let pubsub_tx_ex = Metrics::PubsubTxEx.delta(snapshot);
-    let pubsub_tx_ok = Metrics::PubsubTxOk.delta(snapshot);
-    let pubsub_tx_timeout = Metrics::PubsubTxTimeout.delta(snapshot);
-    let pubsub_tx_total = Metrics::PubsubTx.delta(snapshot);
+    let pubsub_tx_ex = Counters::PubsubTxEx.delta(snapshot);
+    let pubsub_tx_ok = Counters::PubsubTxOk.delta(snapshot);
+    let pubsub_tx_timeout = Counters::PubsubTxTimeout.delta(snapshot);
+    let pubsub_tx_total = Counters::PubsubTx.delta(snapshot);
+
+    let pubsub_publish_latency = Histograms::PubsubPublishLatency.delta(snapshot);
 
     // subscriber stats
-    let pubsub_rx_ok = Metrics::PubsubRxOk.delta(snapshot);
-    let pubsub_rx_ex = Metrics::PubsubRxEx.delta(snapshot);
-    let pubsub_rx_corrupt = Metrics::PubsubRxCorrupt.delta(snapshot);
-    let pubsub_rx_invalid = Metrics::PubsubRxInvalid.delta(snapshot);
-    let pubsub_rx_total = Metrics::PubsubRx.delta(snapshot);
+    let pubsub_rx_ok = Counters::PubsubRxOk.delta(snapshot);
+    let pubsub_rx_ex = Counters::PubsubRxEx.delta(snapshot);
+    let pubsub_rx_corrupt = Counters::PubsubRxCorrupt.delta(snapshot);
+    let pubsub_rx_invalid = Counters::PubsubRxInvalid.delta(snapshot);
+    let pubsub_rx_total = Counters::PubsubRx.delta(snapshot);
+
+    // end-to-end stats
+    let pubsub_latency = Histograms::PubsubLatency.delta(snapshot);
 
     output!("Publishers: Current: {}", PUBSUB_PUBLISHER_CURR.value(),);
 
@@ -202,17 +207,19 @@ fn pubsub_stats(snapshot: &mut Snapshot, elapsed: f64) -> u64 {
 
     let mut latencies = "Pubsub Publish Latency (us):".to_owned();
 
-    if let Some(snapshot) = PUBSUB_PUBLISH_LATENCY.snapshot() {
+    if let Some(snapshot) = pubsub_publish_latency {
         let p: Vec<f64> = PERCENTILES.iter().map(|(_, v)| *v).collect();
 
         if let Ok(result) = snapshot.percentiles(&p) {
-            let percentiles: Vec<(&str, u64)> = result.iter().zip(PERCENTILES.iter()).map(|((_, b), (l, _))| {
-                (*l, b.end())
-            }).collect();
+            let percentiles: Vec<(&str, u64)> = result
+                .iter()
+                .zip(PERCENTILES.iter())
+                .map(|((_, b), (l, _))| (*l, b.end()))
+                .collect();
 
             for (label, value) in percentiles {
                 latencies.push_str(&format!(" {label}: {value}"))
-            } 
+            }
         }
     }
 
@@ -220,17 +227,19 @@ fn pubsub_stats(snapshot: &mut Snapshot, elapsed: f64) -> u64 {
 
     let mut latencies = "Pubsub End-to-End Latency (us):".to_owned();
 
-    if let Some(snapshot) = PUBSUB_LATENCY.snapshot() {
+    if let Some(snapshot) = pubsub_latency {
         let p: Vec<f64> = PERCENTILES.iter().map(|(_, v)| *v).collect();
 
         if let Ok(result) = snapshot.percentiles(&p) {
-            let percentiles: Vec<(&str, u64)> = result.iter().zip(PERCENTILES.iter()).map(|((_, b), (l, _))| {
-                (*l, b.end())
-            }).collect();
+            let percentiles: Vec<(&str, u64)> = result
+                .iter()
+                .zip(PERCENTILES.iter())
+                .map(|((_, b), (l, _))| (*l, b.end()))
+                .collect();
 
             for (label, value) in percentiles {
                 latencies.push_str(&format!(" {label}: {value}"))
-            } 
+            }
         }
     }
 
@@ -260,9 +269,7 @@ pub fn json(config: Config, ratelimit: Option<&Ratelimiter>) {
 
     let mut window_id = 0;
 
-    let mut snapshot = Snapshot {
-        prev: HashMap::new(),
-    };
+    let mut snapshot = Snapshot::default();
 
     while end > now {
         std::thread::sleep(Duration::from_millis(1));
@@ -277,25 +284,25 @@ pub fn json(config: Config, ratelimit: Option<&Ratelimiter>) {
 
             let connections = Connections {
                 current: CONNECT_CURR.value(),
-                total: Metrics::Connect.delta(&mut snapshot),
-                opened: Metrics::ConnectOk.delta(&mut snapshot),
-                error: Metrics::ConnectEx.delta(&mut snapshot),
-                timeout: Metrics::ConnectTimeout.delta(&mut snapshot),
+                total: Counters::Connect.delta(&mut snapshot),
+                opened: Counters::ConnectOk.delta(&mut snapshot),
+                error: Counters::ConnectEx.delta(&mut snapshot),
+                timeout: Counters::ConnectTimeout.delta(&mut snapshot),
             };
 
             let requests = Requests {
-                total: Metrics::Request.delta(&mut snapshot),
-                ok: Metrics::RequestOk.delta(&mut snapshot),
-                reconnect: Metrics::RequestReconnect.delta(&mut snapshot),
-                unsupported: Metrics::RequestUnsupported.delta(&mut snapshot),
+                total: Counters::Request.delta(&mut snapshot),
+                ok: Counters::RequestOk.delta(&mut snapshot),
+                reconnect: Counters::RequestReconnect.delta(&mut snapshot),
+                unsupported: Counters::RequestUnsupported.delta(&mut snapshot),
             };
 
-            let response_ok = Metrics::ResponseOk.delta(&mut snapshot);
-            let response_ex = Metrics::ResponseEx.delta(&mut snapshot);
-            let response_timeout = Metrics::ResponseTimeout.delta(&mut snapshot);
+            let response_ok = Counters::ResponseOk.delta(&mut snapshot);
+            let response_ex = Counters::ResponseEx.delta(&mut snapshot);
+            let response_timeout = Counters::ResponseTimeout.delta(&mut snapshot);
             let response_total = response_ok + response_ex + response_timeout;
-            let response_hit = Metrics::ResponseHit.delta(&mut snapshot);
-            let response_miss = Metrics::ResponseHit.delta(&mut snapshot);
+            let response_hit = Counters::ResponseHit.delta(&mut snapshot);
+            let response_miss = Counters::ResponseHit.delta(&mut snapshot);
 
             let responses = Responses {
                 total: response_total,
