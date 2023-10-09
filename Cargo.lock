@@ -1922,6 +1922,7 @@ version = "0.1.1"
 dependencies = [
  "histogram",
  "serde",
+ "thiserror",
 ]
 
 [[package]]
