@@ -2,6 +2,7 @@ use super::*;
 use config::{Command, ValueKind, Verb};
 use rand::distributions::{Alphanumeric, Uniform};
 use rand::{Rng, RngCore, SeedableRng};
+use rand_distr::num_traits::ToPrimitive;
 use rand_distr::Distribution as RandomDistribution;
 use rand_distr::WeightedAliasIndex;
 use rand_xoshiro::{Seed512, Xoshiro512PlusPlus};
@@ -400,7 +401,10 @@ impl Topics {
 
         // generate the seed for topic name PRNG
         let mut raw_seed = [0_u8; 64];
-        rng.fill_bytes(&mut raw_seed);
+        // rng.fill_bytes(&mut raw_seed);
+        for i in 0..raw_seed.len() {
+            raw_seed[i] = u8::from(i + 1);
+        }
         let topic_name_seed = Seed512(raw_seed);
 
         // initialize topic name PRNG and generate a set of unique topics
