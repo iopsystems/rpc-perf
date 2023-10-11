@@ -41,6 +41,7 @@ impl Histogram {
     ///
     /// Both histograms must have the same configuration parameters.
     /// Buckets which have values in both histograms are allowed to wrap.
+    #[allow(clippy::comparison_chain)]
     pub fn merge(&self, h: &Histogram) -> Result<Histogram, Error> {
         if self.m != h.m || self.r != h.r || self.n != h.n {
             return Err(Error::MismatchedParams);
@@ -84,7 +85,7 @@ impl Histogram {
             histogram.count.extend(&h.count[i..h.count.len()]);
         }
 
-        return Ok(histogram);
+        Ok(histogram)
     }
 }
 
