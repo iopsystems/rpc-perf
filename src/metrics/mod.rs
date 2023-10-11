@@ -111,6 +111,20 @@ impl Histograms {
     }
 }
 
+impl TryFrom<&str> for Histograms {
+    type Error = ();
+    fn try_from(
+        other: &str,
+    ) -> std::result::Result<Self, <Self as std::convert::TryFrom<&str>>::Error> {
+        match other {
+            "response_latency" => Ok(Histograms::ResponseLatency),
+            "pubsub_latency" => Ok(Histograms::PubsubLatency),
+            "pubsub_publish_latency" => Ok(Histograms::PubsubPublishLatency),
+            _ => Err(()),
+        }
+    }
+}
+
 #[macro_export]
 #[rustfmt::skip]
 macro_rules! counter {
