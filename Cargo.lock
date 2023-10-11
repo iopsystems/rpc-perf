@@ -1925,6 +1925,7 @@ dependencies = [
  "mio 0.8.8",
  "momento",
  "net",
+ "once_cell",
  "paste",
  "protocol-memcache",
  "protocol-ping",

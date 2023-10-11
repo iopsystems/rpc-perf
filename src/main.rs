@@ -1,3 +1,4 @@
+use once_cell::sync::Lazy;
 use crate::clients::launch_clients;
 use crate::pubsub::launch_pubsub;
 use crate::workload::{launch_workload, Generator};
@@ -30,10 +31,12 @@ use metrics::*;
 type Instant = clocksource::Instant<clocksource::Nanoseconds<u64>>;
 type UnixInstant = clocksource::UnixInstant<clocksource::Nanoseconds<u64>>;
 
+type HistogramSnapshots = HashMap<Histograms, metriken::histogram::Snapshot>;
+
 static RUNNING: AtomicBool = AtomicBool::new(true);
 
-static SNAPSHOTS: Arc<RwLock<VecDeque<HashMap<Histograms, metriken::histogram::Snapshot>>>> =
-    Arc::new(RwLock::new(VecDeque::new()));
+static SNAPSHOTS: Lazy<Arc<RwLock<VecDeque<HistogramSnapshots>>>> =
+    Lazy::new(|| Arc::new(RwLock::new(VecDeque::new())));
 
 fn main() {
     // custom panic hook to terminate whole process after unwinding

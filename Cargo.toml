@@ -38,6 +38,7 @@ momento = "0.31.0"
 metriken = { git = "https://github.com/brayniac/rustcommon", branch = "metriken-histograms" }
 mio = "0.8.8"
 net = { git = "https://github.com/pelikan-io/pelikan" }
+once_cell = "1.18.0"
 paste = "1.0.14"
 protocol-memcache = { git = "https://github.com/pelikan-io/pelikan" }
 protocol-ping = { git = "https://github.com/pelikan-io/pelikan" }
