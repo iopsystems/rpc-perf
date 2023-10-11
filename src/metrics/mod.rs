@@ -83,6 +83,7 @@ impl Counters {
     }
 }
 
+#[allow(clippy::enum_variant_names)]
 #[derive(Eq, Hash, PartialEq, Copy, Clone)]
 pub enum Histograms {
     PubsubLatency,

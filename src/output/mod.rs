@@ -324,7 +324,7 @@ pub fn json(config: Config, ratelimit: Option<&Ratelimiter>) {
                     response_latency: RESPONSE_LATENCY
                         .snapshot()
                         .map(|snapshot| rpcperf_dataspec::Histogram::from(&snapshot))
-                        .unwrap_or(Default::default()),
+                        .unwrap_or_default(),
                 },
                 pubsub: PubsubStats {
                     publishers: Publishers {
