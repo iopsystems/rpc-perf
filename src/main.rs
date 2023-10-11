@@ -1,4 +1,3 @@
-use once_cell::sync::Lazy;
 use crate::clients::launch_clients;
 use crate::pubsub::launch_pubsub;
 use crate::workload::{launch_workload, Generator};
@@ -8,6 +7,7 @@ use clap::{Arg, Command};
 use core::sync::atomic::{AtomicBool, Ordering};
 use core::time::Duration;
 use metriken::{AtomicHistogram, Counter, Gauge};
+use once_cell::sync::Lazy;
 use ringlog::*;
 use std::collections::HashMap;
 use std::collections::VecDeque;
