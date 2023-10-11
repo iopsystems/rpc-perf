@@ -1,3 +1,6 @@
+use tokio::sync::RwLock;
+use std::time::SystemTime;
+use std::sync::Arc;
 use crate::clients::launch_clients;
 use crate::pubsub::launch_pubsub;
 use crate::workload::{launch_workload, Generator};
@@ -11,7 +14,6 @@ use ringlog::*;
 use std::collections::HashMap;
 use tokio::runtime::Builder;
 use tokio::time::sleep;
-// use warp::Filter;
 
 mod admin;
 mod clients;
@@ -29,6 +31,9 @@ type Instant = clocksource::Instant<clocksource::Nanoseconds<u64>>;
 type UnixInstant = clocksource::UnixInstant<clocksource::Nanoseconds<u64>>;
 
 static RUNNING: AtomicBool = AtomicBool::new(true);
+
+static CURRENT: Arc<RwLock<HashMap<Histograms, metriken::histogram::Snapshot>>> = Arc::new(RwLock::new(HashMap::new()));
+static PREVIOUS: Arc<RwLock<HashMap<Histograms, metriken::histogram::Snapshot>>> = Arc::new(RwLock::new(HashMap::new()));
 
 fn main() {
     // custom panic hook to terminate whole process after unwinding
@@ -112,6 +117,35 @@ fn main() {
             let _ = log.flush();
         }
         let _ = log.flush();
+    });
+
+    // spawn thread to maintain histogram snapshots
+    control_runtime.spawn(async {
+        while RUNNING.load(Ordering::Relaxed) {
+
+            let current = CURRENT.write().await;
+            let previous = PREVIOUS.write().await;
+
+            *previous = current.clone();
+            
+            for metric in metriken::metrics().iter() {
+                let any = if let Some(any) = metric.as_any() {
+                    any
+                } else {
+                    continue;
+                };
+
+                if let Some(histogram) = any.downcast_ref::<AtomicHistogram>() {
+                    if let Ok(key) = Histograms::try_from(metric.name()) {
+                        if let Some(snapshot) = histogram.snapshot() {
+                            current.insert(key, snapshot);
+                        }
+                    }
+                }
+            }
+
+            sleep(core::time::Duration::from_secs(1)).await;
+        }
     });
 
     // TODO: figure out what a reasonable size is here
