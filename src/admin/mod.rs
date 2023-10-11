@@ -5,7 +5,6 @@ use std::sync::Arc;
 
 /// The HTTP admin server.
 pub async fn http(config: Config, ratelimit: Option<Arc<Ratelimiter>>) {
-
     let admin = filters::admin(ratelimit);
 
     let addr = config
@@ -20,8 +19,8 @@ pub async fn http(config: Config, ratelimit: Option<Arc<Ratelimiter>>) {
 }
 
 mod filters {
-    use warp::Filter;
     use super::*;
+    use warp::Filter;
 
     /// The combined set of admin endpoint filters
     pub fn admin(
@@ -120,8 +119,10 @@ mod handlers {
     pub async fn prometheus_stats() -> Result<impl warp::Reply, Infallible> {
         let mut data = Vec::new();
 
-        let current = CURRENT.read().await;
-        let previous = PREVIOUS.read().await;
+        let snapshots = SNAPSHOTS.read().await;
+
+        let previous = snapshots.front();
+        let current = snapshots.back();
 
         for metric in &metriken::metrics() {
             if metric.name().starts_with("log_") {
@@ -163,9 +164,15 @@ mod handlers {
                     continue;
                 };
 
-                let delta = match (current.get(&key), previous.get(&key)) {
-                    (Some(current), Some(previous)) => current.wrapping_sub(previous).unwrap(),
-                    (Some(current), None) => current.clone(),
+                if current.is_none() {
+                    continue;
+                }
+
+                let delta = match (current.unwrap().get(&key), previous.map(|p| p.get(&key))) {
+                    (Some(current), Some(Some(previous))) => {
+                        current.wrapping_sub(previous).unwrap()
+                    }
+                    (Some(current), Some(None)) | (Some(current), None) => current.clone(),
                     _ => {
                         continue;
                     }
@@ -215,8 +222,10 @@ mod handlers {
     pub async fn json_stats() -> Result<impl warp::Reply, Infallible> {
         let mut data = Vec::new();
 
-        let current = CURRENT.read().await;
-        let previous = PREVIOUS.read().await;
+        let snapshots = SNAPSHOTS.read().await;
+
+        let previous = snapshots.front();
+        let current = snapshots.back();
 
         for metric in &metriken::metrics() {
             if metric.name().starts_with("log_") {
@@ -247,9 +256,15 @@ mod handlers {
                     continue;
                 };
 
-                let delta = match (current.get(&key), previous.get(&key)) {
-                    (Some(current), Some(previous)) => current.wrapping_sub(previous).unwrap(),
-                    (Some(current), None) => current.clone(),
+                if current.is_none() {
+                    continue;
+                }
+
+                let delta = match (current.unwrap().get(&key), previous.map(|p| p.get(&key))) {
+                    (Some(current), Some(Some(previous))) => {
+                        current.wrapping_sub(previous).unwrap()
+                    }
+                    (Some(current), Some(None)) | (Some(current), None) => current.clone(),
                     _ => {
                         continue;
                     }
@@ -290,8 +305,10 @@ mod handlers {
     pub async fn human_stats() -> Result<impl warp::Reply, Infallible> {
         let mut data = Vec::new();
 
-        let current = CURRENT.read().await;
-        let previous = PREVIOUS.read().await;
+        let snapshots = SNAPSHOTS.read().await;
+
+        let previous = snapshots.front();
+        let current = snapshots.back();
 
         for metric in &metriken::metrics() {
             if metric.name().starts_with("log_") {
@@ -322,9 +339,15 @@ mod handlers {
                     continue;
                 };
 
-                let delta = match (current.get(&key), previous.get(&key)) {
-                    (Some(current), Some(previous)) => current.wrapping_sub(previous).unwrap(),
-                    (Some(current), None) => current.clone(),
+                if current.is_none() {
+                    continue;
+                }
+
+                let delta = match (current.unwrap().get(&key), previous.map(|p| p.get(&key))) {
+                    (Some(current), Some(Some(previous))) => {
+                        current.wrapping_sub(previous).unwrap()
+                    }
+                    (Some(current), Some(None)) | (Some(current), None) => current.clone(),
                     _ => {
                         continue;
                     }

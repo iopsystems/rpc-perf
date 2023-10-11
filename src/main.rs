@@ -1,6 +1,3 @@
-use tokio::sync::RwLock;
-use std::time::SystemTime;
-use std::sync::Arc;
 use crate::clients::launch_clients;
 use crate::pubsub::launch_pubsub;
 use crate::workload::{launch_workload, Generator};
@@ -12,7 +9,10 @@ use core::time::Duration;
 use metriken::{AtomicHistogram, Counter, Gauge};
 use ringlog::*;
 use std::collections::HashMap;
+use std::collections::VecDeque;
+use std::sync::Arc;
 use tokio::runtime::Builder;
+use tokio::sync::RwLock;
 use tokio::time::sleep;
 
 mod admin;
@@ -32,8 +32,8 @@ type UnixInstant = clocksource::UnixInstant<clocksource::Nanoseconds<u64>>;
 
 static RUNNING: AtomicBool = AtomicBool::new(true);
 
-static CURRENT: Arc<RwLock<HashMap<Histograms, metriken::histogram::Snapshot>>> = Arc::new(RwLock::new(HashMap::new()));
-static PREVIOUS: Arc<RwLock<HashMap<Histograms, metriken::histogram::Snapshot>>> = Arc::new(RwLock::new(HashMap::new()));
+static SNAPSHOTS: Arc<RwLock<VecDeque<HashMap<Histograms, metriken::histogram::Snapshot>>>> =
+    Arc::new(RwLock::new(VecDeque::new()));
 
 fn main() {
     // custom panic hook to terminate whole process after unwinding
@@ -122,12 +122,10 @@ fn main() {
     // spawn thread to maintain histogram snapshots
     control_runtime.spawn(async {
         while RUNNING.load(Ordering::Relaxed) {
+            // build a current snapshot for all histograms
 
-            let current = CURRENT.write().await;
-            let previous = PREVIOUS.write().await;
+            let mut current = HashMap::new();
 
-            *previous = current.clone();
-            
             for metric in metriken::metrics().iter() {
                 let any = if let Some(any) = metric.as_any() {
                     any
@@ -143,6 +141,16 @@ fn main() {
                     }
                 }
             }
+
+            // acquire a lock and update the snapshots
+
+            let mut snapshots = SNAPSHOTS.write().await;
+
+            if snapshots.len() == 60 {
+                let _ = snapshots.pop_front();
+            }
+
+            snapshots.push_back(current);
 
             sleep(core::time::Duration::from_secs(1)).await;
         }
