@@ -170,7 +170,7 @@ macro_rules! gauge {
 
 #[macro_export]
 #[rustfmt::skip]
-macro_rules! heatmap {
+macro_rules! histogram {
     ($ident:ident, $name:tt) => {
         #[metriken::metric(
             name = $name,
@@ -242,21 +242,21 @@ macro_rules! request {
     }
 }
 
-heatmap!(
+histogram!(
     RESPONSE_LATENCY,
     "response_latency",
     "distribution of response latencies in nanoseconds."
 );
 
-heatmap!(
+histogram!(
     SESSION_LIFECYCLE_REQUESTS,
     "session_lifecycle_requests",
     "distribution of requests per session lifecycle. incremented at time of session close."
 );
 
-heatmap!(PUBSUB_LATENCY, "pubsub_latency");
+histogram!(PUBSUB_LATENCY, "pubsub_latency");
 
-heatmap!(PUBSUB_PUBLISH_LATENCY, "pubsub_publish_latency");
+histogram!(PUBSUB_PUBLISH_LATENCY, "pubsub_publish_latency");
 
 gauge!(CONNECT_CURR, "client/connections/current");
 counter!(CONNECT_OK, "client/connect/ok");
