@@ -120,9 +120,9 @@ mod handlers {
     pub async fn prometheus_stats() -> Result<impl warp::Reply, Infallible> {
         let mut data = Vec::new();
 
-        let snapshots = SNAPSHOTS.read().await;
+        let metrics_state = METRICS_STATE.read().await;
 
-        let timestamp = snapshots
+        let timestamp = metrics_state
             .timestamp
             .duration_since(UNIX_EPOCH)
             .unwrap()
@@ -162,13 +162,13 @@ mod handlers {
                     data.push(format!("# TYPE {name} gauge\n{name} {value}"));
                 }
             } else if any.downcast_ref::<AtomicHistogram>().is_some() {
-                let key = if let Ok(h) = Histograms::try_from(metric.name()) {
+                let key = if let Ok(h) = HistogramMetric::try_from(metric.name()) {
                     h
                 } else {
                     continue;
                 };
 
-                if let Some(delta) = snapshots.deltas.get(&key) {
+                if let Some(delta) = metrics_state.deltas.get(&key) {
                     let percentiles: Vec<f64> = PERCENTILES.iter().map(|p| p.1).collect();
 
                     let result = delta.percentiles(&percentiles).unwrap();
@@ -214,7 +214,7 @@ mod handlers {
     pub async fn json_stats() -> Result<impl warp::Reply, Infallible> {
         let mut data = Vec::new();
 
-        let snapshots = SNAPSHOTS.read().await;
+        let metrics_state = METRICS_STATE.read().await;
 
         for metric in &metriken::metrics() {
             if metric.name().starts_with("log_") {
@@ -239,13 +239,13 @@ mod handlers {
 
                 data.push(format!("\"{name}\": {value}"));
             } else if any.downcast_ref::<AtomicHistogram>().is_some() {
-                let key = if let Ok(h) = Histograms::try_from(metric.name()) {
+                let key = if let Ok(h) = HistogramMetric::try_from(metric.name()) {
                     h
                 } else {
                     continue;
                 };
 
-                if let Some(delta) = snapshots.deltas.get(&key) {
+                if let Some(delta) = metrics_state.deltas.get(&key) {
                     let percentiles: Vec<f64> = PERCENTILES.iter().map(|p| p.1).collect();
 
                     let result = delta.percentiles(&percentiles).unwrap();
@@ -282,7 +282,7 @@ mod handlers {
     pub async fn human_stats() -> Result<impl warp::Reply, Infallible> {
         let mut data = Vec::new();
 
-        let snapshots = SNAPSHOTS.read().await;
+        let metrics_state = METRICS_STATE.read().await;
 
         for metric in &metriken::metrics() {
             if metric.name().starts_with("log_") {
@@ -307,13 +307,13 @@ mod handlers {
 
                 data.push(format!("\"{name}\": {value}"));
             } else if any.downcast_ref::<AtomicHistogram>().is_some() {
-                let key = if let Ok(h) = Histograms::try_from(metric.name()) {
+                let key = if let Ok(h) = HistogramMetric::try_from(metric.name()) {
                     h
                 } else {
                     continue;
                 };
 
-                if let Some(delta) = snapshots.deltas.get(&key) {
+                if let Some(delta) = metrics_state.deltas.get(&key) {
                     let percentiles: Vec<f64> = PERCENTILES.iter().map(|p| p.1).collect();
 
                     let result = delta.percentiles(&percentiles).unwrap();

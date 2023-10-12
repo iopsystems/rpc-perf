@@ -11,7 +11,6 @@ use once_cell::sync::Lazy;
 use ringlog::*;
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::SystemTime;
 use tokio::runtime::Builder;
 use tokio::sync::RwLock;
 use tokio::time::sleep;
@@ -31,85 +30,10 @@ use metrics::*;
 type Instant = clocksource::Instant<clocksource::Nanoseconds<u64>>;
 type UnixInstant = clocksource::UnixInstant<clocksource::Nanoseconds<u64>>;
 
-type HistogramSnapshots = HashMap<Histograms, metriken::histogram::Snapshot>;
-
 static RUNNING: AtomicBool = AtomicBool::new(true);
 
-pub struct Snapshots {
-    timestamp: SystemTime,
-    previous: HistogramSnapshots,
-    deltas: HistogramSnapshots,
-}
-
-impl Default for Snapshots {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl Snapshots {
-    pub fn new() -> Self {
-        let timestamp = SystemTime::now();
-
-        let mut current = HashMap::new();
-
-        for metric in metriken::metrics().iter() {
-            let any = if let Some(any) = metric.as_any() {
-                any
-            } else {
-                continue;
-            };
-
-            if let Some(histogram) = any.downcast_ref::<AtomicHistogram>() {
-                if let Ok(key) = Histograms::try_from(metric.name()) {
-                    if let Some(snapshot) = histogram.snapshot() {
-                        current.insert(key, snapshot);
-                    }
-                }
-            }
-        }
-
-        let deltas = current.clone();
-
-        Self {
-            timestamp,
-            previous: current,
-            deltas,
-        }
-    }
-
-    pub fn update(&mut self) {
-        self.timestamp = SystemTime::now();
-
-        let mut current = HashMap::new();
-
-        for metric in metriken::metrics().iter() {
-            let any = if let Some(any) = metric.as_any() {
-                any
-            } else {
-                continue;
-            };
-
-            if let Some(histogram) = any.downcast_ref::<AtomicHistogram>() {
-                if let Ok(key) = Histograms::try_from(metric.name()) {
-                    if let Some(snapshot) = histogram.snapshot() {
-                        if let Some(previous) = self.previous.get(&key) {
-                            self.deltas
-                                .insert(key, snapshot.wrapping_sub(previous).unwrap());
-                        }
-
-                        current.insert(key, snapshot);
-                    }
-                }
-            }
-        }
-
-        self.previous = current;
-    }
-}
-
-static SNAPSHOTS: Lazy<Arc<RwLock<Snapshots>>> =
-    Lazy::new(|| Arc::new(RwLock::new(Snapshots::new())));
+static METRICS_STATE: Lazy<Arc<RwLock<HistogramMetricsSnapshot>>> =
+    Lazy::new(|| Arc::new(RwLock::new(Default::default())));
 
 fn main() {
     // custom panic hook to terminate whole process after unwinding
@@ -200,7 +124,7 @@ fn main() {
         while RUNNING.load(Ordering::Relaxed) {
             // acquire a lock and update the snapshots
             {
-                let mut snapshots = SNAPSHOTS.write().await;
+                let mut snapshots = METRICS_STATE.write().await;
                 snapshots.update();
             }
 

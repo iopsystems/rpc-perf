@@ -21,7 +21,7 @@ pub fn log(config: &Config) {
 
     let mut window_id = 0;
 
-    let mut snapshot = Snapshot::default();
+    let mut snapshot = MetricsSnapshot::default();
 
     let mut prev = Instant::now();
 
@@ -59,7 +59,7 @@ pub fn log(config: &Config) {
 }
 
 /// Outputs client stats and returns the number of requests successfully sent
-fn client_stats(snapshot: &mut Snapshot, elapsed: f64) -> u64 {
+fn client_stats(snapshot: &mut MetricsSnapshot, elapsed: f64) -> u64 {
     let connect_ok = Counters::ConnectOk.delta(snapshot);
     let connect_ex = Counters::ConnectEx.delta(snapshot);
     let connect_timeout = Counters::ConnectTimeout.delta(snapshot);
@@ -78,7 +78,7 @@ fn client_stats(snapshot: &mut Snapshot, elapsed: f64) -> u64 {
 
     let connect_sr = 100.0 * connect_ok as f64 / connect_total as f64;
 
-    let response_latency = Histograms::ResponseLatency.delta(snapshot);
+    let response_latency = HistogramMetric::ResponseLatency.delta(snapshot);
 
     output!(
         "Client Connection: Open: {} Success Rate: {:.2} %",
@@ -151,14 +151,14 @@ fn client_stats(snapshot: &mut Snapshot, elapsed: f64) -> u64 {
 }
 
 /// Output pubsub metrics and return the number of successful publish operations
-fn pubsub_stats(snapshot: &mut Snapshot, elapsed: f64) -> u64 {
+fn pubsub_stats(snapshot: &mut MetricsSnapshot, elapsed: f64) -> u64 {
     // publisher stats
     let pubsub_tx_ex = Counters::PubsubTxEx.delta(snapshot);
     let pubsub_tx_ok = Counters::PubsubTxOk.delta(snapshot);
     let pubsub_tx_timeout = Counters::PubsubTxTimeout.delta(snapshot);
     let pubsub_tx_total = Counters::PubsubTx.delta(snapshot);
 
-    let pubsub_publish_latency = Histograms::PubsubPublishLatency.delta(snapshot);
+    let pubsub_publish_latency = HistogramMetric::PubsubPublishLatency.delta(snapshot);
 
     // subscriber stats
     let pubsub_rx_ok = Counters::PubsubRxOk.delta(snapshot);
@@ -168,7 +168,7 @@ fn pubsub_stats(snapshot: &mut Snapshot, elapsed: f64) -> u64 {
     let pubsub_rx_total = Counters::PubsubRx.delta(snapshot);
 
     // end-to-end stats
-    let pubsub_latency = Histograms::PubsubLatency.delta(snapshot);
+    let pubsub_latency = HistogramMetric::PubsubLatency.delta(snapshot);
 
     output!("Publishers: Current: {}", PUBSUB_PUBLISHER_CURR.value(),);
 
@@ -269,7 +269,7 @@ pub fn json(config: Config, ratelimit: Option<&Ratelimiter>) {
 
     let mut window_id = 0;
 
-    let mut snapshot = Snapshot::default();
+    let mut snapshot = MetricsSnapshot::default();
 
     while end > now {
         std::thread::sleep(Duration::from_millis(1));

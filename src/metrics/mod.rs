@@ -1,10 +1,13 @@
 // for now, we use some of the metrics defined in the protocol crates
+
 pub use protocol_memcache::*;
 
 use ahash::HashMap;
+use ahash::HashMapExt;
 use metriken::Lazy;
 use paste::paste;
 use std::concat;
+use std::time::SystemTime;
 
 pub static PERCENTILES: &[(&str, f64)] = &[
     ("p25", 25.0),
@@ -16,10 +19,83 @@ pub static PERCENTILES: &[(&str, f64)] = &[
     ("p9999", 99.99),
 ];
 
+pub struct HistogramMetricsSnapshot {
+    pub timestamp: SystemTime,
+    pub previous: HashMap<HistogramMetric, metriken::histogram::Snapshot>,
+    pub deltas: HashMap<HistogramMetric, metriken::histogram::Snapshot>,
+}
+
+impl Default for HistogramMetricsSnapshot {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl HistogramMetricsSnapshot {
+    pub fn new() -> Self {
+        let timestamp = SystemTime::now();
+
+        let mut current = HashMap::new();
+
+        for metric in metriken::metrics().iter() {
+            let any = if let Some(any) = metric.as_any() {
+                any
+            } else {
+                continue;
+            };
+
+            if let Some(histogram) = any.downcast_ref::<metriken::AtomicHistogram>() {
+                if let Ok(key) = HistogramMetric::try_from(metric.name()) {
+                    if let Some(snapshot) = histogram.snapshot() {
+                        current.insert(key, snapshot);
+                    }
+                }
+            }
+        }
+
+        let deltas = current.clone();
+
+        Self {
+            timestamp,
+            previous: current,
+            deltas,
+        }
+    }
+
+    pub fn update(&mut self) {
+        self.timestamp = SystemTime::now();
+
+        let mut current = HashMap::new();
+
+        for metric in metriken::metrics().iter() {
+            let any = if let Some(any) = metric.as_any() {
+                any
+            } else {
+                continue;
+            };
+
+            if let Some(histogram) = any.downcast_ref::<metriken::AtomicHistogram>() {
+                if let Ok(key) = HistogramMetric::try_from(metric.name()) {
+                    if let Some(snapshot) = histogram.snapshot() {
+                        if let Some(previous) = self.previous.get(&key) {
+                            self.deltas
+                                .insert(key, snapshot.wrapping_sub(previous).unwrap());
+                        }
+
+                        current.insert(key, snapshot);
+                    }
+                }
+            }
+        }
+
+        self.previous = current;
+    }
+}
+
 #[derive(Default)]
-pub struct Snapshot {
+pub struct MetricsSnapshot {
     pub counters: HashMap<Counters, u64>,
-    pub histograms: HashMap<Histograms, histogram::Snapshot>,
+    pub histograms: HashMap<HistogramMetric, histogram::Snapshot>,
 }
 
 #[derive(Eq, Hash, PartialEq, Copy, Clone)]
@@ -76,7 +152,7 @@ impl Counters {
         }
     }
 
-    pub fn delta(&self, snapshot: &mut Snapshot) -> u64 {
+    pub fn delta(&self, snapshot: &mut MetricsSnapshot) -> u64 {
         let curr = self.counter().value();
         let prev = snapshot.counters.insert(*self, curr).unwrap_or(0);
         curr.wrapping_sub(prev)
@@ -85,13 +161,13 @@ impl Counters {
 
 #[allow(clippy::enum_variant_names)]
 #[derive(Eq, Hash, PartialEq, Copy, Clone)]
-pub enum Histograms {
+pub enum HistogramMetric {
     PubsubLatency,
     PubsubPublishLatency,
     ResponseLatency,
 }
 
-impl Histograms {
+impl HistogramMetric {
     pub fn histogram(&self) -> &metriken::AtomicHistogram {
         match self {
             Self::PubsubLatency => &PUBSUB_LATENCY,
@@ -100,7 +176,7 @@ impl Histograms {
         }
     }
 
-    pub fn delta(&self, snapshot: &mut Snapshot) -> Option<histogram::Snapshot> {
+    pub fn delta(&self, snapshot: &mut MetricsSnapshot) -> Option<histogram::Snapshot> {
         if let Some(curr) = self.histogram().snapshot() {
             match snapshot.histograms.insert(*self, curr.clone()) {
                 Some(prev) => Some(curr.wrapping_sub(&prev).unwrap()),
@@ -112,15 +188,15 @@ impl Histograms {
     }
 }
 
-impl TryFrom<&str> for Histograms {
+impl TryFrom<&str> for HistogramMetric {
     type Error = ();
     fn try_from(
         other: &str,
     ) -> std::result::Result<Self, <Self as std::convert::TryFrom<&str>>::Error> {
         match other {
-            "response_latency" => Ok(Histograms::ResponseLatency),
-            "pubsub_latency" => Ok(Histograms::PubsubLatency),
-            "pubsub_publish_latency" => Ok(Histograms::PubsubPublishLatency),
+            "response_latency" => Ok(Self::ResponseLatency),
+            "pubsub_latency" => Ok(Self::PubsubLatency),
+            "pubsub_publish_latency" => Ok(Self::PubsubPublishLatency),
             _ => Err(()),
         }
     }
