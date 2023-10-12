@@ -2,7 +2,6 @@
 //! by any consumer of the produced data to parse the files.
 
 pub mod histogram;
-// use ::histogram::Snapshot;
 pub use crate::histogram::Histogram;
 
 use serde::{Deserialize, Serialize};
