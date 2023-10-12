@@ -90,6 +90,32 @@ impl HistogramMetricsSnapshot {
 
         self.previous = current;
     }
+
+    pub fn percentiles(&self, metric: &str) -> Vec<(String, f64, u64)> {
+        let mut result = Vec::new();
+
+        let metric = if let Ok(h) = HistogramMetric::try_from(metric) {
+            h
+        } else {
+            return result;
+        };
+
+        let percentiles: Vec<f64> = PERCENTILES
+            .iter()
+            .map(|(_, percentile)| *percentile)
+            .collect();
+
+        if let Some(snapshot) = self.deltas.get(&metric) {
+            if let Ok(percentiles) = snapshot.percentiles(&percentiles) {
+                for ((label, _), (percentile, bucket)) in PERCENTILES.iter().zip(percentiles.iter())
+                {
+                    result.push((label.to_string(), *percentile, bucket.end()));
+                }
+            }
+        }
+
+        result
+    }
 }
 
 #[derive(Default)]

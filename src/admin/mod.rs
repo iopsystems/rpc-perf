@@ -162,35 +162,19 @@ mod handlers {
                     data.push(format!("# TYPE {name} gauge\n{name} {value}"));
                 }
             } else if any.downcast_ref::<AtomicHistogram>().is_some() {
-                let key = if let Ok(h) = HistogramMetric::try_from(metric.name()) {
-                    h
-                } else {
-                    continue;
-                };
+                let percentiles = metrics_state.percentiles(metric.name());
 
-                if let Some(delta) = metrics_state.deltas.get(&key) {
-                    let percentiles: Vec<f64> = PERCENTILES.iter().map(|p| p.1).collect();
-
-                    let result = delta.percentiles(&percentiles).unwrap();
-
-                    let result: Vec<(&'static str, f64, u64)> = PERCENTILES
-                        .iter()
-                        .zip(result.iter())
-                        .map(|((label, percentile), (_, value))| (*label, *percentile, value.end()))
-                        .collect();
-
-                    for (_label, percentile, value) in result {
-                        if let Some(description) = metric.description() {
-                            data.push(format!(
-                                "# TYPE {name} gauge\n# HELP {name} {description}\n{name}{{percentile=\"{:02}\"}} {value} {timestamp}",
-                                percentile,
-                            ));
-                        } else {
-                            data.push(format!(
-                                "# TYPE {name} gauge\n{name}{{percentile=\"{:02}\"}} {value} {timestamp}",
-                                percentile,
-                            ));
-                        }
+                for (_label, percentile, value) in percentiles {
+                    if let Some(description) = metric.description() {
+                        data.push(format!(
+                            "# TYPE {name} gauge\n# HELP {name} {description}\n{name}{{percentile=\"{:02}\"}} {value} {timestamp}",
+                            percentile,
+                        ));
+                    } else {
+                        data.push(format!(
+                            "# TYPE {name} gauge\n{name}{{percentile=\"{:02}\"}} {value} {timestamp}",
+                            percentile,
+                        ));
                     }
                 }
             }
@@ -239,26 +223,10 @@ mod handlers {
 
                 data.push(format!("\"{name}\": {value}"));
             } else if any.downcast_ref::<AtomicHistogram>().is_some() {
-                let key = if let Ok(h) = HistogramMetric::try_from(metric.name()) {
-                    h
-                } else {
-                    continue;
-                };
+                let percentiles = metrics_state.percentiles(metric.name());
 
-                if let Some(delta) = metrics_state.deltas.get(&key) {
-                    let percentiles: Vec<f64> = PERCENTILES.iter().map(|p| p.1).collect();
-
-                    let result = delta.percentiles(&percentiles).unwrap();
-
-                    let result: Vec<(&'static str, f64, u64)> = PERCENTILES
-                        .iter()
-                        .zip(result.iter())
-                        .map(|((label, percentile), (_, value))| (*label, *percentile, value.end()))
-                        .collect();
-
-                    for (label, _percentile, value) in result {
-                        data.push(format!("\"{name}/{label}\": {value}",));
-                    }
+                for (label, _percentile, value) in percentiles {
+                    data.push(format!("\"{name}/{label}\": {value}",));
                 }
             }
         }
@@ -307,26 +275,10 @@ mod handlers {
 
                 data.push(format!("\"{name}\": {value}"));
             } else if any.downcast_ref::<AtomicHistogram>().is_some() {
-                let key = if let Ok(h) = HistogramMetric::try_from(metric.name()) {
-                    h
-                } else {
-                    continue;
-                };
+                let percentiles = metrics_state.percentiles(metric.name());
 
-                if let Some(delta) = metrics_state.deltas.get(&key) {
-                    let percentiles: Vec<f64> = PERCENTILES.iter().map(|p| p.1).collect();
-
-                    let result = delta.percentiles(&percentiles).unwrap();
-
-                    let result: Vec<(&'static str, f64, u64)> = PERCENTILES
-                        .iter()
-                        .zip(result.iter())
-                        .map(|((label, percentile), (_, value))| (*label, *percentile, value.end()))
-                        .collect();
-
-                    for (label, _percentile, value) in result {
-                        data.push(format!("\"{name}/{label}\": {value}",));
-                    }
+                for (label, _percentile, value) in percentiles {
+                    data.push(format!("\"{name}/{label}\": {value}",));
                 }
             }
         }
