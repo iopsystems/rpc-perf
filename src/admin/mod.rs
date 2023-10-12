@@ -170,7 +170,11 @@ mod handlers {
 
                 let delta = match (current.unwrap().get(&key), previous.map(|p| p.get(&key))) {
                     (Some(current), Some(Some(previous))) => {
-                        current.wrapping_sub(previous).unwrap()
+                        if snapshots.len() < 61 {
+                            current.clone()
+                        } else {
+                            current.wrapping_sub(previous).unwrap()
+                        }
                     }
                     (Some(current), Some(None)) | (Some(current), None) => current.clone(),
                     _ => {
@@ -262,7 +266,11 @@ mod handlers {
 
                 let delta = match (current.unwrap().get(&key), previous.map(|p| p.get(&key))) {
                     (Some(current), Some(Some(previous))) => {
-                        current.wrapping_sub(previous).unwrap()
+                        if snapshots.len() < 61 {
+                            current.clone()
+                        } else {
+                            current.wrapping_sub(previous).unwrap()
+                        }
                     }
                     (Some(current), Some(None)) | (Some(current), None) => current.clone(),
                     _ => {
@@ -345,7 +353,11 @@ mod handlers {
 
                 let delta = match (current.unwrap().get(&key), previous.map(|p| p.get(&key))) {
                     (Some(current), Some(Some(previous))) => {
-                        current.wrapping_sub(previous).unwrap()
+                        if snapshots.len() < 61 {
+                            current.clone()
+                        } else {
+                            current.wrapping_sub(previous).unwrap()
+                        }
                     }
                     (Some(current), Some(None)) | (Some(current), None) => current.clone(),
                     _ => {

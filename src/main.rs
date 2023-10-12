@@ -149,7 +149,9 @@ fn main() {
 
             let mut snapshots = SNAPSHOTS.write().await;
 
-            if snapshots.len() == 60 {
+            // we maintain 1 minute of history, which requires 61 secondly
+            // snapshots
+            if snapshots.len() == 61 {
                 let _ = snapshots.pop_front();
             }
 
