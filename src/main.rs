@@ -10,8 +10,8 @@ use metriken::{AtomicHistogram, Counter, Gauge};
 use once_cell::sync::Lazy;
 use ringlog::*;
 use std::collections::HashMap;
-use std::collections::VecDeque;
 use std::sync::Arc;
+use std::time::SystemTime;
 use tokio::runtime::Builder;
 use tokio::sync::RwLock;
 use tokio::time::sleep;
@@ -35,8 +35,81 @@ type HistogramSnapshots = HashMap<Histograms, metriken::histogram::Snapshot>;
 
 static RUNNING: AtomicBool = AtomicBool::new(true);
 
-static SNAPSHOTS: Lazy<Arc<RwLock<VecDeque<HistogramSnapshots>>>> =
-    Lazy::new(|| Arc::new(RwLock::new(VecDeque::new())));
+pub struct Snapshots {
+    timestamp: SystemTime,
+    previous: HistogramSnapshots,
+    deltas: HistogramSnapshots,
+}
+
+impl Default for Snapshots {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Snapshots {
+    pub fn new() -> Self {
+        let timestamp = SystemTime::now();
+
+        let mut current = HashMap::new();
+
+        for metric in metriken::metrics().iter() {
+            let any = if let Some(any) = metric.as_any() {
+                any
+            } else {
+                continue;
+            };
+
+            if let Some(histogram) = any.downcast_ref::<AtomicHistogram>() {
+                if let Ok(key) = Histograms::try_from(metric.name()) {
+                    if let Some(snapshot) = histogram.snapshot() {
+                        current.insert(key, snapshot);
+                    }
+                }
+            }
+        }
+
+        let deltas = current.clone();
+
+        Self {
+            timestamp,
+            previous: current,
+            deltas,
+        }
+    }
+
+    pub fn update(&mut self) {
+        self.timestamp = SystemTime::now();
+
+        let mut current = HashMap::new();
+
+        for metric in metriken::metrics().iter() {
+            let any = if let Some(any) = metric.as_any() {
+                any
+            } else {
+                continue;
+            };
+
+            if let Some(histogram) = any.downcast_ref::<AtomicHistogram>() {
+                if let Ok(key) = Histograms::try_from(metric.name()) {
+                    if let Some(snapshot) = histogram.snapshot() {
+                        if let Some(previous) = self.previous.get(&key) {
+                            self.deltas
+                                .insert(key, snapshot.wrapping_sub(previous).unwrap());
+                        }
+
+                        current.insert(key, snapshot);
+                    }
+                }
+            }
+        }
+
+        self.previous = current;
+    }
+}
+
+static SNAPSHOTS: Lazy<Arc<RwLock<Snapshots>>> =
+    Lazy::new(|| Arc::new(RwLock::new(Snapshots::new())));
 
 fn main() {
     // custom panic hook to terminate whole process after unwinding
@@ -125,38 +198,13 @@ fn main() {
     // spawn thread to maintain histogram snapshots
     control_runtime.spawn(async {
         while RUNNING.load(Ordering::Relaxed) {
-            // build a current snapshot for all histograms
-
-            let mut current = HashMap::new();
-
-            for metric in metriken::metrics().iter() {
-                let any = if let Some(any) = metric.as_any() {
-                    any
-                } else {
-                    continue;
-                };
-
-                if let Some(histogram) = any.downcast_ref::<AtomicHistogram>() {
-                    if let Ok(key) = Histograms::try_from(metric.name()) {
-                        if let Some(snapshot) = histogram.snapshot() {
-                            current.insert(key, snapshot);
-                        }
-                    }
-                }
-            }
-
             // acquire a lock and update the snapshots
-
-            let mut snapshots = SNAPSHOTS.write().await;
-
-            // we maintain 1 minute of history, which requires 61 secondly
-            // snapshots
-            if snapshots.len() == 61 {
-                let _ = snapshots.pop_front();
+            {
+                let mut snapshots = SNAPSHOTS.write().await;
+                snapshots.update();
             }
 
-            snapshots.push_back(current);
-
+            // delay until next update
             sleep(core::time::Duration::from_secs(1)).await;
         }
     });

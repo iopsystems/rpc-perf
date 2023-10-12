@@ -97,6 +97,7 @@ mod filters {
 mod handlers {
     use super::*;
     use core::convert::Infallible;
+    use std::time::UNIX_EPOCH;
     use warp::http::StatusCode;
 
     /// Serves Prometheus / OpenMetrics text format metrics. All metrics have
@@ -121,8 +122,11 @@ mod handlers {
 
         let snapshots = SNAPSHOTS.read().await;
 
-        let previous = snapshots.front();
-        let current = snapshots.back();
+        let timestamp = snapshots
+            .timestamp
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis();
 
         for metric in &metriken::metrics() {
             if metric.name().starts_with("log_") {
@@ -164,45 +168,29 @@ mod handlers {
                     continue;
                 };
 
-                if current.is_none() {
-                    continue;
-                }
+                if let Some(delta) = snapshots.deltas.get(&key) {
+                    let percentiles: Vec<f64> = PERCENTILES.iter().map(|p| p.1).collect();
 
-                let delta = match (current.unwrap().get(&key), previous.map(|p| p.get(&key))) {
-                    (Some(current), Some(Some(previous))) => {
-                        if snapshots.len() < 61 {
-                            current.clone()
+                    let result = delta.percentiles(&percentiles).unwrap();
+
+                    let result: Vec<(&'static str, f64, u64)> = PERCENTILES
+                        .iter()
+                        .zip(result.iter())
+                        .map(|((label, percentile), (_, value))| (*label, *percentile, value.end()))
+                        .collect();
+
+                    for (_label, percentile, value) in result {
+                        if let Some(description) = metric.description() {
+                            data.push(format!(
+                                "# TYPE {name} gauge\n# HELP {name} {description}\n{name}{{percentile=\"{:02}\"}} {value} {timestamp}",
+                                percentile,
+                            ));
                         } else {
-                            current.wrapping_sub(previous).unwrap()
+                            data.push(format!(
+                                "# TYPE {name} gauge\n{name}{{percentile=\"{:02}\"}} {value} {timestamp}",
+                                percentile,
+                            ));
                         }
-                    }
-                    (Some(current), Some(None)) | (Some(current), None) => current.clone(),
-                    _ => {
-                        continue;
-                    }
-                };
-
-                let percentiles: Vec<f64> = PERCENTILES.iter().map(|p| p.1).collect();
-
-                let result = delta.percentiles(&percentiles).unwrap();
-
-                let result: Vec<(&'static str, f64, u64)> = PERCENTILES
-                    .iter()
-                    .zip(result.iter())
-                    .map(|((label, percentile), (_, value))| (*label, *percentile, value.end()))
-                    .collect();
-
-                for (_label, percentile, value) in result {
-                    if let Some(description) = metric.description() {
-                        data.push(format!(
-                            "# TYPE {name} gauge\n# HELP {name} {description}\n{name}{{percentile=\"{:02}\"}} {value}",
-                            percentile,
-                        ));
-                    } else {
-                        data.push(format!(
-                            "# TYPE {name} gauge\n{name}{{percentile=\"{:02}\"}} {value}",
-                            percentile,
-                        ));
                     }
                 }
             }
@@ -228,9 +216,6 @@ mod handlers {
 
         let snapshots = SNAPSHOTS.read().await;
 
-        let previous = snapshots.front();
-        let current = snapshots.back();
-
         for metric in &metriken::metrics() {
             if metric.name().starts_with("log_") {
                 continue;
@@ -260,36 +245,20 @@ mod handlers {
                     continue;
                 };
 
-                if current.is_none() {
-                    continue;
-                }
+                if let Some(delta) = snapshots.deltas.get(&key) {
+                    let percentiles: Vec<f64> = PERCENTILES.iter().map(|p| p.1).collect();
 
-                let delta = match (current.unwrap().get(&key), previous.map(|p| p.get(&key))) {
-                    (Some(current), Some(Some(previous))) => {
-                        if snapshots.len() < 61 {
-                            current.clone()
-                        } else {
-                            current.wrapping_sub(previous).unwrap()
-                        }
+                    let result = delta.percentiles(&percentiles).unwrap();
+
+                    let result: Vec<(&'static str, f64, u64)> = PERCENTILES
+                        .iter()
+                        .zip(result.iter())
+                        .map(|((label, percentile), (_, value))| (*label, *percentile, value.end()))
+                        .collect();
+
+                    for (label, _percentile, value) in result {
+                        data.push(format!("\"{name}/{label}\": {value}",));
                     }
-                    (Some(current), Some(None)) | (Some(current), None) => current.clone(),
-                    _ => {
-                        continue;
-                    }
-                };
-
-                let percentiles: Vec<f64> = PERCENTILES.iter().map(|p| p.1).collect();
-
-                let result = delta.percentiles(&percentiles).unwrap();
-
-                let result: Vec<(&'static str, f64, u64)> = PERCENTILES
-                    .iter()
-                    .zip(result.iter())
-                    .map(|((label, percentile), (_, value))| (*label, *percentile, value.end()))
-                    .collect();
-
-                for (label, _percentile, value) in result {
-                    data.push(format!("\"{name}/{label}\": {value}",));
                 }
             }
         }
@@ -315,9 +284,6 @@ mod handlers {
 
         let snapshots = SNAPSHOTS.read().await;
 
-        let previous = snapshots.front();
-        let current = snapshots.back();
-
         for metric in &metriken::metrics() {
             if metric.name().starts_with("log_") {
                 continue;
@@ -347,36 +313,20 @@ mod handlers {
                     continue;
                 };
 
-                if current.is_none() {
-                    continue;
-                }
+                if let Some(delta) = snapshots.deltas.get(&key) {
+                    let percentiles: Vec<f64> = PERCENTILES.iter().map(|p| p.1).collect();
 
-                let delta = match (current.unwrap().get(&key), previous.map(|p| p.get(&key))) {
-                    (Some(current), Some(Some(previous))) => {
-                        if snapshots.len() < 61 {
-                            current.clone()
-                        } else {
-                            current.wrapping_sub(previous).unwrap()
-                        }
+                    let result = delta.percentiles(&percentiles).unwrap();
+
+                    let result: Vec<(&'static str, f64, u64)> = PERCENTILES
+                        .iter()
+                        .zip(result.iter())
+                        .map(|((label, percentile), (_, value))| (*label, *percentile, value.end()))
+                        .collect();
+
+                    for (label, _percentile, value) in result {
+                        data.push(format!("\"{name}/{label}\": {value}",));
                     }
-                    (Some(current), Some(None)) | (Some(current), None) => current.clone(),
-                    _ => {
-                        continue;
-                    }
-                };
-
-                let percentiles: Vec<f64> = PERCENTILES.iter().map(|p| p.1).collect();
-
-                let result = delta.percentiles(&percentiles).unwrap();
-
-                let result: Vec<(&'static str, f64, u64)> = PERCENTILES
-                    .iter()
-                    .zip(result.iter())
-                    .map(|((label, percentile), (_, value))| (*label, *percentile, value.end()))
-                    .collect();
-
-                for (label, _percentile, value) in result {
-                    data.push(format!("\"{name}/{label}\": {value}",));
                 }
             }
         }
