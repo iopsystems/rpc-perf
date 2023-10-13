@@ -196,42 +196,8 @@ mod handlers {
     /// {"get/ok": 0,"client/request/p999": 0, ... }
     /// ```
     pub async fn json_stats() -> Result<impl warp::Reply, Infallible> {
-        let mut data = Vec::new();
+        let data = human_formatted_stats().await;
 
-        let metrics_snapshot = METRICS_SNAPSHOT.read().await;
-
-        for metric in &metriken::metrics() {
-            if metric.name().starts_with("log_") {
-                continue;
-            }
-
-            let any = match metric.as_any() {
-                Some(any) => any,
-                None => {
-                    continue;
-                }
-            };
-
-            let name = metric.name();
-
-            if let Some(counter) = any.downcast_ref::<Counter>() {
-                let value = counter.value();
-
-                data.push(format!("\"{name}\": {value}"));
-            } else if let Some(gauge) = any.downcast_ref::<Gauge>() {
-                let value = gauge.value();
-
-                data.push(format!("\"{name}\": {value}"));
-            } else if any.downcast_ref::<AtomicHistogram>().is_some() {
-                let percentiles = metrics_snapshot.percentiles(metric.name());
-
-                for (label, _percentile, value) in percentiles {
-                    data.push(format!("\"{name}/{label}\": {value}",));
-                }
-            }
-        }
-
-        data.sort();
         let mut content = "{".to_string();
         content += &data.join(",");
         content += "}";
@@ -248,42 +214,8 @@ mod handlers {
     /// client/request/latency/p50: 0,
     /// ```
     pub async fn human_stats() -> Result<impl warp::Reply, Infallible> {
-        let mut data = Vec::new();
+        let data = human_formatted_stats().await;
 
-        let metrics_snapshot = METRICS_SNAPSHOT.read().await;
-
-        for metric in &metriken::metrics() {
-            if metric.name().starts_with("log_") {
-                continue;
-            }
-
-            let any = match metric.as_any() {
-                Some(any) => any,
-                None => {
-                    continue;
-                }
-            };
-
-            let name = metric.name();
-
-            if let Some(counter) = any.downcast_ref::<Counter>() {
-                let value = counter.value();
-
-                data.push(format!("\"{name}\": {value}"));
-            } else if let Some(gauge) = any.downcast_ref::<Gauge>() {
-                let value = gauge.value();
-
-                data.push(format!("\"{name}\": {value}"));
-            } else if any.downcast_ref::<AtomicHistogram>().is_some() {
-                let percentiles = metrics_snapshot.percentiles(metric.name());
-
-                for (label, _percentile, value) in percentiles {
-                    data.push(format!("\"{name}/{label}\": {value}",));
-                }
-            }
-        }
-
-        data.sort();
         let mut content = data.join("\n");
         content += "\n";
         Ok(content)
@@ -315,4 +247,46 @@ mod handlers {
             Ok(StatusCode::NOT_FOUND)
         }
     }
+}
+
+// human formatted stats that can be exposed as human stats or converted to json
+pub async fn human_formatted_stats() -> Vec<String> {
+    let mut data = Vec::new();
+
+    let metrics_snapshot = METRICS_SNAPSHOT.read().await;
+
+    for metric in &metriken::metrics() {
+        if metric.name().starts_with("log_") {
+            continue;
+        }
+
+        let any = match metric.as_any() {
+            Some(any) => any,
+            None => {
+                continue;
+            }
+        };
+
+        let name = metric.name();
+
+        if let Some(counter) = any.downcast_ref::<Counter>() {
+            let value = counter.value();
+
+            data.push(format!("\"{name}\": {value}"));
+        } else if let Some(gauge) = any.downcast_ref::<Gauge>() {
+            let value = gauge.value();
+
+            data.push(format!("\"{name}\": {value}"));
+        } else if any.downcast_ref::<AtomicHistogram>().is_some() {
+            let percentiles = metrics_snapshot.percentiles(metric.name());
+
+            for (label, _percentile, value) in percentiles {
+                data.push(format!("\"{name}/{label}\": {value}",));
+            }
+        }
+    }
+
+    data.sort();
+
+    data
 }
