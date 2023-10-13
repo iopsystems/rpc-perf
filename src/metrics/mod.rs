@@ -19,22 +19,77 @@ pub static PERCENTILES: &[(&str, f64)] = &[
     ("p9999", 99.99),
 ];
 
-pub struct HistogramMetricsSnapshot {
-    pub timestamp: SystemTime,
-    pub previous: HashMap<HistogramMetric, metriken::histogram::Snapshot>,
-    pub deltas: HashMap<HistogramMetric, metriken::histogram::Snapshot>,
+pub struct HistogramsSnapshot {
+    pub previous: HashMap<String, metriken::histogram::Snapshot>,
+    pub deltas: HashMap<String, metriken::histogram::Snapshot>,
 }
 
-impl Default for HistogramMetricsSnapshot {
+pub struct MetricsSnapshot {
+    pub current: SystemTime,
+    pub previous: SystemTime,
+    pub counters: CountersSnapshot,
+    pub histograms: HistogramsSnapshot,
+}
+
+impl Default for MetricsSnapshot {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl HistogramMetricsSnapshot {
+impl MetricsSnapshot {
     pub fn new() -> Self {
-        let timestamp = SystemTime::now();
+        let now = SystemTime::now();
 
+        Self {
+            current: now,
+            previous: now,
+            counters: Default::default(),
+            histograms: Default::default(),
+        }
+    }
+
+    pub fn update(&mut self) {
+        self.previous = self.current;
+        self.current = SystemTime::now();
+
+        self.counters.update();
+        self.histograms.update();
+    }
+
+    pub fn percentiles(&self, name: &str) -> Vec<(String, f64, u64)> {
+        self.histograms.percentiles(name)
+    }
+
+    pub fn histogram_delta(&self, name: &str) -> Option<&metriken::histogram::Snapshot> {
+        self.histograms.deltas.get(name)
+    }
+
+    pub fn counter_rate(&self, name: &str) -> f64 {
+        self.counter_delta(name) as f64 / (self.current.duration_since(self.previous).unwrap()).as_secs_f64()
+    }
+
+    pub fn counter_delta(&self, name: &str) -> u64 {
+        let current = self.counters.current.get(name);
+
+        if current.is_none() {
+            return 0;
+        }
+
+        let previous = self.counters.previous.get(name).unwrap_or(&0);
+
+        current.unwrap() - previous
+    }
+}
+
+impl Default for HistogramsSnapshot {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl HistogramsSnapshot {
+    pub fn new() -> Self {
         let mut current = HashMap::new();
 
         for metric in metriken::metrics().iter() {
@@ -45,10 +100,8 @@ impl HistogramMetricsSnapshot {
             };
 
             if let Some(histogram) = any.downcast_ref::<metriken::AtomicHistogram>() {
-                if let Ok(key) = HistogramMetric::try_from(metric.name()) {
-                    if let Some(snapshot) = histogram.snapshot() {
-                        current.insert(key, snapshot);
-                    }
+                if let Some(snapshot) = histogram.snapshot() {
+                    current.insert(metric.name().to_string(), snapshot);
                 }
             }
         }
@@ -56,17 +109,12 @@ impl HistogramMetricsSnapshot {
         let deltas = current.clone();
 
         Self {
-            timestamp,
             previous: current,
             deltas,
         }
     }
 
     pub fn update(&mut self) {
-        self.timestamp = SystemTime::now();
-
-        let mut current = HashMap::new();
-
         for metric in metriken::metrics().iter() {
             let any = if let Some(any) = metric.as_any() {
                 any
@@ -75,37 +123,29 @@ impl HistogramMetricsSnapshot {
             };
 
             if let Some(histogram) = any.downcast_ref::<metriken::AtomicHistogram>() {
-                if let Ok(key) = HistogramMetric::try_from(metric.name()) {
-                    if let Some(snapshot) = histogram.snapshot() {
-                        if let Some(previous) = self.previous.get(&key) {
-                            self.deltas
-                                .insert(key, snapshot.wrapping_sub(previous).unwrap());
-                        }
+                let metric = metric.name().to_string();
 
-                        current.insert(key, snapshot);
+                if let Some(snapshot) = histogram.snapshot() {
+                    if let Some(previous) = self.previous.get(&metric) {
+                        self.deltas
+                            .insert(metric.clone(), snapshot.wrapping_sub(previous).unwrap());
                     }
+
+                    self.previous.insert(metric, snapshot);
                 }
             }
         }
-
-        self.previous = current;
     }
 
     pub fn percentiles(&self, metric: &str) -> Vec<(String, f64, u64)> {
         let mut result = Vec::new();
-
-        let metric = if let Ok(h) = HistogramMetric::try_from(metric) {
-            h
-        } else {
-            return result;
-        };
 
         let percentiles: Vec<f64> = PERCENTILES
             .iter()
             .map(|(_, percentile)| *percentile)
             .collect();
 
-        if let Some(snapshot) = self.deltas.get(&metric) {
+        if let Some(snapshot) = self.deltas.get(metric) {
             if let Ok(percentiles) = snapshot.percentiles(&percentiles) {
                 for ((label, _), (percentile, bucket)) in PERCENTILES.iter().zip(percentiles.iter())
                 {
@@ -118,112 +158,59 @@ impl HistogramMetricsSnapshot {
     }
 }
 
-#[derive(Default)]
-pub struct MetricsSnapshot {
-    pub counters: HashMap<Counters, u64>,
-    pub histograms: HashMap<HistogramMetric, histogram::Snapshot>,
+#[derive(Clone)]
+pub struct CountersSnapshot {
+    pub current: HashMap<String, u64>,
+    pub previous: HashMap<String, u64>,
 }
 
-#[derive(Eq, Hash, PartialEq, Copy, Clone)]
-pub enum Counters {
-    Connect,
-    ConnectOk,
-    ConnectEx,
-    ConnectTimeout,
-    Request,
-    RequestOk,
-    RequestReconnect,
-    RequestUnsupported,
-    ResponseOk,
-    ResponseEx,
-    ResponseTimeout,
-    ResponseHit,
-    ResponseMiss,
-    PubsubTx,
-    PubsubTxEx,
-    PubsubTxOk,
-    PubsubTxTimeout,
-    PubsubRx,
-    PubsubRxEx,
-    PubsubRxOk,
-    PubsubRxCorrupt,
-    PubsubRxInvalid,
-}
-
-impl Counters {
-    pub fn counter(&self) -> &metriken::Counter {
-        match self {
-            Self::Connect => &CONNECT,
-            Self::ConnectOk => &CONNECT_OK,
-            Self::ConnectEx => &CONNECT_EX,
-            Self::ConnectTimeout => &CONNECT_TIMEOUT,
-            Self::Request => &REQUEST,
-            Self::RequestOk => &REQUEST_OK,
-            Self::RequestReconnect => &REQUEST_RECONNECT,
-            Self::RequestUnsupported => &REQUEST_UNSUPPORTED,
-            Self::ResponseEx => &RESPONSE_EX,
-            Self::ResponseOk => &RESPONSE_OK,
-            Self::ResponseTimeout => &RESPONSE_TIMEOUT,
-            Self::ResponseHit => &RESPONSE_HIT,
-            Self::ResponseMiss => &RESPONSE_MISS,
-            Self::PubsubTx => &PUBSUB_PUBLISH,
-            Self::PubsubTxEx => &PUBSUB_PUBLISH_EX,
-            Self::PubsubTxOk => &PUBSUB_PUBLISH_OK,
-            Self::PubsubTxTimeout => &PUBSUB_PUBLISH_TIMEOUT,
-            Self::PubsubRx => &PUBSUB_RECEIVE,
-            Self::PubsubRxEx => &PUBSUB_RECEIVE_EX,
-            Self::PubsubRxOk => &PUBSUB_RECEIVE_OK,
-            Self::PubsubRxCorrupt => &PUBSUB_RECEIVE_CORRUPT,
-            Self::PubsubRxInvalid => &PUBSUB_RECEIVE_INVALID,
-        }
-    }
-
-    pub fn delta(&self, snapshot: &mut MetricsSnapshot) -> u64 {
-        let curr = self.counter().value();
-        let prev = snapshot.counters.insert(*self, curr).unwrap_or(0);
-        curr.wrapping_sub(prev)
+impl Default for CountersSnapshot {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
-#[allow(clippy::enum_variant_names)]
-#[derive(Eq, Hash, PartialEq, Copy, Clone)]
-pub enum HistogramMetric {
-    PubsubLatency,
-    PubsubPublishLatency,
-    ResponseLatency,
-}
+impl CountersSnapshot {
+    pub fn new() -> Self {
+        let mut current = HashMap::new();
+        let mut previous = HashMap::new();
 
-impl HistogramMetric {
-    pub fn histogram(&self) -> &metriken::AtomicHistogram {
-        match self {
-            Self::PubsubLatency => &PUBSUB_LATENCY,
-            Self::PubsubPublishLatency => &PUBSUB_PUBLISH_LATENCY,
-            Self::ResponseLatency => &RESPONSE_LATENCY,
-        }
-    }
+        for metric in metriken::metrics().iter() {
+            let any = if let Some(any) = metric.as_any() {
+                any
+            } else {
+                continue;
+            };
 
-    pub fn delta(&self, snapshot: &mut MetricsSnapshot) -> Option<histogram::Snapshot> {
-        if let Some(curr) = self.histogram().snapshot() {
-            match snapshot.histograms.insert(*self, curr.clone()) {
-                Some(prev) => Some(curr.wrapping_sub(&prev).unwrap()),
-                None => Some(curr),
+            let metric = metric.name().to_string();
+
+            if let Some(counter) = any.downcast_ref::<metriken::Counter>() {
+                current.insert(metric.clone(), counter.value());
+                previous.insert(metric, 0);
             }
-        } else {
-            None
+        }
+        Self {
+            current,
+            previous,
         }
     }
-}
 
-impl TryFrom<&str> for HistogramMetric {
-    type Error = ();
-    fn try_from(
-        other: &str,
-    ) -> std::result::Result<Self, <Self as std::convert::TryFrom<&str>>::Error> {
-        match other {
-            "response_latency" => Ok(Self::ResponseLatency),
-            "pubsub_latency" => Ok(Self::PubsubLatency),
-            "pubsub_publish_latency" => Ok(Self::PubsubPublishLatency),
-            _ => Err(()),
+    pub fn update(&mut self) {
+        let mut current = HashMap::new();
+
+        for metric in metriken::metrics().iter() {
+            let any = if let Some(any) = metric.as_any() {
+                any
+            } else {
+                continue;
+            };
+
+            if let Some(counter) = any.downcast_ref::<metriken::Counter>() {
+
+                if let Some(old_value) =  current.insert(metric.name().to_string(), counter.value()) {
+                    self.previous.insert(metric.name().to_string(), old_value);
+                }
+            }
         }
     }
 }
@@ -238,6 +225,10 @@ macro_rules! counter {
         )]
         pub static $ident: Lazy<metriken::Counter> =
             metriken::Lazy::new(|| metriken::Counter::new());
+        paste! {
+            #[allow(dead_code)]
+            pub static [<$ident _COUNTER>]: &'static str = $name;
+        }
     };
     ($ident:ident, $name:tt, $description:tt) => {
         #[metriken::metric(
@@ -247,6 +238,10 @@ macro_rules! counter {
                                         )]
         pub static $ident: Lazy<metriken::Counter> =
             metriken::Lazy::new(|| metriken::Counter::new());
+        paste! {
+            #[allow(dead_code)]
+            pub static [<$ident _COUNTER>]: &'static str = $name;
+        }
     };
 }
 
@@ -259,6 +254,10 @@ macro_rules! gauge {
             crate = metriken
         )]
         pub static $ident: Lazy<metriken::Gauge> = metriken::Lazy::new(|| metriken::Gauge::new());
+        paste! {
+            #[allow(dead_code)]
+            pub static [<$ident _GAUGE>]: &'static str = $name;
+        }
     };
     ($ident:ident, $name:tt, $description:tt) => {
         #[metriken::metric(
@@ -267,6 +266,9 @@ macro_rules! gauge {
             crate = metriken
         )]
         pub static $ident: Lazy<metriken::Gauge> = metriken::Lazy::new(|| metriken::Gauge::new());
+        paste! {
+            pub static [<$ident _GAUGE>]: &'static str = $name;
+        }
     };
 }
 
@@ -282,6 +284,9 @@ macro_rules! histogram {
             7,
             64,
         );
+        paste! {
+            pub static [<$ident _HISTOGRAM>]: &'static str = $name;
+        }
     };
     ($ident:ident, $name:tt, $description:tt) => {
         #[metriken::metric(
@@ -293,6 +298,10 @@ macro_rules! histogram {
             7,
             64,
         );
+        paste! {
+            #[allow(dead_code)]
+            pub static [<$ident _HISTOGRAM>]: &'static str = $name;
+        }
     };
 }
 
@@ -308,6 +317,10 @@ macro_rules! request {
         pub static $ident: Lazy<metriken::Counter> = metriken::Lazy::new(|| {
             metriken::Counter::new()
         });
+        paste! {
+            #[allow(dead_code)]
+            pub static [<$ident _COUNTER>]: &'static str = $name;
+        }
 
         paste! {
             #[metriken::metric(
@@ -318,6 +331,10 @@ macro_rules! request {
             pub static [<$ident _EX>]: Lazy<metriken::Counter> = metriken::Lazy::new(|| {
                 metriken::Counter::new()
             });
+            paste! {
+                #[allow(dead_code)]
+                pub static [<$ident _EX_COUNTER>]: &'static str = $name;
+            }   
         }
 
         paste! {
@@ -329,6 +346,10 @@ macro_rules! request {
             pub static [<$ident _OK>]: Lazy<metriken::Counter> = metriken::Lazy::new(|| {
                 metriken::Counter::new()
             });
+            paste! {
+                #[allow(dead_code)]
+                pub static [<$ident _OK_COUNTER>]: &'static str = $name;
+            }
         }
 
         paste! {
@@ -340,6 +361,10 @@ macro_rules! request {
             pub static [<$ident _TIMEOUT>]: Lazy<metriken::Counter> = metriken::Lazy::new(|| {
                 metriken::Counter::new()
             });
+            paste! {
+                #[allow(dead_code)]
+                pub static [<$ident _TIMEOUT_COUNTER>]: &'static str = $name;
+            }
         }
     }
 }

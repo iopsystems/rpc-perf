@@ -32,7 +32,7 @@ type UnixInstant = clocksource::UnixInstant<clocksource::Nanoseconds<u64>>;
 
 static RUNNING: AtomicBool = AtomicBool::new(true);
 
-static METRICS_STATE: Lazy<Arc<RwLock<HistogramMetricsSnapshot>>> =
+static METRICS_SNAPSHOT: Lazy<Arc<RwLock<MetricsSnapshot>>> =
     Lazy::new(|| Arc::new(RwLock::new(Default::default())));
 
 fn main() {
@@ -124,7 +124,7 @@ fn main() {
         while RUNNING.load(Ordering::Relaxed) {
             // acquire a lock and update the snapshots
             {
-                let mut snapshots = METRICS_STATE.write().await;
+                let mut snapshots = METRICS_SNAPSHOT.write().await;
                 snapshots.update();
             }
 

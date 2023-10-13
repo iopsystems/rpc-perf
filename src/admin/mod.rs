@@ -120,10 +120,10 @@ mod handlers {
     pub async fn prometheus_stats() -> Result<impl warp::Reply, Infallible> {
         let mut data = Vec::new();
 
-        let metrics_state = METRICS_STATE.read().await;
+        let metrics_snapshot = METRICS_SNAPSHOT.read().await;
 
-        let timestamp = metrics_state
-            .timestamp
+        let timestamp = metrics_snapshot
+            .current
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_millis();
@@ -162,7 +162,7 @@ mod handlers {
                     data.push(format!("# TYPE {name} gauge\n{name} {value}"));
                 }
             } else if any.downcast_ref::<AtomicHistogram>().is_some() {
-                let percentiles = metrics_state.percentiles(metric.name());
+                let percentiles = metrics_snapshot.percentiles(metric.name());
 
                 for (_label, percentile, value) in percentiles {
                     if let Some(description) = metric.description() {
@@ -198,7 +198,7 @@ mod handlers {
     pub async fn json_stats() -> Result<impl warp::Reply, Infallible> {
         let mut data = Vec::new();
 
-        let metrics_state = METRICS_STATE.read().await;
+        let metrics_snapshot = METRICS_SNAPSHOT.read().await;
 
         for metric in &metriken::metrics() {
             if metric.name().starts_with("log_") {
@@ -223,7 +223,7 @@ mod handlers {
 
                 data.push(format!("\"{name}\": {value}"));
             } else if any.downcast_ref::<AtomicHistogram>().is_some() {
-                let percentiles = metrics_state.percentiles(metric.name());
+                let percentiles = metrics_snapshot.percentiles(metric.name());
 
                 for (label, _percentile, value) in percentiles {
                     data.push(format!("\"{name}/{label}\": {value}",));
@@ -250,7 +250,7 @@ mod handlers {
     pub async fn human_stats() -> Result<impl warp::Reply, Infallible> {
         let mut data = Vec::new();
 
-        let metrics_state = METRICS_STATE.read().await;
+        let metrics_snapshot = METRICS_SNAPSHOT.read().await;
 
         for metric in &metriken::metrics() {
             if metric.name().starts_with("log_") {
@@ -275,7 +275,7 @@ mod handlers {
 
                 data.push(format!("\"{name}\": {value}"));
             } else if any.downcast_ref::<AtomicHistogram>().is_some() {
-                let percentiles = metrics_state.percentiles(metric.name());
+                let percentiles = metrics_snapshot.percentiles(metric.name());
 
                 for (label, _percentile, value) in percentiles {
                     data.push(format!("\"{name}/{label}\": {value}",));
