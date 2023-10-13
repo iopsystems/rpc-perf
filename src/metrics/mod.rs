@@ -66,7 +66,8 @@ impl MetricsSnapshot {
     }
 
     pub fn counter_rate(&self, name: &str) -> f64 {
-        self.counter_delta(name) as f64 / (self.current.duration_since(self.previous).unwrap()).as_secs_f64()
+        self.counter_delta(name) as f64
+            / (self.current.duration_since(self.previous).unwrap()).as_secs_f64()
     }
 
     pub fn counter_delta(&self, name: &str) -> u64 {
@@ -189,10 +190,7 @@ impl CountersSnapshot {
                 previous.insert(metric, 0);
             }
         }
-        Self {
-            current,
-            previous,
-        }
+        Self { current, previous }
     }
 
     pub fn update(&mut self) {
@@ -206,8 +204,8 @@ impl CountersSnapshot {
             };
 
             if let Some(counter) = any.downcast_ref::<metriken::Counter>() {
-
-                if let Some(old_value) =  current.insert(metric.name().to_string(), counter.value()) {
+                if let Some(old_value) = current.insert(metric.name().to_string(), counter.value())
+                {
                     self.previous.insert(metric.name().to_string(), old_value);
                 }
             }
