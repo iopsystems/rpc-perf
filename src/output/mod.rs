@@ -70,7 +70,7 @@ fn client_stats(snapshot: &mut MetricsSnapshot, elapsed: f64) {
     let request_reconnect = snapshot.counter_rate(REQUEST_RECONNECT_COUNTER);
     let request_ok = snapshot.counter_rate(REQUEST_OK_COUNTER);
     let request_unsupported = snapshot.counter_rate(REQUEST_UNSUPPORTED_COUNTER);
-    let request_total = snapshot.counter_rate(CONNECT_OK_COUNTER);
+    let request_total = snapshot.counter_rate(REQUEST_COUNTER);
 
     let response_ok = snapshot.counter_rate(RESPONSE_OK_COUNTER);
     let response_ex = snapshot.counter_rate(RESPONSE_EX_COUNTER);
