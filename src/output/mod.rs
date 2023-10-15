@@ -131,8 +131,9 @@ fn client_stats(snapshot: &mut MetricsSnapshot, elapsed: f64) {
 
     let mut latencies = "Client Response Latency (us):".to_owned();
 
-    for (label, _percentile, value) in response_latency {
-        latencies.push_str(&format!(" {label}: {value}"))
+    for (label, _percentile, nanoseconds) in response_latency {
+        let microseconds = nanoseconds / 1000;
+        latencies.push_str(&format!(" {label}: {microseconds}"))
     }
 
     output!("{latencies}");
@@ -195,16 +196,18 @@ fn pubsub_stats(snapshot: &mut MetricsSnapshot, elapsed: f64) {
 
     let mut latencies = "Pubsub Publish Latency (us):".to_owned();
 
-    for (label, _percentile, value) in pubsub_publish_latency {
-        latencies.push_str(&format!(" {label}: {value}"))
+    for (label, _percentile, nanoseconds) in pubsub_publish_latency {
+        let microseconds = nanoseconds / 1000;
+        latencies.push_str(&format!(" {label}: {microseconds}"))
     }
 
     output!("{latencies}");
 
     let mut latencies = "Pubsub End-to-End Latency (us):".to_owned();
 
-    for (label, _percentile, value) in pubsub_latency {
-        latencies.push_str(&format!(" {label}: {value}"))
+    for (label, _percentile, nanoseconds) in pubsub_latency {
+        let microseconds = nanoseconds / 1000;
+        latencies.push_str(&format!(" {label}: {microseconds}"))
     }
 
     output!("{latencies}");
