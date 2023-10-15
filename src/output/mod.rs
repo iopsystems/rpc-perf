@@ -106,8 +106,8 @@ fn client_stats(snapshot: &mut MetricsSnapshot, elapsed: f64) {
     );
     output!(
         "Client Request Rate (/s): Ok: {:.2} Unsupported: {:.2}",
-        request_ok / elapsed,
-        request_unsupported / elapsed,
+        request_ok,
+        request_unsupported,
     );
 
     let response_total = response_ok + response_ex + response_timeout;
