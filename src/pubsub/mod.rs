@@ -7,6 +7,7 @@ use std::io::{Error, ErrorKind, Result};
 use tokio::runtime::Runtime;
 
 mod momento;
+mod kafka;
 
 pub struct PubsubRuntimes {
     publisher_rt: Option<Runtime>,
@@ -29,13 +30,28 @@ pub fn launch_pubsub(
     work_receiver: Receiver<WorkItem>,
     workload_components: Vec<Component>,
 ) -> PubsubRuntimes {
+    // create topics here?    
+    if config.pubsub().is_some() {
+        match config.general().protocol() {
+            Protocol::Kafka => {
+                let mut topic_rt = Builder::new_multi_thread()
+                .enable_all()
+                .worker_threads(1)
+                .build()
+                .expect("failed to initialize tokio runtime");
+                kafka::create_topics(&mut topic_rt, config.clone(), & workload_components)
+            }
+            _ => {}
+        }
+    }
+
     PubsubRuntimes {
-        publisher_rt: launch_publishers(config, work_receiver),
-        subscriber_rt: launch_subscribers(config, workload_components),
+        publisher_rt: launch_publishers(config, work_receiver, &workload_components),
+        subscriber_rt: launch_subscribers(config, &workload_components),
     }
 }
 
-fn launch_publishers(config: &Config, work_receiver: Receiver<WorkItem>) -> Option<Runtime> {
+fn launch_publishers(config: &Config, work_receiver: Receiver<WorkItem>, workload_components: &Vec<Component>) -> Option<Runtime> {
     if config.pubsub().is_none() {
         debug!("No pubsub configuration specified");
         return None;
@@ -54,6 +70,9 @@ fn launch_publishers(config: &Config, work_receiver: Receiver<WorkItem>) -> Opti
         Protocol::Momento => {
             momento::launch_publishers(&mut publisher_rt, config.clone(), work_receiver);
         }
+        Protocol::Kafka => {
+            kafka::launch_publishers(&mut publisher_rt, config.clone(), work_receiver, &workload_components);
+        }
         _ => {
             error!("pubsub is not supported for the selected protocol");
             std::process::exit(1);
@@ -63,7 +82,7 @@ fn launch_publishers(config: &Config, work_receiver: Receiver<WorkItem>) -> Opti
     Some(publisher_rt)
 }
 
-fn launch_subscribers(config: &Config, workload_components: Vec<Component>) -> Option<Runtime> {
+fn launch_subscribers(config: &Config, workload_components: &Vec<Component>) -> Option<Runtime> {
     if config.pubsub().is_none() {
         debug!("No pubsub configuration specified");
         return None;
@@ -80,7 +99,10 @@ fn launch_subscribers(config: &Config, workload_components: Vec<Component>) -> O
 
     match config.general().protocol() {
         Protocol::Momento => {
-            momento::launch_subscribers(&mut subscriber_rt, config.clone(), workload_components);
+            momento::launch_subscribers(&mut subscriber_rt, config.clone(), &workload_components);
+        }
+        Protocol::Kafka => {
+            kafka::launch_subscribers(&mut subscriber_rt, config.clone(), &workload_components);
         }
         _ => {
             error!("pubsub is not supported for the selected protocol");

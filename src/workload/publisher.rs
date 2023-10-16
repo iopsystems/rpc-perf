@@ -4,7 +4,13 @@ use std::sync::Arc;
 #[derive(Debug, PartialEq)]
 pub enum PublisherWorkItem {
     Publish {
-        topic: Arc<String>,
+        topic: Arc<String>,                
+        message: Vec<u8>,
+    },
+    KafkaMessage {
+        topic:Arc<String>,
+        partition: usize,
+        key: Vec<u8>,
         message: Vec<u8>,
     },
 }

@@ -150,16 +150,22 @@ impl Generator {
     }
 
     fn generate_pubsub(&self, topics: &Topics, rng: &mut dyn RngCore) -> PublisherWorkItem {
-        let index = topics.topic_dist.sample(rng);
-        let topic = topics.topics[index].clone();
+        let topic_index = topics.topic_dist.sample(rng);
+        let topic = topics.topics[topic_index].clone();
+        let partition = topics.partition_dist.sample(rng);        
 
-        let mut m = vec![0_u8; topics.message_len];
+        let mut m = vec![0_u8; topics.message_len];        
         // add a header
         [m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7]] =
             [0x54, 0x45, 0x53, 0x54, 0x49, 0x4E, 0x47, 0x21];
         rng.fill(&mut m[32..topics.message_len]);
-
-        PublisherWorkItem::Publish { topic, message: m }
+        let mut k = vec![0_u8; topics.key_len];
+        rng.fill(&mut k[0..topics.key_len]);
+        
+        match topics.protocol {            
+            Protocol::Kafka => PublisherWorkItem::KafkaMessage { topic, partition, key:k, message:m},
+            _ => PublisherWorkItem::Publish { topic, message: m },
+        }
     }
 
     fn generate_request(&self, keyspace: &Keyspace, rng: &mut dyn RngCore) -> ClientWorkItem {
@@ -372,26 +378,43 @@ pub enum Component {
 }
 
 #[derive(Clone)]
-pub struct Topics {
+pub struct Topics {    
+    protocol: Protocol,
     topics: Vec<Arc<String>>,
+    partitions: usize,
     topic_dist: Distribution,
+    partition_dist: Distribution,
+    key_len: usize,
     message_len: usize,
     subscriber_poolsize: usize,
     subscriber_concurrency: usize,
+    publisher_poolsize: usize,
+    publisher_concurrency: usize,    
 }
 
 impl Topics {
     pub fn new(config: &Config, topics: &config::Topics) -> Self {
         // ntopics must be >= 1
+        let protocol = config.general().protocol();
         let ntopics = std::cmp::max(1, topics.topics());
+        let partitions = topics.partitions();
         let topiclen = topics.topic_len();
         let message_len = topics.message_len();
+        let key_len = topics.key_len();
         let subscriber_poolsize = topics.subscriber_poolsize();
         let subscriber_concurrency = topics.subscriber_concurrency();
+        let publisher_poolsize = topics.publisher_poolsize();
+        let publisher_concurrency = topics.publisher_concurrency();
         let topic_dist = match topics.topic_distribution() {
             config::Distribution::Uniform => Distribution::Uniform(Uniform::new(0, ntopics)),
             config::Distribution::Zipf => {
                 Distribution::Zipf(ZipfDistribution::new(ntopics, 1.0).unwrap())
+            }
+        };
+        let partition_dist = match topics.partition_distribution() {
+            config::Distribution::Uniform => Distribution::Uniform(Uniform::new(0, partitions)),
+            config::Distribution::Zipf => {
+                Distribution::Zipf(ZipfDistribution::new(partitions, 1.0).unwrap())
             }
         };
 
@@ -416,16 +439,34 @@ impl Topics {
         let topics = topics.drain().map(|k| k.into()).collect();
 
         Self {
+            protocol,
             topics,
+            partitions,
             topic_dist,
+            partition_dist,
+            key_len,
             message_len,
             subscriber_poolsize,
             subscriber_concurrency,
+            publisher_poolsize,
+            publisher_concurrency,
         }
     }
 
     pub fn topics(&self) -> &[Arc<String>] {
         &self.topics
+    }
+
+    pub fn key_len(&self) -> usize {
+        self.key_len
+    }
+
+    pub fn message_len(&self) -> usize {
+        self.message_len
+    }
+
+    pub fn partitions(&self ) -> usize {
+        self.partitions
     }
 
     pub fn subscriber_poolsize(&self) -> usize {
@@ -434,6 +475,14 @@ impl Topics {
 
     pub fn subscriber_concurrency(&self) -> usize {
         self.subscriber_concurrency
+    }
+
+    pub fn publisher_poolsize(&self) -> usize {
+        self.publisher_poolsize
+    }
+
+    pub fn publisher_concurrency(&self) -> usize {
+        self.publisher_concurrency
     }
 }
 

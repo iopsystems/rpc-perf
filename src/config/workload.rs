@@ -3,6 +3,9 @@ use super::*;
 fn one() -> usize {
     1
 }
+fn four() -> usize {
+    4
+}
 
 #[derive(Clone, Deserialize)]
 pub struct Workload {
@@ -44,20 +47,35 @@ impl Workload {
 #[derive(Clone, Deserialize)]
 pub struct Topics {
     topics: usize,
+    #[serde(default = "one")]
+    partitions: usize,
     topic_len: usize,
     message_len: usize,
+    #[serde(default = "four")]
+    key_len: usize,    
     #[serde(default = "one")]
     weight: usize,
+    #[serde(default = "one")]
     subscriber_poolsize: usize,
     #[serde(default = "one")]
     subscriber_concurrency: usize,
+    #[serde(default = "one")]
+    publisher_poolsize:usize,
+    #[serde(default = "one")]
+    publisher_concurrency: usize,    
     #[serde(default)]
     topic_distribution: Distribution,
+    #[serde(default)]
+    partition_distribution: Distribution,
 }
 
 impl Topics {
     pub fn weight(&self) -> usize {
         self.weight
+    }
+
+    pub fn partitions(&self) -> usize {
+        self.partitions
     }
 
     pub fn topics(&self) -> usize {
@@ -66,6 +84,10 @@ impl Topics {
 
     pub fn topic_len(&self) -> usize {
         self.topic_len
+    }
+
+    pub fn key_len(&self) -> usize {
+        self.key_len
     }
 
     pub fn message_len(&self) -> usize {
@@ -80,8 +102,20 @@ impl Topics {
         self.subscriber_concurrency
     }
 
+    pub fn publisher_poolsize(&self) -> usize {
+        self.publisher_poolsize        
+    }
+
+    pub fn publisher_concurrency(&self) -> usize {
+        self.publisher_concurrency
+    }
+
     pub fn topic_distribution(&self) -> Distribution {
         self.topic_distribution
+    }
+
+    pub fn partition_distribution(&self) -> Distribution {
+        self.partition_distribution
     }
 }
 

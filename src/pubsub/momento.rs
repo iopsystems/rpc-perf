@@ -10,7 +10,7 @@ use tokio::time::timeout;
 pub fn launch_subscribers(
     runtime: &mut Runtime,
     config: Config,
-    workload_components: Vec<Component>,
+    workload_components: &Vec<Component>,
 ) {
     debug!("launching momento subscriber tasks");
 
@@ -276,6 +276,9 @@ async fn publisher_task(
                     }
                     Err(_) => Err(ResponseError::Timeout),
                 }
+            },
+            _ => {
+                continue;
             }
         };
 
