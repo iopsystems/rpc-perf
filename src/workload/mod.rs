@@ -152,18 +152,23 @@ impl Generator {
     fn generate_pubsub(&self, topics: &Topics, rng: &mut dyn RngCore) -> PublisherWorkItem {
         let topic_index = topics.topic_dist.sample(rng);
         let topic = topics.topics[topic_index].clone();
-        let partition = topics.partition_dist.sample(rng);        
+        let partition = topics.partition_dist.sample(rng);
 
-        let mut m = vec![0_u8; topics.message_len];        
+        let mut m = vec![0_u8; topics.message_len];
         // add a header
         [m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7]] =
             [0x54, 0x45, 0x53, 0x54, 0x49, 0x4E, 0x47, 0x21];
         rng.fill(&mut m[32..topics.message_len]);
         let mut k = vec![0_u8; topics.key_len];
         rng.fill(&mut k[0..topics.key_len]);
-        
-        match topics.protocol {            
-            Protocol::Kafka => PublisherWorkItem::KafkaMessage { topic, partition, key:k, message:m},
+
+        match topics.protocol {
+            Protocol::Kafka => PublisherWorkItem::KafkaMessage {
+                topic,
+                partition,
+                key: k,
+                message: m,
+            },
             _ => PublisherWorkItem::Publish { topic, message: m },
         }
     }
@@ -378,7 +383,7 @@ pub enum Component {
 }
 
 #[derive(Clone)]
-pub struct Topics {    
+pub struct Topics {
     protocol: Protocol,
     topics: Vec<Arc<String>>,
     partitions: usize,
@@ -389,7 +394,7 @@ pub struct Topics {
     subscriber_poolsize: usize,
     subscriber_concurrency: usize,
     publisher_poolsize: usize,
-    publisher_concurrency: usize,    
+    publisher_concurrency: usize,
 }
 
 impl Topics {
@@ -465,7 +470,7 @@ impl Topics {
         self.message_len
     }
 
-    pub fn partitions(&self ) -> usize {
+    pub fn partitions(&self) -> usize {
         self.partitions
     }
 

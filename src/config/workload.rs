@@ -52,7 +52,7 @@ pub struct Topics {
     topic_len: usize,
     message_len: usize,
     #[serde(default = "four")]
-    key_len: usize,    
+    key_len: usize,
     #[serde(default = "one")]
     weight: usize,
     #[serde(default = "one")]
@@ -60,9 +60,9 @@ pub struct Topics {
     #[serde(default = "one")]
     subscriber_concurrency: usize,
     #[serde(default = "one")]
-    publisher_poolsize:usize,
+    publisher_poolsize: usize,
     #[serde(default = "one")]
-    publisher_concurrency: usize,    
+    publisher_concurrency: usize,
     #[serde(default)]
     topic_distribution: Distribution,
     #[serde(default)]
@@ -103,7 +103,7 @@ impl Topics {
     }
 
     pub fn publisher_poolsize(&self) -> usize {
-        self.publisher_poolsize        
+        self.publisher_poolsize
     }
 
     pub fn publisher_concurrency(&self) -> usize {

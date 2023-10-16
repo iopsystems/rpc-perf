@@ -6,8 +6,8 @@ use async_channel::Receiver;
 use std::io::{Error, ErrorKind, Result};
 use tokio::runtime::Runtime;
 
-mod momento;
 mod kafka;
+mod momento;
 
 pub struct PubsubRuntimes {
     publisher_rt: Option<Runtime>,
@@ -30,16 +30,16 @@ pub fn launch_pubsub(
     work_receiver: Receiver<WorkItem>,
     workload_components: Vec<Component>,
 ) -> PubsubRuntimes {
-    // create topics here?    
+    // create topics here?
     if config.pubsub().is_some() {
         match config.general().protocol() {
             Protocol::Kafka => {
                 let mut topic_rt = Builder::new_multi_thread()
-                .enable_all()
-                .worker_threads(1)
-                .build()
-                .expect("failed to initialize tokio runtime");
-                kafka::create_topics(&mut topic_rt, config.clone(), & workload_components)
+                    .enable_all()
+                    .worker_threads(1)
+                    .build()
+                    .expect("failed to initialize tokio runtime");
+                kafka::create_topics(&mut topic_rt, config.clone(), &workload_components)
             }
             _ => {}
         }
@@ -51,7 +51,11 @@ pub fn launch_pubsub(
     }
 }
 
-fn launch_publishers(config: &Config, work_receiver: Receiver<WorkItem>, workload_components: &Vec<Component>) -> Option<Runtime> {
+fn launch_publishers(
+    config: &Config,
+    work_receiver: Receiver<WorkItem>,
+    workload_components: &Vec<Component>,
+) -> Option<Runtime> {
     if config.pubsub().is_none() {
         debug!("No pubsub configuration specified");
         return None;
@@ -71,7 +75,12 @@ fn launch_publishers(config: &Config, work_receiver: Receiver<WorkItem>, workloa
             momento::launch_publishers(&mut publisher_rt, config.clone(), work_receiver);
         }
         Protocol::Kafka => {
-            kafka::launch_publishers(&mut publisher_rt, config.clone(), work_receiver, &workload_components);
+            kafka::launch_publishers(
+                &mut publisher_rt,
+                config.clone(),
+                work_receiver,
+                &workload_components,
+            );
         }
         _ => {
             error!("pubsub is not supported for the selected protocol");

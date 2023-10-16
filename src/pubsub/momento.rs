@@ -276,7 +276,7 @@ async fn publisher_task(
                     }
                     Err(_) => Err(ResponseError::Timeout),
                 }
-            },
+            }
             _ => {
                 continue;
             }
