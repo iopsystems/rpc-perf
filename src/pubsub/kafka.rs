@@ -2,18 +2,13 @@ use super::*;
 // use ::momento::preview::topics::{SubscriptionItem, TopicClient, ValueKind};
 // use ::momento::CredentialProviderBuilder;
 use ahash::RandomState;
-use boring::conf;
-use futures::stream::StreamExt;
 use rdkafka::admin::{AdminClient, AdminOptions, NewTopic, TopicReplication};
-use rdkafka::client::{ClientContext, DefaultClientContext};
+use rdkafka::client::DefaultClientContext;
 use rdkafka::config::ClientConfig;
-use rdkafka::consumer::{Consumer, ConsumerContext, StreamConsumer};
-use rdkafka::error::KafkaResult;
-use rdkafka::message::ToBytes;
+use rdkafka::consumer::{Consumer, StreamConsumer};
 use rdkafka::producer::{FutureProducer, FutureRecord};
-use rdkafka::statistics::Statistics;
 use rdkafka::types::RDKafkaErrorCode::TopicAlreadyExists;
-use rdkafka::{Message, TopicPartitionList};
+use rdkafka::Message;
 use std::sync::Arc;
 use tokio::time::timeout;
 
@@ -29,17 +24,24 @@ pub fn get_kafka_producer(config: &Config) -> FutureProducer {
     return client;
 }
 
-pub fn get_kafka_consumer(config: &Config) -> StreamConsumer {
-    let bootstrap_servers = config.target().endpoints().join(",");
-    let timeout = format!("{}", config.pubsub().unwrap().publish_timeout().as_millis());
+pub fn get_kafka_consumer(config: &Config, group_id: &str) -> StreamConsumer {
+    let bootstrap_servers = config.target().endpoints().join(",");    
     // initialize the Momento topic client
     let client = ClientConfig::new()
-        .set("bootstrap.servers", &bootstrap_servers)
-        .set("message.timeout.ms", timeout)
+        .set("bootstrap.servers", &bootstrap_servers)        
+        .set("group.id", group_id)        
+        .set("client.id", "rdkafka_integration_test_client")
+        .set("enable.partition.eof", "false")
+        .set("enable.auto.commit", "false")
+        .set("statistics.interval.ms", "500")
+        .set("api.version.request", "true")     
+        .set("auto.offset.reset", "earliest")
+        .set("session.timeout.ms", "6000")
         .create()
         .unwrap();
     return client;
 }
+
 
 pub fn get_kafka_admin(config: &Config) -> AdminClient<DefaultClientContext> {
     let bootstrap_servers = config.target().endpoints().join(",");
@@ -101,6 +103,7 @@ pub fn launch_subscribers(
     workload_components: &Vec<Component>, /*  */
 ) {
     debug!("launching Kafka subscriber tasks");
+    let group_id = "rpc_subscriber";
     for component in workload_components {
         if let Component::Topics(topics) = component {
             let poolsize = topics.subscriber_poolsize();
@@ -109,7 +112,7 @@ pub fn launch_subscribers(
             for _ in 0..poolsize {
                 let client = {
                     let _guard = runtime.enter();
-                    Arc::new(get_kafka_consumer(&config))
+                    Arc::new(get_kafka_consumer(&config, &group_id))
                 };
                 for _ in 0..concurrency {
                     let mut sub_topics: Vec<String> = Vec::new();
@@ -127,6 +130,7 @@ pub fn launch_subscribers(
 async fn subscriber_task(client: Arc<StreamConsumer>, topics: Vec<String>) {
     PUBSUB_SUBSCRIBE.increment();
     let sub_topics: Vec<&str> = topics.iter().map(AsRef::as_ref).collect();
+    debug!("Subscribe to topics {:?}", sub_topics);
     if let Ok(mut subscription) = client.subscribe(&sub_topics) {
         debug!("Subscribed to topic {:?}", topics);
         PUBSUB_SUBSCRIBER_CURR.add(1);
@@ -146,10 +150,13 @@ async fn subscriber_task(client: Arc<StreamConsumer>, topics: Vec<String>) {
             match client.recv().await {
                 Ok(m) => {
                     match m.payload_view::<[u8]>() {
-                        Some(Ok(v)) => {
+                        Some(Ok(m)) => {
+                            debug!("Receive one Kafka message");
                             let now = Instant::now();
-                            let now_unix = UnixInstant::now();
-
+                            let now_unix = UnixInstant::now();                            
+                            let mut v = Vec::new();
+                            v.extend_from_slice(m);
+//                            let mut v = m.copy_from_slice(src)
                             if [v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7]]
                                 != [0x54, 0x45, 0x53, 0x54, 0x49, 0x4E, 0x47, 0x21]
                             {
@@ -159,10 +166,10 @@ async fn subscriber_task(client: Arc<StreamConsumer>, topics: Vec<String>) {
                                 PUBSUB_RECEIVE_INVALID.increment();
                                 continue;
                             }
-
+                            
                             // grab the checksum and zero it in the message
                             let csum = [v[8], v[9], v[10], v[11], v[12], v[13], v[14], v[15]];
-                            // [v[8], v[9], v[10], v[11], v[12], v[13], v[14], v[15]] = [0; 8];
+                            [v[8], v[9], v[10], v[11], v[12], v[13], v[14], v[15]] = [0; 8];
 
                             if csum != hash_builder.hash_one(&v).to_be_bytes() {
                                 // corrupted message
@@ -180,6 +187,7 @@ async fn subscriber_task(client: Arc<StreamConsumer>, topics: Vec<String>) {
                             let then = now - latency;
 
                             let _ = PUBSUB_LATENCY.increment(then, latency.as_nanos());
+                            debug!("Recive one message with latency:{:?} and then:{:?}", latency, then);
 
                             PUBSUB_RECEIVE.increment();
                             PUBSUB_RECEIVE_OK.increment();
@@ -206,6 +214,7 @@ async fn subscriber_task(client: Arc<StreamConsumer>, topics: Vec<String>) {
             }
         }
     } else {
+        debug!("Failed to create subscriber");
         PUBSUB_SUBSCRIBE_EX.increment();
     }
 }
