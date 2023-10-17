@@ -19,11 +19,6 @@ pub static PERCENTILES: &[(&str, f64)] = &[
     ("p9999", 99.99),
 ];
 
-pub struct HistogramsSnapshot {
-    pub previous: HashMap<String, metriken::histogram::Snapshot>,
-    pub deltas: HashMap<String, metriken::histogram::Snapshot>,
-}
-
 pub struct MetricsSnapshot {
     pub current: SystemTime,
     pub previous: SystemTime,
@@ -81,6 +76,11 @@ impl MetricsSnapshot {
 
         current.unwrap() - previous
     }
+}
+
+pub struct HistogramsSnapshot {
+    pub previous: HashMap<String, metriken::histogram::Snapshot>,
+    pub deltas: HashMap<String, metriken::histogram::Snapshot>,
 }
 
 impl Default for HistogramsSnapshot {
