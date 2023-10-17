@@ -6,12 +6,14 @@ use backtrace::Backtrace;
 use clap::{Arg, Command};
 use core::sync::atomic::{AtomicBool, Ordering};
 use core::time::Duration;
-use metriken::{Counter, Gauge, Heatmap};
+use metriken::{AtomicHistogram, Counter, Gauge};
+use once_cell::sync::Lazy;
 use ringlog::*;
 use std::collections::HashMap;
+use std::sync::Arc;
 use tokio::runtime::Builder;
+use tokio::sync::RwLock;
 use tokio::time::sleep;
-use warp::Filter;
 
 mod admin;
 mod clients;
@@ -29,6 +31,9 @@ type Instant = clocksource::Instant<clocksource::Nanoseconds<u64>>;
 type UnixInstant = clocksource::UnixInstant<clocksource::Nanoseconds<u64>>;
 
 static RUNNING: AtomicBool = AtomicBool::new(true);
+
+static METRICS_SNAPSHOT: Lazy<Arc<RwLock<MetricsSnapshot>>> =
+    Lazy::new(|| Arc::new(RwLock::new(Default::default())));
 
 fn main() {
     // custom panic hook to terminate whole process after unwinding
@@ -112,6 +117,20 @@ fn main() {
             let _ = log.flush();
         }
         let _ = log.flush();
+    });
+
+    // spawn thread to maintain histogram snapshots
+    control_runtime.spawn(async {
+        while RUNNING.load(Ordering::Relaxed) {
+            // acquire a lock and update the snapshots
+            {
+                let mut snapshots = METRICS_SNAPSHOT.write().await;
+                snapshots.update();
+            }
+
+            // delay until next update
+            sleep(core::time::Duration::from_secs(1)).await;
+        }
     });
 
     // TODO: figure out what a reasonable size is here

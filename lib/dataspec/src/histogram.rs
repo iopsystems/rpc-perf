@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use histogram::Histogram as _Histogram;
+use histogram::Snapshot;
 
 /// This histogram is a sparse, columnar representation of the regular
 /// Histogram. It is significantly smaller than a regular Histogram
@@ -14,13 +14,12 @@ use histogram::Histogram as _Histogram;
 pub struct Histogram {
     /// parameters representing the resolution and the range of
     /// the histogram tracking request latencies
-    pub m: u32,
-    pub r: u32,
-    pub n: u32,
+    pub grouping_power: u8,
+    pub max_value_power: u8,
     /// indices for the non-zero buckets in the histogram
     pub index: Vec<usize>,
     /// histogram bucket counts corresponding to the indices
-    pub count: Vec<u32>,
+    pub count: Vec<u64>,
 }
 
 /// Errors returned for operations on histograms.
@@ -32,7 +31,7 @@ pub enum Error {
 }
 
 impl Histogram {
-    fn add_bucket(&mut self, idx: usize, n: u32) {
+    fn add_bucket(&mut self, idx: usize, n: u64) {
         self.index.push(idx);
         self.count.push(n);
     }
@@ -43,14 +42,13 @@ impl Histogram {
     /// Buckets which have values in both histograms are allowed to wrap.
     #[allow(clippy::comparison_chain)]
     pub fn merge(&self, h: &Histogram) -> Result<Histogram, Error> {
-        if self.m != h.m || self.r != h.r || self.n != h.n {
+        if self.grouping_power != h.grouping_power || self.max_value_power != h.max_value_power {
             return Err(Error::MismatchedParams);
         }
 
         let mut histogram = Histogram {
-            m: self.m,
-            r: self.r,
-            n: self.n,
+            grouping_power: self.grouping_power,
+            max_value_power: self.max_value_power,
             index: Vec::new(),
             count: Vec::new(),
         };
@@ -89,12 +87,12 @@ impl Histogram {
     }
 }
 
-impl From<&_Histogram> for Histogram {
-    fn from(histogram: &_Histogram) -> Self {
+impl From<&Snapshot> for Histogram {
+    fn from(snapshot: &Snapshot) -> Self {
         let mut index = Vec::new();
         let mut count = Vec::new();
 
-        for (i, bucket) in histogram
+        for (i, bucket) in snapshot
             .into_iter()
             .enumerate()
             .filter(|(_i, bucket)| bucket.count() != 0)
@@ -103,11 +101,10 @@ impl From<&_Histogram> for Histogram {
             count.push(bucket.count());
         }
 
-        let p = histogram.parameters();
+        let config = snapshot.config();
         Self {
-            m: p.0,
-            r: p.1,
-            n: p.2,
+            grouping_power: config.grouping_power(),
+            max_value_power: config.max_value_power(),
             index,
             count,
         }
@@ -121,25 +118,22 @@ mod tests {
     #[test]
     fn merge() {
         let h1 = Histogram {
-            m: 0,
-            r: 7,
-            n: 32,
+            grouping_power: 8,
+            max_value_power: 32,
             index: vec![1, 3, 5],
             count: vec![6, 12, 7],
         };
 
         let h2 = Histogram {
-            m: 0,
-            r: 7,
-            n: 32,
+            grouping_power: 8,
+            max_value_power: 32,
             index: Vec::new(),
             count: Vec::new(),
         };
 
         let h3 = Histogram {
-            m: 0,
-            r: 7,
-            n: 32,
+            grouping_power: 8,
+            max_value_power: 32,
             index: vec![2, 3, 4, 11],
             count: vec![5, 7, 3, 15],
         };

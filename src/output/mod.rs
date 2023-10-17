@@ -1,8 +1,6 @@
 use crate::*;
-use rpcperf_dataspec::*;
-
-use ahash::{HashMap, HashMapExt};
 use ratelimit::Ratelimiter;
+use rpcperf_dataspec::*;
 use std::io::{BufWriter, Write};
 
 #[macro_export]
@@ -23,11 +21,8 @@ pub fn log(config: &Config) {
 
     let mut window_id = 0;
 
-    let mut snapshot = Snapshot {
-        prev: HashMap::new(),
-    };
-
-    let mut prev = Instant::now();
+    let mut snapshot = MetricsSnapshot::default();
+    snapshot.update();
 
     let client = !config.workload().keyspaces().is_empty();
     let pubsub = !config.workload().topics().is_empty();
@@ -39,21 +34,19 @@ pub fn log(config: &Config) {
         duration = duration.saturating_sub(1);
 
         if interval == 0 {
-            let now = Instant::now();
-            let elapsed = now.duration_since(prev).as_secs_f64();
-            prev = now;
+            snapshot.update();
 
             output!("-----");
             output!("Window: {}", window_id);
 
             // output the client stats
             if client {
-                client_stats(&mut snapshot, elapsed);
+                client_stats(&mut snapshot);
             }
 
             // output the pubsub stats
             if pubsub {
-                pubsub_stats(&mut snapshot, elapsed);
+                pubsub_stats(&mut snapshot);
             }
 
             interval = config.general().interval().as_millis();
@@ -62,25 +55,27 @@ pub fn log(config: &Config) {
     }
 }
 
-/// Outputs client stats and returns the number of requests successfully sent
-fn client_stats(snapshot: &mut Snapshot, elapsed: f64) -> u64 {
-    let connect_ok = Metrics::ConnectOk.delta(snapshot);
-    let connect_ex = Metrics::ConnectEx.delta(snapshot);
-    let connect_timeout = Metrics::ConnectTimeout.delta(snapshot);
-    let connect_total = Metrics::Connect.delta(snapshot);
+/// Outputs client stats
+fn client_stats(snapshot: &mut MetricsSnapshot) {
+    let connect_ok = snapshot.counter_rate(CONNECT_OK_COUNTER);
+    let connect_ex = snapshot.counter_rate(CONNECT_EX_COUNTER);
+    let connect_timeout = snapshot.counter_rate(CONNECT_TIMEOUT_COUNTER);
+    let connect_total = snapshot.counter_rate(CONNECT_COUNTER);
 
-    let request_reconnect = Metrics::RequestReconnect.delta(snapshot);
-    let request_ok = Metrics::RequestOk.delta(snapshot);
-    let request_unsupported = Metrics::RequestUnsupported.delta(snapshot);
-    let request_total = Metrics::Request.delta(snapshot);
+    let request_reconnect = snapshot.counter_rate(REQUEST_RECONNECT_COUNTER);
+    let request_ok = snapshot.counter_rate(REQUEST_OK_COUNTER);
+    let request_unsupported = snapshot.counter_rate(REQUEST_UNSUPPORTED_COUNTER);
+    let request_total = snapshot.counter_rate(REQUEST_COUNTER);
 
-    let response_ok = Metrics::ResponseOk.delta(snapshot);
-    let response_ex = Metrics::ResponseEx.delta(snapshot);
-    let response_timeout = Metrics::ResponseTimeout.delta(snapshot);
-    let response_hit = Metrics::ResponseHit.delta(snapshot);
-    let response_miss = Metrics::ResponseMiss.delta(snapshot);
+    let response_ok = snapshot.counter_rate(RESPONSE_OK_COUNTER);
+    let response_ex = snapshot.counter_rate(RESPONSE_EX_COUNTER);
+    let response_timeout = snapshot.counter_rate(RESPONSE_TIMEOUT_COUNTER);
+    let response_hit = snapshot.counter_rate(RESPONSE_HIT_COUNTER);
+    let response_miss = snapshot.counter_rate(RESPONSE_MISS_COUNTER);
 
-    let connect_sr = 100.0 * connect_ok as f64 / connect_total as f64;
+    let connect_sr = 100.0 * connect_ok / connect_total;
+
+    let response_latency = snapshot.percentiles(RESPONSE_LATENCY_HISTOGRAM);
 
     output!(
         "Client Connection: Open: {} Success Rate: {:.2} %",
@@ -89,15 +84,15 @@ fn client_stats(snapshot: &mut Snapshot, elapsed: f64) -> u64 {
     );
     output!(
         "Client Connection Rates (/s): Attempt: {:.2} Opened: {:.2} Errors: {:.2} Timeout: {:.2} Closed: {:.2}",
-        connect_total as f64 / elapsed,
-        connect_ok as f64 / elapsed,
-        connect_ex as f64 / elapsed,
-        connect_timeout as f64 / elapsed,
-        request_reconnect as f64 / elapsed,
+        connect_total,
+        connect_ok,
+        connect_ex,
+        connect_timeout,
+        request_reconnect,
     );
 
-    let request_sr = 100.0 * request_ok as f64 / request_total as f64;
-    let request_ur = 100.0 * request_unsupported as f64 / request_total as f64;
+    let request_sr = 100.0 * request_ok / request_total;
+    let request_ur = 100.0 * request_unsupported / request_total;
 
     output!(
         "Client Request: Success: {:.2} % Unsupported: {:.2} %",
@@ -106,15 +101,15 @@ fn client_stats(snapshot: &mut Snapshot, elapsed: f64) -> u64 {
     );
     output!(
         "Client Request Rate (/s): Ok: {:.2} Unsupported: {:.2}",
-        request_ok as f64 / elapsed,
-        request_unsupported as f64 / elapsed,
+        request_ok,
+        request_unsupported,
     );
 
     let response_total = response_ok + response_ex + response_timeout;
 
-    let response_sr = 100.0 * response_ok as f64 / response_total as f64;
-    let response_to = 100.0 * response_timeout as f64 / response_total as f64;
-    let response_hr = 100.0 * response_hit as f64 / (response_hit + response_miss) as f64;
+    let response_sr = 100.0 * response_ok / response_total;
+    let response_to = 100.0 * response_timeout / response_total;
+    let response_hr = 100.0 * response_hit / (response_hit + response_miss);
 
     output!(
         "Client Response: Success: {:.2} % Timeout: {:.2} % Hit: {:.2} %",
@@ -124,44 +119,45 @@ fn client_stats(snapshot: &mut Snapshot, elapsed: f64) -> u64 {
     );
     output!(
         "Client Response Rate (/s): Ok: {:.2} Error: {:.2} Timeout: {:.2}",
-        response_ok as f64 / elapsed,
-        response_ex as f64 / elapsed,
-        response_timeout as f64 / elapsed,
+        response_ok,
+        response_ex,
+        response_timeout,
     );
 
     let mut latencies = "Client Response Latency (us):".to_owned();
-    for (label, percentile) in PERCENTILES {
-        let value = match RESPONSE_LATENCY.percentile(*percentile) {
-            Some(Ok(b)) => format!("{}", b.high() / 1000),
-            _ => "ERR".to_string(),
-        };
-        latencies.push_str(&format!(" {label}: {value}"))
+
+    for (label, _percentile, nanoseconds) in response_latency {
+        let microseconds = nanoseconds / 1000;
+        latencies.push_str(&format!(" {label}: {microseconds}"))
     }
 
     output!("{latencies}");
-
-    request_ok
 }
 
 /// Output pubsub metrics and return the number of successful publish operations
-fn pubsub_stats(snapshot: &mut Snapshot, elapsed: f64) -> u64 {
+fn pubsub_stats(snapshot: &mut MetricsSnapshot) {
     // publisher stats
-    let pubsub_tx_ex = Metrics::PubsubTxEx.delta(snapshot);
-    let pubsub_tx_ok = Metrics::PubsubTxOk.delta(snapshot);
-    let pubsub_tx_timeout = Metrics::PubsubTxTimeout.delta(snapshot);
-    let pubsub_tx_total = Metrics::PubsubTx.delta(snapshot);
+    let pubsub_tx_ex = snapshot.counter_rate(PUBSUB_PUBLISH_EX_COUNTER);
+    let pubsub_tx_ok = snapshot.counter_rate(PUBSUB_PUBLISH_OK_COUNTER);
+    let pubsub_tx_timeout = snapshot.counter_rate(PUBSUB_PUBLISH_TIMEOUT_COUNTER);
+    let pubsub_tx_total = snapshot.counter_rate(PUBSUB_PUBLISH_COUNTER);
+
+    let pubsub_publish_latency = snapshot.percentiles(PUBSUB_PUBLISH_LATENCY_HISTOGRAM);
 
     // subscriber stats
-    let pubsub_rx_ok = Metrics::PubsubRxOk.delta(snapshot);
-    let pubsub_rx_ex = Metrics::PubsubRxEx.delta(snapshot);
-    let pubsub_rx_corrupt = Metrics::PubsubRxCorrupt.delta(snapshot);
-    let pubsub_rx_invalid = Metrics::PubsubRxInvalid.delta(snapshot);
-    let pubsub_rx_total = Metrics::PubsubRx.delta(snapshot);
+    let pubsub_rx_ok = snapshot.counter_rate(PUBSUB_RECEIVE_OK_COUNTER);
+    let pubsub_rx_ex = snapshot.counter_rate(PUBSUB_RECEIVE_EX_COUNTER);
+    let pubsub_rx_corrupt = snapshot.counter_rate(PUBSUB_RECEIVE_CORRUPT_COUNTER);
+    let pubsub_rx_invalid = snapshot.counter_rate(PUBSUB_RECEIVE_INVALID_COUNTER);
+    let pubsub_rx_total = snapshot.counter_rate(PUBSUB_RECEIVE_COUNTER);
+
+    // end-to-end stats
+    let pubsub_latency = snapshot.percentiles(PUBSUB_LATENCY_HISTOGRAM);
 
     output!("Publishers: Current: {}", PUBSUB_PUBLISHER_CURR.value(),);
 
-    let pubsub_tx_sr = 100.0 * pubsub_tx_ok as f64 / pubsub_tx_total as f64;
-    let pubsub_tx_to = 100.0 * pubsub_tx_timeout as f64 / pubsub_tx_total as f64;
+    let pubsub_tx_sr = 100.0 * pubsub_tx_ok / pubsub_tx_total;
+    let pubsub_tx_to = 100.0 * pubsub_tx_timeout / pubsub_tx_total;
     output!(
         "Publisher Publish: Success: {:.2} % Timeout: {:.2} %",
         pubsub_tx_sr,
@@ -170,15 +166,15 @@ fn pubsub_stats(snapshot: &mut Snapshot, elapsed: f64) -> u64 {
 
     output!(
         "Publisher Publish Rate (/s): Ok: {:.2} Error: {:.2} Timeout: {:.2}",
-        pubsub_tx_ok as f64 / elapsed,
-        pubsub_tx_ex as f64 / elapsed,
-        pubsub_tx_timeout as f64 / elapsed,
+        pubsub_tx_ok,
+        pubsub_tx_ex,
+        pubsub_tx_timeout,
     );
 
     output!("Subscribers: Current: {}", PUBSUB_SUBSCRIBER_CURR.value(),);
 
-    let pubsub_rx_sr = 100.0 * pubsub_rx_ok as f64 / pubsub_rx_total as f64;
-    let pubsub_rx_cr = 100.0 * pubsub_rx_corrupt as f64 / pubsub_rx_total as f64;
+    let pubsub_rx_sr = 100.0 * pubsub_rx_ok / pubsub_rx_total;
+    let pubsub_rx_cr = 100.0 * pubsub_rx_corrupt / pubsub_rx_total;
     output!(
         "Subscriber Receive: Success: {:.2} % Corrupted: {:.2} %",
         pubsub_rx_sr,
@@ -187,51 +183,29 @@ fn pubsub_stats(snapshot: &mut Snapshot, elapsed: f64) -> u64 {
 
     output!(
         "Subscriber Receive Rate (/s): Ok: {:.2} Error: {:.2} Corrupt: {:.2} Invalid: {:.2}",
-        pubsub_rx_ok as f64 / elapsed,
-        pubsub_rx_ex as f64 / elapsed,
-        pubsub_rx_corrupt as f64 / elapsed,
-        pubsub_rx_invalid as f64 / elapsed,
+        pubsub_rx_ok,
+        pubsub_rx_ex,
+        pubsub_rx_corrupt,
+        pubsub_rx_invalid,
     );
 
     let mut latencies = "Pubsub Publish Latency (us):".to_owned();
-    for (label, percentile) in PERCENTILES {
-        let value = match RESPONSE_LATENCY.percentile(*percentile) {
-            Some(Ok(b)) => format!("{}", b.high() / 1000),
-            _ => "ERR".to_string(),
-        };
-        latencies.push_str(&format!(" {label}: {value}"))
+
+    for (label, _percentile, nanoseconds) in pubsub_publish_latency {
+        let microseconds = nanoseconds / 1000;
+        latencies.push_str(&format!(" {label}: {microseconds}"))
     }
 
     output!("{latencies}");
 
     let mut latencies = "Pubsub End-to-End Latency (us):".to_owned();
-    for (label, percentile) in PERCENTILES {
-        let value = match RESPONSE_LATENCY.percentile(*percentile) {
-            Some(Ok(b)) => format!("{}", b.high() / 1000),
-            _ => "ERR".to_string(),
-        };
-        latencies.push_str(&format!(" {label}: {value}"))
+
+    for (label, _percentile, nanoseconds) in pubsub_latency {
+        let microseconds = nanoseconds / 1000;
+        latencies.push_str(&format!(" {label}: {microseconds}"))
     }
 
     output!("{latencies}");
-
-    pubsub_tx_ok
-}
-
-// gets the non-zero buckets for the most recent window in the heatmap
-fn heatmap_to_buckets(heatmap: &Heatmap) -> Histogram {
-    // XXX: The heatmap corrects for wraparound and fixes indices once
-    // the heatmap is full so this returns the histogram for the last
-    // completed epoch, assuming a heatmap with a total of 60 valid
-    // histograms. However, this only kicks in after the entire histogram
-    // has been populated, so for the first minute, no histograms
-    // are returned (the histogram at offset 59 is still invalid).
-    if let Some(Some(histogram)) = heatmap.iter().map(|mut i| i.nth(59)) {
-        Histogram::from(histogram)
-    } else {
-        trace!("no histogram");
-        Histogram::default()
-    }
 }
 
 pub fn json(config: Config, ratelimit: Option<&Ratelimiter>) {
@@ -255,9 +229,7 @@ pub fn json(config: Config, ratelimit: Option<&Ratelimiter>) {
 
     let mut window_id = 0;
 
-    let mut snapshot = Snapshot {
-        prev: HashMap::new(),
-    };
+    let mut snapshot = MetricsSnapshot::default();
 
     while end > now {
         std::thread::sleep(Duration::from_millis(1));
@@ -265,40 +237,40 @@ pub fn json(config: Config, ratelimit: Option<&Ratelimiter>) {
         now = std::time::Instant::now();
 
         if next <= now {
-            // let now = Instant::now();
+            snapshot.update();
+
             let elapsed = now.duration_since(prev).as_secs_f64();
             prev = now;
             next += Duration::from_secs(1);
 
             let connections = Connections {
                 current: CONNECT_CURR.value(),
-                total: Metrics::Connect.delta(&mut snapshot),
-                opened: Metrics::ConnectOk.delta(&mut snapshot),
-                error: Metrics::ConnectEx.delta(&mut snapshot),
-                timeout: Metrics::ConnectTimeout.delta(&mut snapshot),
+                total: snapshot.counter_delta(CONNECT_COUNTER),
+                opened: snapshot.counter_delta(CONNECT_OK_COUNTER),
+                error: snapshot.counter_delta(CONNECT_EX_COUNTER),
+                timeout: snapshot.counter_delta(CONNECT_TIMEOUT_COUNTER),
             };
 
             let requests = Requests {
-                total: Metrics::Request.delta(&mut snapshot),
-                ok: Metrics::RequestOk.delta(&mut snapshot),
-                reconnect: Metrics::RequestReconnect.delta(&mut snapshot),
-                unsupported: Metrics::RequestUnsupported.delta(&mut snapshot),
+                total: snapshot.counter_delta(REQUEST_COUNTER),
+                ok: snapshot.counter_delta(REQUEST_OK_COUNTER),
+                reconnect: snapshot.counter_delta(REQUEST_RECONNECT_COUNTER),
+                unsupported: snapshot.counter_delta(REQUEST_UNSUPPORTED_COUNTER),
             };
 
-            let response_ok = Metrics::ResponseOk.delta(&mut snapshot);
-            let response_ex = Metrics::ResponseEx.delta(&mut snapshot);
-            let response_timeout = Metrics::ResponseTimeout.delta(&mut snapshot);
+            let response_ok = snapshot.counter_delta(RESPONSE_OK_COUNTER);
+            let response_ex = snapshot.counter_delta(RESPONSE_EX_COUNTER);
+            let response_timeout = snapshot.counter_delta(RESPONSE_TIMEOUT_COUNTER);
+
             let response_total = response_ok + response_ex + response_timeout;
-            let response_hit = Metrics::ResponseHit.delta(&mut snapshot);
-            let response_miss = Metrics::ResponseHit.delta(&mut snapshot);
 
             let responses = Responses {
                 total: response_total,
                 ok: response_ok,
                 error: response_ex,
                 timeout: response_timeout,
-                hit: response_hit,
-                miss: response_miss,
+                hit: snapshot.counter_delta(RESPONSE_HIT_COUNTER),
+                miss: snapshot.counter_delta(RESPONSE_MISS_COUNTER),
             };
 
             let json = JsonSnapshot {
@@ -309,7 +281,10 @@ pub fn json(config: Config, ratelimit: Option<&Ratelimiter>) {
                     connections,
                     requests,
                     responses,
-                    request_latency: heatmap_to_buckets(&REQUEST_LATENCY),
+                    response_latency: snapshot
+                        .histogram_delta(RESPONSE_LATENCY_HISTOGRAM)
+                        .map(rpcperf_dataspec::Histogram::from)
+                        .unwrap_or_default(),
                 },
                 pubsub: PubsubStats {
                     publishers: Publishers {

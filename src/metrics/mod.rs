@@ -1,10 +1,13 @@
 // for now, we use some of the metrics defined in the protocol crates
+
 pub use protocol_memcache::*;
 
 use ahash::HashMap;
+use ahash::HashMapExt;
 use metriken::Lazy;
 use paste::paste;
 use std::concat;
+use std::time::SystemTime;
 
 pub static PERCENTILES: &[(&str, f64)] = &[
     ("p25", 25.0),
@@ -16,68 +19,196 @@ pub static PERCENTILES: &[(&str, f64)] = &[
     ("p9999", 99.99),
 ];
 
-pub struct Snapshot {
-    pub prev: HashMap<Metrics, u64>,
+pub struct MetricsSnapshot {
+    pub current: SystemTime,
+    pub previous: SystemTime,
+    pub counters: CountersSnapshot,
+    pub histograms: HistogramsSnapshot,
 }
 
-#[derive(Eq, Hash, PartialEq, Copy, Clone)]
-pub enum Metrics {
-    Connect,
-    ConnectOk,
-    ConnectEx,
-    ConnectTimeout,
-    Request,
-    RequestOk,
-    RequestReconnect,
-    RequestUnsupported,
-    ResponseOk,
-    ResponseEx,
-    ResponseTimeout,
-    ResponseHit,
-    ResponseMiss,
-    PubsubTx,
-    PubsubTxEx,
-    PubsubTxOk,
-    PubsubTxTimeout,
-    PubsubRx,
-    PubsubRxEx,
-    PubsubRxOk,
-    PubsubRxCorrupt,
-    PubsubRxInvalid,
+impl Default for MetricsSnapshot {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
-impl Metrics {
-    pub fn metric(&self) -> &metriken::Counter {
-        match self {
-            Self::Connect => &CONNECT,
-            Self::ConnectOk => &CONNECT_OK,
-            Self::ConnectEx => &CONNECT_EX,
-            Self::ConnectTimeout => &CONNECT_TIMEOUT,
-            Self::Request => &REQUEST,
-            Self::RequestOk => &REQUEST_OK,
-            Self::RequestReconnect => &REQUEST_RECONNECT,
-            Self::RequestUnsupported => &REQUEST_UNSUPPORTED,
-            Self::ResponseEx => &RESPONSE_EX,
-            Self::ResponseOk => &RESPONSE_OK,
-            Self::ResponseTimeout => &RESPONSE_TIMEOUT,
-            Self::ResponseHit => &RESPONSE_HIT,
-            Self::ResponseMiss => &RESPONSE_MISS,
-            Self::PubsubTx => &PUBSUB_PUBLISH,
-            Self::PubsubTxEx => &PUBSUB_PUBLISH_EX,
-            Self::PubsubTxOk => &PUBSUB_PUBLISH_OK,
-            Self::PubsubTxTimeout => &PUBSUB_PUBLISH_TIMEOUT,
-            Self::PubsubRx => &PUBSUB_RECEIVE,
-            Self::PubsubRxEx => &PUBSUB_RECEIVE_EX,
-            Self::PubsubRxOk => &PUBSUB_RECEIVE_OK,
-            Self::PubsubRxCorrupt => &PUBSUB_RECEIVE_CORRUPT,
-            Self::PubsubRxInvalid => &PUBSUB_RECEIVE_INVALID,
+impl MetricsSnapshot {
+    pub fn new() -> Self {
+        let now = SystemTime::now();
+
+        Self {
+            current: now,
+            previous: now,
+            counters: Default::default(),
+            histograms: Default::default(),
         }
     }
 
-    pub fn delta(&self, snapshot: &mut Snapshot) -> u64 {
-        let curr = self.metric().value();
-        let prev = snapshot.prev.insert(*self, curr).unwrap_or(0);
-        curr.wrapping_sub(prev)
+    pub fn update(&mut self) {
+        self.previous = self.current;
+        self.current = SystemTime::now();
+
+        self.counters.update();
+        self.histograms.update();
+    }
+
+    pub fn percentiles(&self, name: &str) -> Vec<(String, f64, u64)> {
+        self.histograms.percentiles(name)
+    }
+
+    pub fn histogram_delta(&self, name: &str) -> Option<&metriken::histogram::Snapshot> {
+        self.histograms.deltas.get(name)
+    }
+
+    pub fn counter_rate(&self, name: &str) -> f64 {
+        self.counter_delta(name) as f64
+            / (self.current.duration_since(self.previous).unwrap()).as_secs_f64()
+    }
+
+    pub fn counter_delta(&self, name: &str) -> u64 {
+        let current = self.counters.current.get(name);
+
+        if current.is_none() {
+            return 0;
+        }
+
+        let previous = self.counters.previous.get(name).unwrap_or(&0);
+
+        current.unwrap() - previous
+    }
+}
+
+pub struct HistogramsSnapshot {
+    pub previous: HashMap<String, metriken::histogram::Snapshot>,
+    pub deltas: HashMap<String, metriken::histogram::Snapshot>,
+}
+
+impl Default for HistogramsSnapshot {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl HistogramsSnapshot {
+    pub fn new() -> Self {
+        let mut current = HashMap::new();
+
+        for metric in metriken::metrics().iter() {
+            let any = if let Some(any) = metric.as_any() {
+                any
+            } else {
+                continue;
+            };
+
+            if let Some(histogram) = any.downcast_ref::<metriken::AtomicHistogram>() {
+                if let Some(snapshot) = histogram.snapshot() {
+                    current.insert(metric.name().to_string(), snapshot);
+                }
+            }
+        }
+
+        let deltas = current.clone();
+
+        Self {
+            previous: current,
+            deltas,
+        }
+    }
+
+    pub fn update(&mut self) {
+        for metric in metriken::metrics().iter() {
+            let any = if let Some(any) = metric.as_any() {
+                any
+            } else {
+                continue;
+            };
+
+            if let Some(histogram) = any.downcast_ref::<metriken::AtomicHistogram>() {
+                let metric = metric.name().to_string();
+
+                if let Some(snapshot) = histogram.snapshot() {
+                    if let Some(previous) = self.previous.get(&metric) {
+                        self.deltas
+                            .insert(metric.clone(), snapshot.wrapping_sub(previous).unwrap());
+                    }
+
+                    self.previous.insert(metric, snapshot);
+                }
+            }
+        }
+    }
+
+    pub fn percentiles(&self, metric: &str) -> Vec<(String, f64, u64)> {
+        let mut result = Vec::new();
+
+        let percentiles: Vec<f64> = PERCENTILES
+            .iter()
+            .map(|(_, percentile)| *percentile)
+            .collect();
+
+        if let Some(snapshot) = self.deltas.get(metric) {
+            if let Ok(percentiles) = snapshot.percentiles(&percentiles) {
+                for ((label, _), (percentile, bucket)) in PERCENTILES.iter().zip(percentiles.iter())
+                {
+                    result.push((label.to_string(), *percentile, bucket.end()));
+                }
+            }
+        }
+
+        result
+    }
+}
+
+#[derive(Clone)]
+pub struct CountersSnapshot {
+    pub current: HashMap<String, u64>,
+    pub previous: HashMap<String, u64>,
+}
+
+impl Default for CountersSnapshot {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl CountersSnapshot {
+    pub fn new() -> Self {
+        let mut current = HashMap::new();
+        let previous = HashMap::new();
+
+        for metric in metriken::metrics().iter() {
+            let any = if let Some(any) = metric.as_any() {
+                any
+            } else {
+                continue;
+            };
+
+            let metric = metric.name().to_string();
+
+            if let Some(_counter) = any.downcast_ref::<metriken::Counter>() {
+                current.insert(metric.clone(), 0);
+            }
+        }
+        Self { current, previous }
+    }
+
+    pub fn update(&mut self) {
+        for metric in metriken::metrics().iter() {
+            let any = if let Some(any) = metric.as_any() {
+                any
+            } else {
+                continue;
+            };
+
+            if let Some(counter) = any.downcast_ref::<metriken::Counter>() {
+                if let Some(old_value) = self
+                    .current
+                    .insert(metric.name().to_string(), counter.value())
+                {
+                    self.previous.insert(metric.name().to_string(), old_value);
+                }
+            }
+        }
     }
 }
 
@@ -91,6 +222,10 @@ macro_rules! counter {
         )]
         pub static $ident: Lazy<metriken::Counter> =
             metriken::Lazy::new(|| metriken::Counter::new());
+        paste! {
+            #[allow(dead_code)]
+            pub static [<$ident _COUNTER>]: &'static str = $name;
+        }
     };
     ($ident:ident, $name:tt, $description:tt) => {
         #[metriken::metric(
@@ -100,6 +235,10 @@ macro_rules! counter {
                                         )]
         pub static $ident: Lazy<metriken::Counter> =
             metriken::Lazy::new(|| metriken::Counter::new());
+        paste! {
+            #[allow(dead_code)]
+            pub static [<$ident _COUNTER>]: &'static str = $name;
+        }
     };
 }
 
@@ -112,6 +251,10 @@ macro_rules! gauge {
             crate = metriken
         )]
         pub static $ident: Lazy<metriken::Gauge> = metriken::Lazy::new(|| metriken::Gauge::new());
+        paste! {
+            #[allow(dead_code)]
+            pub static [<$ident _GAUGE>]: &'static str = $name;
+        }
     };
     ($ident:ident, $name:tt, $description:tt) => {
         #[metriken::metric(
@@ -120,24 +263,27 @@ macro_rules! gauge {
             crate = metriken
         )]
         pub static $ident: Lazy<metriken::Gauge> = metriken::Lazy::new(|| metriken::Gauge::new());
+        paste! {
+            pub static [<$ident _GAUGE>]: &'static str = $name;
+        }
     };
 }
 
 #[macro_export]
 #[rustfmt::skip]
-macro_rules! heatmap {
+macro_rules! histogram {
     ($ident:ident, $name:tt) => {
         #[metriken::metric(
             name = $name,
             crate = metriken
         )]
-        pub static $ident: metriken::Heatmap = metriken::Heatmap::new(
-            0,
-            8,
+        pub static $ident: metriken::AtomicHistogram = metriken::AtomicHistogram::new(
+            7,
             64,
-            core::time::Duration::from_secs(60),
-            core::time::Duration::from_secs(1),
         );
+        paste! {
+            pub static [<$ident _HISTOGRAM>]: &'static str = $name;
+        }
     };
     ($ident:ident, $name:tt, $description:tt) => {
         #[metriken::metric(
@@ -145,13 +291,14 @@ macro_rules! heatmap {
             description = $description,
             crate = metriken
         )]
-        pub static $ident: metriken::Heatmap = metriken::Heatmap::new(
-            0,
-            8,
+        pub static $ident: metriken::AtomicHistogram = metriken::AtomicHistogram::new(
+            7,
             64,
-            core::time::Duration::from_secs(60),
-            core::time::Duration::from_secs(1),
         );
+        paste! {
+            #[allow(dead_code)]
+            pub static [<$ident _HISTOGRAM>]: &'static str = $name;
+        }
     };
 }
 
@@ -167,6 +314,10 @@ macro_rules! request {
         pub static $ident: Lazy<metriken::Counter> = metriken::Lazy::new(|| {
             metriken::Counter::new()
         });
+        paste! {
+            #[allow(dead_code)]
+            pub static [<$ident _COUNTER>]: &'static str = $name;
+        }
 
         paste! {
             #[metriken::metric(
@@ -177,6 +328,10 @@ macro_rules! request {
             pub static [<$ident _EX>]: Lazy<metriken::Counter> = metriken::Lazy::new(|| {
                 metriken::Counter::new()
             });
+            paste! {
+                #[allow(dead_code)]
+                pub static [<$ident _EX_COUNTER>]: &'static str = $name;
+            }   
         }
 
         paste! {
@@ -188,6 +343,10 @@ macro_rules! request {
             pub static [<$ident _OK>]: Lazy<metriken::Counter> = metriken::Lazy::new(|| {
                 metriken::Counter::new()
             });
+            paste! {
+                #[allow(dead_code)]
+                pub static [<$ident _OK_COUNTER>]: &'static str = $name;
+            }
         }
 
         paste! {
@@ -199,31 +358,29 @@ macro_rules! request {
             pub static [<$ident _TIMEOUT>]: Lazy<metriken::Counter> = metriken::Lazy::new(|| {
                 metriken::Counter::new()
             });
+            paste! {
+                #[allow(dead_code)]
+                pub static [<$ident _TIMEOUT_COUNTER>]: &'static str = $name;
+            }
         }
     }
 }
 
-heatmap!(
-    REQUEST_LATENCY,
-    "request_latency",
-    "distribution of request latencies in nanoseconds. incremented at time of requests disbatch."
-);
-
-heatmap!(
+histogram!(
     RESPONSE_LATENCY,
     "response_latency",
-    "distribution of response latencies in nanoseconds. incremented at time of response receipt."
+    "distribution of response latencies in nanoseconds."
 );
 
-heatmap!(
+histogram!(
     SESSION_LIFECYCLE_REQUESTS,
     "session_lifecycle_requests",
     "distribution of requests per session lifecycle. incremented at time of session close."
 );
 
-heatmap!(PUBSUB_LATENCY, "pubsub_latency");
+histogram!(PUBSUB_LATENCY, "pubsub_latency");
 
-heatmap!(PUBSUB_PUBLISH_LATENCY, "pubsub_publish_latency");
+histogram!(PUBSUB_PUBLISH_LATENCY, "pubsub_publish_latency");
 
 gauge!(CONNECT_CURR, "client/connections/current");
 counter!(CONNECT_OK, "client/connect/ok");

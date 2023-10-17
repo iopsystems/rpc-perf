@@ -15,13 +15,13 @@ pub async fn get(
     .await
     {
         Ok(Ok(r)) => match r {
-            Get::Hit { .. } => {
+            ::momento::response::Get::Hit { .. } => {
                 GET_OK.increment();
                 RESPONSE_HIT.increment();
                 GET_KEY_HIT.increment();
                 Ok(())
             }
-            Get::Miss => {
+            ::momento::response::Get::Miss => {
                 GET_OK.increment();
                 RESPONSE_MISS.increment();
                 GET_KEY_MISS.increment();

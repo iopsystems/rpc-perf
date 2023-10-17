@@ -91,7 +91,6 @@ async fn subscriber_task(client: Arc<TopicClient>, cache_name: String, topic: St
             match subscription.next().await {
                 Some(SubscriptionItem::Value(v)) => {
                     if let ValueKind::Binary(mut v) = v.kind {
-                        let now = Instant::now();
                         let now_unix = UnixInstant::now();
 
                         if [v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7]]
@@ -121,9 +120,8 @@ async fn subscriber_task(client: Arc<TopicClient>, cache_name: String, topic: St
                         ]);
 
                         let latency = now_unix - UnixInstant::from_nanos(ts);
-                        let then = now - latency;
 
-                        let _ = PUBSUB_LATENCY.increment(then, latency.as_nanos());
+                        let _ = PUBSUB_LATENCY.increment(latency.as_nanos());
 
                         PUBSUB_RECEIVE.increment();
                         PUBSUB_RECEIVE_OK.increment();
@@ -286,7 +284,7 @@ async fn publisher_task(
                 let latency = stop.duration_since(start).as_nanos();
 
                 PUBSUB_PUBLISH_OK.increment();
-                let _ = PUBSUB_PUBLISH_LATENCY.increment(start, latency);
+                let _ = PUBSUB_PUBLISH_LATENCY.increment(latency);
             }
             Err(ResponseError::Exception) => {
                 PUBSUB_PUBLISH_EX.increment();

@@ -20,6 +20,7 @@ pub async fn http(config: Config, ratelimit: Option<Arc<Ratelimiter>>) {
 
 mod filters {
     use super::*;
+    use warp::Filter;
 
     /// The combined set of admin endpoint filters
     pub fn admin(
@@ -93,73 +94,10 @@ mod filters {
     }
 }
 
-/// An enum to wrap metric readings for various metric types.
-pub enum Metric<'a> {
-    Counter(&'a str, Option<&'a str>, u64),
-    Gauge(&'a str, Option<&'a str>, i64),
-    Percentiles(&'a str, Option<&'a str>, Vec<(&'a str, f64, Option<u64>)>),
-}
-
-impl<'a> Metric<'a> {
-    /// Returns the name of the metric.
-    pub fn name(&self) -> &'a str {
-        match self {
-            Self::Counter(name, _description, _value) => name,
-            Self::Gauge(name, _description, _value) => name,
-            Self::Percentiles(name, _description, _percentiles) => name,
-        }
-    }
-}
-
-impl<'a> TryFrom<&'a metriken::MetricEntry> for Metric<'a> {
-    type Error = ();
-
-    fn try_from(metric: &'a metriken::MetricEntry) -> Result<Self, ()> {
-        let any = match metric.as_any() {
-            Some(any) => any,
-            None => {
-                return Err(());
-            }
-        };
-
-        if let Some(counter) = any.downcast_ref::<Counter>() {
-            Ok(Metric::Counter(
-                (*metric).name(),
-                metric.description(),
-                counter.value(),
-            ))
-        } else if let Some(gauge) = any.downcast_ref::<Gauge>() {
-            Ok(Metric::Gauge(
-                metric.name(),
-                metric.description(),
-                gauge.value(),
-            ))
-        } else if let Some(heatmap) = any.downcast_ref::<Heatmap>() {
-            let percentiles = PERCENTILES
-                .iter()
-                .map(|(label, percentile)| {
-                    let value = match heatmap.percentile(*percentile) {
-                        Some(Ok(bucket)) => Some(bucket.high()),
-                        _ => None,
-                    };
-                    (*label, *percentile, value)
-                })
-                .collect();
-
-            Ok(Metric::Percentiles(
-                metric.name(),
-                metric.description(),
-                percentiles,
-            ))
-        } else {
-            Err(())
-        }
-    }
-}
-
 mod handlers {
     use super::*;
     use core::convert::Infallible;
+    use std::time::UNIX_EPOCH;
     use warp::http::StatusCode;
 
     /// Serves Prometheus / OpenMetrics text format metrics. All metrics have
@@ -182,49 +120,61 @@ mod handlers {
     pub async fn prometheus_stats() -> Result<impl warp::Reply, Infallible> {
         let mut data = Vec::new();
 
-        for metric in metriken::metrics()
-            .iter()
-            .map(Metric::try_from)
-            .filter_map(|m| m.ok())
-        {
+        let metrics_snapshot = METRICS_SNAPSHOT.read().await;
+
+        let timestamp = metrics_snapshot
+            .current
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis();
+
+        for metric in &metriken::metrics() {
             if metric.name().starts_with("log_") {
                 continue;
             }
 
-            match metric {
-                Metric::Counter(name, description, value) => {
-                    if let Some(description) = description {
+            let any = match metric.as_any() {
+                Some(any) => any,
+                None => {
+                    continue;
+                }
+            };
+
+            let name = metric.name();
+
+            if let Some(counter) = any.downcast_ref::<Counter>() {
+                let value = counter.value();
+                if let Some(description) = metric.description() {
+                    data.push(format!(
+                        "# TYPE {name} counter\n# HELP {name} {description}\n{name} {value}"
+                    ));
+                } else {
+                    data.push(format!("# TYPE {name} counter\n{name} {value}"));
+                }
+            } else if let Some(gauge) = any.downcast_ref::<Gauge>() {
+                let value = gauge.value();
+
+                if let Some(description) = metric.description() {
+                    data.push(format!(
+                        "# TYPE {name} gauge\n# HELP {name} {description}\n{name} {value}"
+                    ));
+                } else {
+                    data.push(format!("# TYPE {name} gauge\n{name} {value}"));
+                }
+            } else if any.downcast_ref::<AtomicHistogram>().is_some() {
+                let percentiles = metrics_snapshot.percentiles(metric.name());
+
+                for (_label, percentile, value) in percentiles {
+                    if let Some(description) = metric.description() {
                         data.push(format!(
-                            "# TYPE {name} counter\n# HELP {name} {description}\n{name} {value}"
+                            "# TYPE {name} gauge\n# HELP {name} {description}\n{name}{{percentile=\"{:02}\"}} {value} {timestamp}",
+                            percentile,
                         ));
                     } else {
-                        data.push(format!("# TYPE {name} counter\n{name} {value}"));
-                    }
-                }
-                Metric::Gauge(name, description, value) => {
-                    if let Some(description) = description {
                         data.push(format!(
-                            "# TYPE {name} gauge\n# HELP {name} {description}\n{name} {value}"
+                            "# TYPE {name} gauge\n{name}{{percentile=\"{:02}\"}} {value} {timestamp}",
+                            percentile,
                         ));
-                    } else {
-                        data.push(format!("# TYPE {name} gauge\n{name} {value}"));
-                    }
-                }
-                Metric::Percentiles(name, description, percentiles) => {
-                    for (_label, percentile, value) in percentiles {
-                        if let Some(value) = value {
-                            if let Some(description) = description {
-                                data.push(format!(
-                                    "# TYPE {name} gauge\n# HELP {name} {description}\n{name}{{percentile=\"{:02}\"}} {value}",
-                                    percentile,
-                                ));
-                            } else {
-                                data.push(format!(
-                                    "# TYPE {name} gauge\n{name}{{percentile=\"{:02}\"}} {value}",
-                                    percentile,
-                                ));
-                            }
-                        }
                     }
                 }
             }
@@ -246,35 +196,8 @@ mod handlers {
     /// {"get/ok": 0,"client/request/p999": 0, ... }
     /// ```
     pub async fn json_stats() -> Result<impl warp::Reply, Infallible> {
-        let mut data = Vec::new();
+        let data = human_formatted_stats().await;
 
-        for metric in metriken::metrics()
-            .iter()
-            .map(Metric::try_from)
-            .filter_map(|m| m.ok())
-        {
-            if metric.name().starts_with("log_") {
-                continue;
-            }
-
-            match metric {
-                Metric::Counter(name, _description, value) => {
-                    data.push(format!("\"{name}\": {value}"));
-                }
-                Metric::Gauge(name, _description, value) => {
-                    data.push(format!("\"{name}\": {value}"));
-                }
-                Metric::Percentiles(name, _description, percentiles) => {
-                    for (label, _percentile, value) in percentiles {
-                        if let Some(value) = value {
-                            data.push(format!("\"{name}/{label}\": {value}",));
-                        }
-                    }
-                }
-            }
-        }
-
-        data.sort();
         let mut content = "{".to_string();
         content += &data.join(",");
         content += "}";
@@ -291,35 +214,8 @@ mod handlers {
     /// client/request/latency/p50: 0,
     /// ```
     pub async fn human_stats() -> Result<impl warp::Reply, Infallible> {
-        let mut data = Vec::new();
+        let data = human_formatted_stats().await;
 
-        for metric in metriken::metrics()
-            .iter()
-            .map(Metric::try_from)
-            .filter_map(|m| m.ok())
-        {
-            if metric.name().starts_with("log_") {
-                continue;
-            }
-
-            match metric {
-                Metric::Counter(name, _description, value) => {
-                    data.push(format!("{name}: {value}"));
-                }
-                Metric::Gauge(name, _description, value) => {
-                    data.push(format!("{name}: {value}"));
-                }
-                Metric::Percentiles(name, _description, percentiles) => {
-                    for (label, _percentile, value) in percentiles {
-                        if let Some(value) = value {
-                            data.push(format!("{name}/{label}: {value}",));
-                        }
-                    }
-                }
-            }
-        }
-
-        data.sort();
         let mut content = data.join("\n");
         content += "\n";
         Ok(content)
@@ -351,4 +247,46 @@ mod handlers {
             Ok(StatusCode::NOT_FOUND)
         }
     }
+}
+
+// human formatted stats that can be exposed as human stats or converted to json
+pub async fn human_formatted_stats() -> Vec<String> {
+    let mut data = Vec::new();
+
+    let metrics_snapshot = METRICS_SNAPSHOT.read().await;
+
+    for metric in &metriken::metrics() {
+        if metric.name().starts_with("log_") {
+            continue;
+        }
+
+        let any = match metric.as_any() {
+            Some(any) => any,
+            None => {
+                continue;
+            }
+        };
+
+        let name = metric.name();
+
+        if let Some(counter) = any.downcast_ref::<Counter>() {
+            let value = counter.value();
+
+            data.push(format!("\"{name}\": {value}"));
+        } else if let Some(gauge) = any.downcast_ref::<Gauge>() {
+            let value = gauge.value();
+
+            data.push(format!("\"{name}\": {value}"));
+        } else if any.downcast_ref::<AtomicHistogram>().is_some() {
+            let percentiles = metrics_snapshot.percentiles(metric.name());
+
+            for (label, _percentile, value) in percentiles {
+                data.push(format!("\"{name}/{label}\": {value}",));
+            }
+        }
+    }
+
+    data.sort();
+
+    data
 }
