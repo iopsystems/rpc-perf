@@ -174,7 +174,7 @@ impl Default for CountersSnapshot {
 impl CountersSnapshot {
     pub fn new() -> Self {
         let mut current = HashMap::new();
-        let mut previous = HashMap::new();
+        let previous = HashMap::new();
 
         for metric in metriken::metrics().iter() {
             let any = if let Some(any) = metric.as_any() {
@@ -185,17 +185,14 @@ impl CountersSnapshot {
 
             let metric = metric.name().to_string();
 
-            if let Some(counter) = any.downcast_ref::<metriken::Counter>() {
-                current.insert(metric.clone(), counter.value());
-                previous.insert(metric, 0);
+            if let Some(_counter) = any.downcast_ref::<metriken::Counter>() {
+                current.insert(metric.clone(), 0);
             }
         }
         Self { current, previous }
     }
 
     pub fn update(&mut self) {
-        let mut current = HashMap::new();
-
         for metric in metriken::metrics().iter() {
             let any = if let Some(any) = metric.as_any() {
                 any
@@ -204,7 +201,7 @@ impl CountersSnapshot {
             };
 
             if let Some(counter) = any.downcast_ref::<metriken::Counter>() {
-                if let Some(old_value) = current.insert(metric.name().to_string(), counter.value())
+                if let Some(old_value) = self.current.insert(metric.name().to_string(), counter.value())
                 {
                     self.previous.insert(metric.name().to_string(), old_value);
                 }

@@ -22,8 +22,7 @@ pub fn log(config: &Config) {
     let mut window_id = 0;
 
     let mut snapshot = MetricsSnapshot::default();
-
-    let mut prev = Instant::now();
+    snapshot.update();
 
     let client = !config.workload().keyspaces().is_empty();
     let pubsub = !config.workload().topics().is_empty();
@@ -35,10 +34,6 @@ pub fn log(config: &Config) {
         duration = duration.saturating_sub(1);
 
         if interval == 0 {
-            let now = Instant::now();
-            let elapsed = now.duration_since(prev).as_secs_f64();
-            prev = now;
-
             snapshot.update();
 
             output!("-----");
@@ -46,12 +41,12 @@ pub fn log(config: &Config) {
 
             // output the client stats
             if client {
-                client_stats(&mut snapshot, elapsed);
+                client_stats(&mut snapshot);
             }
 
             // output the pubsub stats
             if pubsub {
-                pubsub_stats(&mut snapshot, elapsed);
+                pubsub_stats(&mut snapshot);
             }
 
             interval = config.general().interval().as_millis();
@@ -61,7 +56,7 @@ pub fn log(config: &Config) {
 }
 
 /// Outputs client stats
-fn client_stats(snapshot: &mut MetricsSnapshot, elapsed: f64) {
+fn client_stats(snapshot: &mut MetricsSnapshot) {
     let connect_ok = snapshot.counter_rate(CONNECT_OK_COUNTER);
     let connect_ex = snapshot.counter_rate(CONNECT_EX_COUNTER);
     let connect_timeout = snapshot.counter_rate(CONNECT_TIMEOUT_COUNTER);
@@ -124,9 +119,9 @@ fn client_stats(snapshot: &mut MetricsSnapshot, elapsed: f64) {
     );
     output!(
         "Client Response Rate (/s): Ok: {:.2} Error: {:.2} Timeout: {:.2}",
-        response_ok / elapsed,
-        response_ex / elapsed,
-        response_timeout / elapsed,
+        response_ok,
+        response_ex,
+        response_timeout,
     );
 
     let mut latencies = "Client Response Latency (us):".to_owned();
@@ -140,7 +135,7 @@ fn client_stats(snapshot: &mut MetricsSnapshot, elapsed: f64) {
 }
 
 /// Output pubsub metrics and return the number of successful publish operations
-fn pubsub_stats(snapshot: &mut MetricsSnapshot, elapsed: f64) {
+fn pubsub_stats(snapshot: &mut MetricsSnapshot) {
     // publisher stats
     let pubsub_tx_ex = snapshot.counter_rate(PUBSUB_PUBLISH_EX_COUNTER);
     let pubsub_tx_ok = snapshot.counter_rate(PUBSUB_PUBLISH_OK_COUNTER);
@@ -171,9 +166,9 @@ fn pubsub_stats(snapshot: &mut MetricsSnapshot, elapsed: f64) {
 
     output!(
         "Publisher Publish Rate (/s): Ok: {:.2} Error: {:.2} Timeout: {:.2}",
-        pubsub_tx_ok / elapsed,
-        pubsub_tx_ex / elapsed,
-        pubsub_tx_timeout / elapsed,
+        pubsub_tx_ok,
+        pubsub_tx_ex,
+        pubsub_tx_timeout,
     );
 
     output!("Subscribers: Current: {}", PUBSUB_SUBSCRIBER_CURR.value(),);
@@ -188,10 +183,10 @@ fn pubsub_stats(snapshot: &mut MetricsSnapshot, elapsed: f64) {
 
     output!(
         "Subscriber Receive Rate (/s): Ok: {:.2} Error: {:.2} Corrupt: {:.2} Invalid: {:.2}",
-        pubsub_rx_ok / elapsed,
-        pubsub_rx_ex / elapsed,
-        pubsub_rx_corrupt / elapsed,
-        pubsub_rx_invalid / elapsed,
+        pubsub_rx_ok,
+        pubsub_rx_ex,
+        pubsub_rx_corrupt,
+        pubsub_rx_invalid,
     );
 
     let mut latencies = "Pubsub Publish Latency (us):".to_owned();
