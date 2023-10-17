@@ -59,10 +59,6 @@ pub struct Topics {
     subscriber_poolsize: usize,
     #[serde(default = "one")]
     subscriber_concurrency: usize,
-    #[serde(default = "one")]
-    publisher_poolsize: usize,
-    #[serde(default = "one")]
-    publisher_concurrency: usize,
     #[serde(default)]
     topic_distribution: Distribution,
     #[serde(default)]
@@ -100,14 +96,6 @@ impl Topics {
 
     pub fn subscriber_concurrency(&self) -> usize {
         self.subscriber_concurrency
-    }
-
-    pub fn publisher_poolsize(&self) -> usize {
-        self.publisher_poolsize
-    }
-
-    pub fn publisher_concurrency(&self) -> usize {
-        self.publisher_concurrency
     }
 
     pub fn topic_distribution(&self) -> Distribution {

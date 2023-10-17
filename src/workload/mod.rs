@@ -162,14 +162,11 @@ impl Generator {
         let mut k = vec![0_u8; topics.key_len];
         rng.fill(&mut k[0..topics.key_len]);
 
-        match topics.protocol {
-            Protocol::Kafka => PublisherWorkItem::KafkaMessage {
-                topic,
-                partition,
-                key: k,
-                message: m,
-            },
-            _ => PublisherWorkItem::Publish { topic, message: m },
+        PublisherWorkItem::Publish {
+            topic,
+            partition,
+            key: k,
+            message: m,
         }
     }
 
@@ -384,7 +381,6 @@ pub enum Component {
 
 #[derive(Clone)]
 pub struct Topics {
-    protocol: Protocol,
     topics: Vec<Arc<String>>,
     partitions: usize,
     topic_dist: Distribution,
@@ -393,23 +389,19 @@ pub struct Topics {
     message_len: usize,
     subscriber_poolsize: usize,
     subscriber_concurrency: usize,
-    publisher_poolsize: usize,
-    publisher_concurrency: usize,
 }
 
 impl Topics {
     pub fn new(config: &Config, topics: &config::Topics) -> Self {
         // ntopics must be >= 1
-        let protocol = config.general().protocol();
         let ntopics = std::cmp::max(1, topics.topics());
-        let partitions = topics.partitions();
+        // partitions must be >= 1
+        let partitions = std::cmp::max(1, topics.partitions());
         let topiclen = topics.topic_len();
         let message_len = topics.message_len();
         let key_len = topics.key_len();
         let subscriber_poolsize = topics.subscriber_poolsize();
         let subscriber_concurrency = topics.subscriber_concurrency();
-        let publisher_poolsize = topics.publisher_poolsize();
-        let publisher_concurrency = topics.publisher_concurrency();
         let topic_dist = match topics.topic_distribution() {
             config::Distribution::Uniform => Distribution::Uniform(Uniform::new(0, ntopics)),
             config::Distribution::Zipf => {
@@ -444,7 +436,6 @@ impl Topics {
         let topics = topics.drain().map(|k| k.into()).collect();
 
         Self {
-            protocol,
             topics,
             partitions,
             topic_dist,
@@ -453,21 +444,11 @@ impl Topics {
             message_len,
             subscriber_poolsize,
             subscriber_concurrency,
-            publisher_poolsize,
-            publisher_concurrency,
         }
     }
 
     pub fn topics(&self) -> &[Arc<String>] {
         &self.topics
-    }
-
-    pub fn key_len(&self) -> usize {
-        self.key_len
-    }
-
-    pub fn message_len(&self) -> usize {
-        self.message_len
     }
 
     pub fn partitions(&self) -> usize {
@@ -480,14 +461,6 @@ impl Topics {
 
     pub fn subscriber_concurrency(&self) -> usize {
         self.subscriber_concurrency
-    }
-
-    pub fn publisher_poolsize(&self) -> usize {
-        self.publisher_poolsize
-    }
-
-    pub fn publisher_concurrency(&self) -> usize {
-        self.publisher_concurrency
     }
 }
 
