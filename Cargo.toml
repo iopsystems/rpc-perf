@@ -27,14 +27,14 @@ boring = "2.1.0"
 boring-sys = "2.1.0"
 bytes = "1.2.1"
 clap = "4.3.24"
-clocksource = "0.6.0"
+clocksource = "0.7.0"
 foreign-types-shared = "0.3.1"
 futures = "0.3.28"
 http-body-util = "0.1.0-rc.3"
 hyper = { version = "1.0.0-rc.4", features = ["http1", "http2", "client"]}
 histogram = { workspace = true }
 humantime = "2.1.0"
-momento = "0.31.0"
+momento = "0.32.1"
 metriken = "0.3.0"
 mio = "0.8.8"
 net = { git = "https://github.com/pelikan-io/pelikan" }
@@ -46,7 +46,7 @@ rand = "0.8.5"
 rand_distr = "0.4.3"
 rand_xoshiro = "0.6.0"
 ratelimit = "0.7.0"
-redis = { version = "0.22.3", features = ["tokio-comp"] }
+redis = { version = "0.23.3", features = ["tokio-comp"] }
 ringlog = "0.3.0"
 rpcperf-dataspec = { path = "lib/dataspec" }
 serde = { workspace = true }
@@ -56,7 +56,7 @@ sha2 = "0.10.7"
 slab = "0.4.9"
 tokio = { version = "1.32.0", features = ["full"] }
 tokio-boring = "2.1.5"
-toml = "0.7.6"
+toml = "0.8.2"
 warp = "0.3.6"
 zipf = "7.0.1"
 
