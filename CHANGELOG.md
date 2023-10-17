@@ -1,5 +1,20 @@
 ## [Unreleased]
 
+## [5.2.0] - 2023-10-17
+
+### Changed
+
+- Metrics library (`metriken`) updated to replace heatmaps with histograms,
+  which reduces cost on the metrics write path.
+
+### Added
+
+- Dataspec now supports merging of histograms.
+
+### Fixed
+
+- RUSTSEC-2023-0065
+
 ## [5.1.0] - 2023-08-23
 
 ### Added
@@ -32,6 +47,7 @@
 - Support Momento topics.
 - Basic HTTP/1.1 and HTTP/2.0 load generation.
 
-[unreleased]: https://github.com/iopsystems/rpc-perf/compare/v5.1.0...HEAD
+[unreleased]: https://github.com/iopsystems/rpc-perf/compare/v5.2.0...HEAD
+[5.2.0]: https://github.com/iopsystems/rezolus/compare/v5.1.0...v5.2.0
 [5.1.0]: https://github.com/iopsystems/rezolus/compare/v5.0.0...v5.1.0
 [5.0.0]: https://github.com/iopsystems/rezolus/releases/tag/v5.0.0
