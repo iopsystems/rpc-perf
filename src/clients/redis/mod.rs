@@ -1,6 +1,5 @@
 use super::*;
 use crate::net::Connector;
-use crate::Instant;
 use ::redis::aio::Connection;
 use ::redis::{AsyncCommands, RedisConnectionInfo};
 use std::borrow::Borrow;
@@ -160,7 +159,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
 
         let stop = Instant::now();
 
-        let latency_ns = stop.duration_since(start).as_nanos();
+        let latency_ns = stop.duration_since(start).as_nanos() as u64;
 
         match result {
             Ok(_) => {

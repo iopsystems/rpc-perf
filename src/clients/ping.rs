@@ -116,7 +116,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                         }
                         Err(e) => match e.kind() {
                             ErrorKind::WouldBlock => {
-                                let elapsed = start.elapsed().as_nanos();
+                                let elapsed = start.elapsed().as_nanos() as u64;
                                 remaining_time = remaining_time.saturating_sub(elapsed);
                                 if remaining_time == 0 {
                                     break Err(ResponseError::Timeout);
@@ -165,7 +165,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
 
                 RESPONSE_OK.increment();
 
-                let latency = stop.duration_since(start).as_nanos();
+                let latency = stop.duration_since(start).as_nanos() as u64;
 
                 let _ = RESPONSE_LATENCY.increment(latency);
             }

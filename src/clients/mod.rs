@@ -7,6 +7,7 @@ use std::io::{Error, ErrorKind, Result};
 use tokio::io::*;
 use tokio::runtime::Runtime;
 use tokio::time::{timeout, Duration};
+use std::time::{Instant};
 
 mod http1;
 mod http2;

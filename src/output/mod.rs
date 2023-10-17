@@ -6,12 +6,12 @@ use std::io::{BufWriter, Write};
 #[macro_export]
 macro_rules! output {
     () => {
-        let now = clocksource::DateTime::now();
-        println!("{}", now.to_rfc3339_opts(clocksource::SecondsFormat::Millis, false));
+        let now = chrono::Utc::now();
+        println!("{}", now.to_rfc3339_opts(chrono::SecondsFormat::Millis, false));
     };
     ($($arg:tt)*) => {{
-        let now = clocksource::DateTime::now();
-        println!("{} {}", now.to_rfc3339_opts(clocksource::SecondsFormat::Millis, false), format_args!($($arg)*));
+        let now = chrono::Utc::now();
+        println!("{} {}", now.to_rfc3339_opts(chrono::SecondsFormat::Millis, false), format_args!($($arg)*));
     }};
 }
 

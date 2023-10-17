@@ -154,7 +154,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
 
         match response {
             Ok(response) => {
-                let latency_ns = stop.duration_since(start).as_nanos();
+                let latency_ns = stop.duration_since(start).as_nanos() as u64;
 
                 // check if the response is valid
                 if (request.validator)(response).is_err() {

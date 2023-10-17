@@ -1,3 +1,4 @@
+use std::time::{Instant, UNIX_EPOCH};
 use super::*;
 use ::momento::preview::topics::{SubscriptionItem, TopicClient, ValueKind};
 use ::momento::CredentialProviderBuilder;
@@ -91,7 +92,7 @@ async fn subscriber_task(client: Arc<TopicClient>, cache_name: String, topic: St
             match subscription.next().await {
                 Some(SubscriptionItem::Value(v)) => {
                     if let ValueKind::Binary(mut v) = v.kind {
-                        let now_unix = UnixInstant::now();
+                        let now_unix = UNIX_EPOCH.elapsed().unwrap().as_nanos() as u64;
 
                         if [v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7]]
                             != [0x54, 0x45, 0x53, 0x54, 0x49, 0x4E, 0x47, 0x21]
@@ -119,9 +120,9 @@ async fn subscriber_task(client: Arc<TopicClient>, cache_name: String, topic: St
                             v[16], v[17], v[18], v[19], v[20], v[21], v[22], v[23],
                         ]);
 
-                        let latency = now_unix - UnixInstant::from_nanos(ts);
+                        let latency = now_unix - ts;
 
-                        let _ = PUBSUB_LATENCY.increment(latency.as_nanos());
+                        let _ = PUBSUB_LATENCY.increment(latency);
 
                         PUBSUB_RECEIVE.increment();
                         PUBSUB_RECEIVE_OK.increment();
@@ -226,12 +227,10 @@ async fn publisher_task(
 
         REQUEST.increment();
         let start = Instant::now();
-        let now_unix = UnixInstant::now();
+        let now_unix = UNIX_EPOCH.elapsed().unwrap().as_nanos() as u64;
         let result = match work_item {
             WorkItem::Publish { topic, mut message } => {
-                let ts = (now_unix - UnixInstant::from_nanos(0))
-                    .as_nanos()
-                    .to_be_bytes();
+                let ts = now_unix.to_be_bytes();
 
                 // write the current unix time into the message
                 [
@@ -281,7 +280,7 @@ async fn publisher_task(
 
         match result {
             Ok(_) => {
-                let latency = stop.duration_since(start).as_nanos();
+                let latency = stop.duration_since(start).as_nanos() as u64;
 
                 PUBSUB_PUBLISH_OK.increment();
                 let _ = PUBSUB_PUBLISH_LATENCY.increment(latency);
