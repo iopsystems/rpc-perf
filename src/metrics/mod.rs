@@ -201,7 +201,9 @@ impl CountersSnapshot {
             };
 
             if let Some(counter) = any.downcast_ref::<metriken::Counter>() {
-                if let Some(old_value) = self.current.insert(metric.name().to_string(), counter.value())
+                if let Some(old_value) = self
+                    .current
+                    .insert(metric.name().to_string(), counter.value())
                 {
                     self.previous.insert(metric.name().to_string(), old_value);
                 }
