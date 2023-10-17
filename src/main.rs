@@ -1,4 +1,3 @@
-use std::time::Duration;
 use crate::clients::launch_clients;
 use crate::pubsub::launch_pubsub;
 use crate::workload::{launch_workload, Generator};
@@ -11,6 +10,7 @@ use once_cell::sync::Lazy;
 use ringlog::*;
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::runtime::Builder;
 use tokio::sync::RwLock;
 use tokio::time::sleep;

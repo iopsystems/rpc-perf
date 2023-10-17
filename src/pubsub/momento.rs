@@ -1,10 +1,10 @@
-use std::time::{Instant, UNIX_EPOCH};
 use super::*;
 use ::momento::preview::topics::{SubscriptionItem, TopicClient, ValueKind};
 use ::momento::CredentialProviderBuilder;
 use ahash::RandomState;
 use futures::stream::StreamExt;
 use std::sync::Arc;
+use std::time::{Instant, UNIX_EPOCH};
 use tokio::time::timeout;
 
 /// Launch tasks with one channel per task as gRPC is mux-enabled.
