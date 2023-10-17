@@ -10,3 +10,4 @@ license = { workspace = true }
 [dependencies]
 histogram = { workspace = true }
 serde = { workspace = true }
+thiserror = "1.0.47"

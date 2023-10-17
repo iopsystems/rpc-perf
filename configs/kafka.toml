@@ -7,7 +7,7 @@
 # specify the protocol to be used
 protocol = "kafka"
 # the interval for stats integration and reporting
-interval = 10
+interval = 1
 # the number of intervals to run the test for
 duration = 300
 # optionally, we can write some detailed stats to a file during the run
@@ -52,7 +52,7 @@ publisher_concurrency = 1
 # the number of threads that will be used to generate requests
 threads = 1
 # the global ratelimit
-ratelimit = 1
+ratelimit = 100
 
 # An example set of
 #topics using a single consumer multiple producer.

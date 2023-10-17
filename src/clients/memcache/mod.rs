@@ -165,8 +165,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                     // increment success stats and latency
                     RESPONSE_OK.increment();
 
-                    let _ = REQUEST_LATENCY.increment(start, latency_ns);
-                    let _ = RESPONSE_LATENCY.increment(stop, latency_ns);
+                    let _ = RESPONSE_LATENCY.increment(latency_ns);
 
                     // preserve the connection for the next request
                     stream = Some(s);

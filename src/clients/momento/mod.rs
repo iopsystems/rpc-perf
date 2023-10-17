@@ -172,8 +172,7 @@ async fn task(
 
                 let latency = stop.duration_since(start).as_nanos();
 
-                let _ = REQUEST_LATENCY.increment(start, latency);
-                let _ = RESPONSE_LATENCY.increment(stop, latency);
+                let _ = RESPONSE_LATENCY.increment(latency);
             }
             Err(ResponseError::Exception) => {
                 RESPONSE_EX.increment();

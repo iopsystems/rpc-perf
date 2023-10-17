@@ -96,11 +96,11 @@ async fn subscriber_task(client: Arc<TopicClient>, cache_name: String, topic: St
                                 continue;
                             }
                             MessageValidator::ValidatedMessage(latency, then) => {
-                                let _ = PUBSUB_LATENCY.increment(then, latency.as_nanos());
+                                let _ = PUBSUB_LATENCY.increment(latency.as_nanos());
                                 PUBSUB_RECEIVE.increment();
                                 PUBSUB_RECEIVE_OK.increment();
                             }
-                        }
+                        } 
                     } else {
                         error!("there was a string in the topic");
                         // unexpected message
@@ -226,7 +226,7 @@ async fn publisher_task(
                 let latency = stop.duration_since(start).as_nanos();
 
                 PUBSUB_PUBLISH_OK.increment();
-                let _ = PUBSUB_PUBLISH_LATENCY.increment(start, latency);
+                let _ = PUBSUB_PUBLISH_LATENCY.increment(latency);
             }
             Err(ResponseError::Exception) => {
                 PUBSUB_PUBLISH_EX.increment();

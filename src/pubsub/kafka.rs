@@ -155,7 +155,7 @@ async fn subscriber_task(client: Arc<StreamConsumer>, topics: Vec<String>) {
                                     continue;
                                 }
                                 MessageValidator::ValidatedMessage(latency, then) => {
-                                    let _ = PUBSUB_LATENCY.increment(then, latency.as_nanos());
+                                    let _ = PUBSUB_LATENCY.increment(latency.as_nanos());
                                     debug!(
                                         "Recive one message with latency:{:?} and then:{:?}",
                                         latency, then
@@ -258,7 +258,7 @@ async fn publisher_task(
                 let latency = stop.duration_since(start).as_nanos();
 
                 PUBSUB_PUBLISH_OK.increment();
-                let _ = PUBSUB_PUBLISH_LATENCY.increment(start, latency);
+                let _ = PUBSUB_PUBLISH_LATENCY.increment(latency);
                 debug!("One producing request {} {:?}", latency, a);
             }
             Err(e) => {
