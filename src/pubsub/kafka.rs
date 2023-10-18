@@ -11,21 +11,33 @@ use std::sync::Arc;
 fn get_kafka_producer(config: &Config) -> FutureProducer {
     let bootstrap_servers = config.target().endpoints().join(",");
     let timeout = format!("{}", config.pubsub().unwrap().publish_timeout().as_millis());
-    let client = ClientConfig::new()
-        .set("bootstrap.servers", &bootstrap_servers)
-        .set("message.timeout.ms", timeout)
-        .set("acks", "1")
-        .set("linger.ms", "1")
-        .set("batch.size", "131072")
-        .set("client.id", "rpcperf_publisher")
-        .create()
-        .unwrap();
-    return client;
+    let pubsub_config = config.pubsub().unwrap();
+    let mut client_config = ClientConfig::new();
+    client_config.set("bootstrap.servers", &bootstrap_servers);
+    client_config.set("message.timeout.ms", timeout);
+    if let Some(acks) = pubsub_config.kafka_acks() {
+        client_config.set("acks", acks);
+    }
+    if let Some(linger_ms) = pubsub_config.kafka_linger_ms() {
+        client_config.set("linger.ms", linger_ms);
+    }
+    if let Some(batch_size) = pubsub_config.kafka_batch_size() {
+        client_config.set("batch.size", batch_size);
+    }
+    if let Some(batch_num_messages) = pubsub_config.kafka_batch_num_messages() {
+        client_config.set("batch.num.messages", batch_num_messages);
+    }
+    if let Some(request_timeout_ms) = pubsub_config.kafka_request_timeout_ms() {
+        client_config.set("request.timeout.ms", request_timeout_ms);
+    }
+    return client_config.create().unwrap();
 }
 
 fn get_kafka_consumer(config: &Config, group_id: &str) -> StreamConsumer {
     let bootstrap_servers = config.target().endpoints().join(",");
-    let client = ClientConfig::new()
+    let pubsub_config = config.pubsub().unwrap();
+    let mut client_config = ClientConfig::new();
+    client_config
         .set("bootstrap.servers", &bootstrap_servers)
         .set("group.id", group_id)
         .set("client.id", "rpcperf_subscriber")
@@ -34,10 +46,11 @@ fn get_kafka_consumer(config: &Config, group_id: &str) -> StreamConsumer {
         .set("statistics.interval.ms", "500")
         .set("api.version.request", "true")
         .set("auto.offset.reset", "earliest")
-        .set("session.timeout.ms", "6000")
-        .create()
-        .unwrap();
-    return client;
+        .set("session.timeout.ms", "6000");
+    if let Some(fetch_message_max_bytes) = pubsub_config.kafka_fetch_message_max_bytes() {
+        client_config.set("fetch_message_max_bytes", fetch_message_max_bytes);
+    }
+    return client_config.create().unwrap();
 }
 
 fn get_kafka_admin(config: &Config) -> AdminClient<DefaultClientContext> {

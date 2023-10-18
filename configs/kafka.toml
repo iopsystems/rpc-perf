@@ -31,7 +31,7 @@ log_backup = "rpc-perf.log.old"
 log_max_size = 1073741824
 
 [target]
-# we don't need to specify any endpoints for momento
+# kafka broker ip:port
 endpoints = [
   "127.0.0.1:9092"
 ]
@@ -41,12 +41,18 @@ endpoints = [
 connect_timeout = 10000
 publish_timeout = 1000
 # the number of threads in the publisher runtime
-publisher_threads = 20
+publisher_threads = 4
 publisher_poolsize = 1
 publisher_concurrency = 20
 # the number of threads in the subscriber runtime
 subscriber_threads = 4
-
+# kafka-specific client configurations
+kafka_acks = "1"
+kafka_linger_ms = "1"
+#kafka_batch_size
+#kafka_batch_num_messages
+#kafka_fetch_message_max_bytes
+#kafka_request_timeout_ms
 
 [workload]
 # the number of threads that will be used to generate requests
