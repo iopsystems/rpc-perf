@@ -52,6 +52,27 @@ fn get_kafka_admin(config: &Config) -> AdminClient<DefaultClientContext> {
     return client;
 }
 
+fn validate_partition(config: &Config, topic: &str, partitions: usize) {
+    let consumer_client = get_kafka_consumer(&config, "topic_validator");
+    let timeout = Some(Duration::from_secs(1));
+    let metadata = consumer_client
+        .fetch_metadata(Some(topic), timeout)
+        .map_err(|e| e.to_string())
+        .unwrap();
+    if metadata.topics().len() == 0 {
+        error!("Invalidated topic");
+        std::process::exit(1);
+    }
+    let topic_partitions = metadata.topics()[0].partitions().len();
+    if topic_partitions != partitions {
+        error!(
+            "Invalidated partition: asked {} found {}\n Please delete or recreate the topic {}",
+            partitions, topic_partitions, topic
+        );
+        std::process::exit(1);
+    }
+}
+
 pub fn create_topics(runtime: &mut Runtime, config: Config, workload_components: &Vec<Component>) {
     debug!("Create Kafka topics");
     let admin_client = get_kafka_admin(&config);
@@ -77,7 +98,8 @@ pub fn create_topics(runtime: &mut Runtime, config: Config, workload_components:
                         }
                         Err(err) => {
                             if err.1 == TopicAlreadyExists {
-                                debug!("Topic {} exists", topic);
+                                validate_partition(&config, topic, partitions);
+                                debug!("Topic {} exists and has {} partitions", topic, partitions);
                             } else {
                                 error!("Failed to create the topic {}:{} ", err.0, err.1);
                                 std::process::exit(1);
