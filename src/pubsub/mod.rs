@@ -118,8 +118,8 @@ pub fn launch_pubsub(
     }
 
     PubsubRuntimes {
-        publisher_rt: launch_publishers(config, work_receiver),
         subscriber_rt: launch_subscribers(config, &workload_components),
+        publisher_rt: launch_publishers(config, work_receiver),
     }
 }
 

@@ -100,7 +100,7 @@ async fn subscriber_task(client: Arc<TopicClient>, cache_name: String, topic: St
                                 PUBSUB_RECEIVE.increment();
                                 PUBSUB_RECEIVE_OK.increment();
                             }
-                        } 
+                        }
                     } else {
                         error!("there was a string in the topic");
                         // unexpected message
