@@ -101,16 +101,13 @@ pub fn launch_pubsub(
     workload_components: Vec<Component>,
 ) -> PubsubRuntimes {
     if config.pubsub().is_some() {
-        match config.general().protocol() {
-            Protocol::Kafka => {
-                let mut topic_rt = Builder::new_multi_thread()
-                    .enable_all()
-                    .worker_threads(1)
-                    .build()
-                    .expect("failed to initialize tokio runtime");
-                kafka::create_topics(&mut topic_rt, config.clone(), &workload_components)
-            }
-            _ => {}
+        if let Protocol::Kafka = config.general().protocol() {
+            let mut topic_rt = Builder::new_multi_thread()
+                .enable_all()
+                .worker_threads(1)
+                .build()
+                .expect("failed to initialize tokio runtime");
+            kafka::create_topics(&mut topic_rt, config.clone(), &workload_components)
         }
     }
 
