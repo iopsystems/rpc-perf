@@ -14,9 +14,10 @@ struct MessageStamp {
     hash_builder: RandomState,
 }
 pub enum MessageValidationResult {
-    ValidatedMessage(u64),
-    UnexpectedMessage,
-    CorruptedMessage,
+    // u64 is the end-to-end latency in nanosecond)
+    Validated(u64),
+    Unexpected,
+    Corrupted,
 }
 impl MessageStamp {
     // Deterministic seeds are used so that multiple MessageStamp can stamp and validate messages
@@ -65,16 +66,16 @@ impl MessageStamp {
         if [v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7]]
             != [0x54, 0x45, 0x53, 0x54, 0x49, 0x4E, 0x47, 0x21]
         {
-            return MessageValidationResult::UnexpectedMessage;
+            return MessageValidationResult::Unexpected;
         }
         let csum = [v[8], v[9], v[10], v[11], v[12], v[13], v[14], v[15]];
         [v[8], v[9], v[10], v[11], v[12], v[13], v[14], v[15]] = [0; 8];
         if csum != self.hash_builder.hash_one(&v).to_be_bytes() {
-            return MessageValidationResult::CorruptedMessage;
+            return MessageValidationResult::Corrupted;
         }
         let ts = u64::from_be_bytes([v[16], v[17], v[18], v[19], v[20], v[21], v[22], v[23]]);
         let latency = now_unix - UnixInstant::from_nanos(ts);
-        MessageValidationResult::ValidatedMessage(latency.as_nanos())
+        MessageValidationResult::Validated(latency.as_nanos())
     }
 }
 

@@ -154,30 +154,27 @@ async fn subscriber_task(client: Arc<StreamConsumer>, topics: Vec<String>) {
     if client.subscribe(&sub_topics).is_ok() {
         PUBSUB_SUBSCRIBER_CURR.add(1);
         PUBSUB_SUBSCRIBE_OK.increment();
-
         let msg_stamp = MessageStamp::new();
-
         while RUNNING.load(Ordering::Relaxed) {
             match client.recv().await {
                 Ok(m) => match m.payload_view::<[u8]>() {
                     Some(Ok(m)) => {
                         let mut v = Vec::new();
                         v.extend_from_slice(m);
-
                         match msg_stamp.validate_msg(&mut v) {
-                            MessageValidationResult::UnexpectedMessage => {
+                            MessageValidationResult::Unexpected => {
                                 error!("pubsub: invalid message received");
                                 RESPONSE_EX.increment();
                                 PUBSUB_RECEIVE_INVALID.increment();
                                 continue;
                             }
-                            MessageValidationResult::CorruptedMessage => {
+                            MessageValidationResult::Corrupted => {
                                 error!("pubsub: corrupt message received");
                                 PUBSUB_RECEIVE.increment();
                                 PUBSUB_RECEIVE_CORRUPT.increment();
                                 continue;
                             }
-                            MessageValidationResult::ValidatedMessage(latency) => {
+                            MessageValidationResult::Validated(latency) => {
                                 let _ = PUBSUB_LATENCY.increment(latency);
                                 PUBSUB_RECEIVE.increment();
                                 PUBSUB_RECEIVE_OK.increment();
