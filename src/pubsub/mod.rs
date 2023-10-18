@@ -165,10 +165,10 @@ fn launch_subscribers(config: &Config, workload_components: &Vec<Component>) -> 
 
     match config.general().protocol() {
         Protocol::Momento => {
-            momento::launch_subscribers(&mut subscriber_rt, config.clone(), &workload_components);
+            momento::launch_subscribers(&mut subscriber_rt, config.clone(), workload_components);
         }
         Protocol::Kafka => {
-            kafka::launch_subscribers(&mut subscriber_rt, config.clone(), &workload_components);
+            kafka::launch_subscribers(&mut subscriber_rt, config.clone(), workload_components);
         }
         _ => {
             error!("pubsub is not supported for the selected protocol");

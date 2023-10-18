@@ -9,7 +9,7 @@ use tokio::time::timeout;
 pub fn launch_subscribers(
     runtime: &mut Runtime,
     config: Config,
-    workload_components: &Vec<Component>,
+    workload_components: &[Component],
 ) {
     debug!("launching momento subscriber tasks");
 
@@ -203,6 +203,7 @@ async fn publisher_task(
             } => {
                 msg_stamp.stamp_msg(&mut message);
                 PUBSUB_PUBLISH.increment();
+
                 match timeout(
                     config.pubsub().unwrap().publish_timeout(),
                     client.publish(cache_name.clone(), topic.to_string(), message),

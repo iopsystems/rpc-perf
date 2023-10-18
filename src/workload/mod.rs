@@ -399,7 +399,8 @@ impl Topics {
         let partitions = std::cmp::max(1, topics.partitions());
         let topiclen = topics.topic_len();
         let message_len = topics.message_len();
-        let key_len = topics.key_len();
+        // key_len must be >= 1
+        let key_len = std::cmp::max(1, topics.key_len());
         let subscriber_poolsize = topics.subscriber_poolsize();
         let subscriber_concurrency = topics.subscriber_concurrency();
         let topic_dist = match topics.topic_distribution() {
@@ -415,6 +416,7 @@ impl Topics {
             }
         };
         let topic_names: Vec<Arc<String>>;
+        // if the given topic_names has the matched format, we use topic names there
         if topics
             .topic_names()
             .iter()

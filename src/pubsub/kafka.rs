@@ -122,7 +122,7 @@ pub fn create_topics(runtime: &mut Runtime, config: Config, workload_components:
 pub fn launch_subscribers(
     runtime: &mut Runtime,
     config: Config,
-    workload_components: &Vec<Component>, /*  */
+    workload_components: &[Component],
 ) {
     let group_id = "rpc_subscriber";
     for component in workload_components {
