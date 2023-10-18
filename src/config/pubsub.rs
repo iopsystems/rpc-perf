@@ -8,8 +8,10 @@ pub struct Pubsub {
     publisher_threads: usize,
     // number of threads for subscriber tasks
     subscriber_threads: usize,
+
     publisher_poolsize: usize,
     publisher_concurrency: usize,
+
     // kafka specific configs
     kafka_acks: Option<String>,
     kafka_linger_ms: Option<String>,

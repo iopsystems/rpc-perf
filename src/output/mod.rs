@@ -139,7 +139,6 @@ fn pubsub_stats(snapshot: &mut MetricsSnapshot) {
     // publisher stats
     let pubsub_tx_ex = snapshot.counter_rate(PUBSUB_PUBLISH_EX_COUNTER);
     let pubsub_tx_ok = snapshot.counter_rate(PUBSUB_PUBLISH_OK_COUNTER);
-
     let pubsub_tx_timeout = snapshot.counter_rate(PUBSUB_PUBLISH_TIMEOUT_COUNTER);
     let pubsub_tx_total = snapshot.counter_rate(PUBSUB_PUBLISH_COUNTER);
 

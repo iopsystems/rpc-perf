@@ -56,9 +56,7 @@ pub struct Topics {
     message_len: usize,
     #[serde(default = "one")]
     key_len: usize,
-    #[serde(default = "one")]
     weight: usize,
-    #[serde(default = "one")]
     subscriber_poolsize: usize,
     #[serde(default = "one")]
     subscriber_concurrency: usize,

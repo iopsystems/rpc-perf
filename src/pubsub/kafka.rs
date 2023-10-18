@@ -30,7 +30,7 @@ fn get_kafka_producer(config: &Config) -> FutureProducer {
     if let Some(request_timeout_ms) = pubsub_config.kafka_request_timeout_ms() {
         client_config.set("request.timeout.ms", request_timeout_ms);
     }
-    return client_config.create().unwrap();
+    client_config.create().unwrap()
 }
 
 fn get_kafka_consumer(config: &Config, group_id: &str) -> StreamConsumer {
@@ -50,28 +50,27 @@ fn get_kafka_consumer(config: &Config, group_id: &str) -> StreamConsumer {
     if let Some(fetch_message_max_bytes) = pubsub_config.kafka_fetch_message_max_bytes() {
         client_config.set("fetch_message_max_bytes", fetch_message_max_bytes);
     }
-    return client_config.create().unwrap();
+    client_config.create().unwrap()
 }
 
 fn get_kafka_admin(config: &Config) -> AdminClient<DefaultClientContext> {
     let bootstrap_servers = config.target().endpoints().join(",");
-    let client = ClientConfig::new()
+    ClientConfig::new()
         .set("bootstrap.servers", &bootstrap_servers)
         .set("client.id", "rpcperf_admin")
         .create()
-        .unwrap();
-    return client;
+        .unwrap()
 }
 
 fn validate_topic(runtime: &mut Runtime, config: &Config, topic: &str, partitions: usize) {
     let _guard = runtime.enter();
-    let consumer_client = get_kafka_consumer(&config, "topic_validator");
+    let consumer_client = get_kafka_consumer(config, "topic_validator");
     let timeout = Some(Duration::from_secs(1));
     let metadata = consumer_client
         .fetch_metadata(Some(topic), timeout)
         .map_err(|e| e.to_string())
         .unwrap();
-    if metadata.topics().len() == 0 {
+    if metadata.topics().is_empty() {
         error!("Invalidated topic");
         std::process::exit(1);
     }
@@ -134,7 +133,7 @@ pub fn launch_subscribers(
             for _ in 0..poolsize {
                 let client = {
                     let _guard = runtime.enter();
-                    Arc::new(get_kafka_consumer(&config, &group_id))
+                    Arc::new(get_kafka_consumer(&config, group_id))
                 };
                 for _ in 0..concurrency {
                     let mut sub_topics: Vec<String> = Vec::new();
@@ -152,7 +151,7 @@ pub fn launch_subscribers(
 async fn subscriber_task(client: Arc<StreamConsumer>, topics: Vec<String>) {
     PUBSUB_SUBSCRIBE.increment();
     let sub_topics: Vec<&str> = topics.iter().map(AsRef::as_ref).collect();
-    if let Ok(_) = client.subscribe(&sub_topics) {
+    if client.subscribe(&sub_topics).is_ok() {
         PUBSUB_SUBSCRIBER_CURR.add(1);
         PUBSUB_SUBSCRIBE_OK.increment();
 

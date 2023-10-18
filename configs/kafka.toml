@@ -81,4 +81,3 @@ partitions = 10
 message_len = 512
 # sets the key length, in bytes
 key_len = 8
-
