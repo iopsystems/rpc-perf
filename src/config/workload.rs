@@ -3,8 +3,9 @@ use super::*;
 fn one() -> usize {
     1
 }
-fn four() -> usize {
-    4
+
+fn empty_names() -> Vec<String> {
+    Vec::new()
 }
 
 #[derive(Clone, Deserialize)]
@@ -50,8 +51,10 @@ pub struct Topics {
     #[serde(default = "one")]
     partitions: usize,
     topic_len: usize,
+    #[serde(default = "empty_names")]
+    topic_names: Vec<String>,
     message_len: usize,
-    #[serde(default = "four")]
+    #[serde(default = "one")]
     key_len: usize,
     #[serde(default = "one")]
     weight: usize,
@@ -76,6 +79,10 @@ impl Topics {
 
     pub fn topics(&self) -> usize {
         self.topics
+    }
+
+    pub fn topic_names(&self) -> &[String] {
+        &self.topic_names
     }
 
     pub fn topic_len(&self) -> usize {

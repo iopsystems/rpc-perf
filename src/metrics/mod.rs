@@ -591,9 +591,9 @@ request!(SORTED_SET_SCORE, "sorted_set_score");
 
 counter!(PUBSUB_PUBLISH, "publisher/publish/total");
 counter!(PUBSUB_PUBLISH_OK, "publisher/publish/ok");
-counter!(PUBSUB_PUBLISH_EX, "publisher/publish/exception");
-counter!(PUBSUB_PUBLISH_TIMEOUT, "publisher/publish/timeout");
+counter!(PUBSUB_PUBLISH_EX, "publisher/publish/ex");
 counter!(PUBSUB_PUBLISH_RATELIMITED, "publisher/publish/ratelimiter");
+counter!(PUBSUB_PUBLISH_TIMEOUT, "publisher/publish/timeout");
 
 request!(PUBSUB_SUBSCRIBE, "subscriber/subscribe");
 

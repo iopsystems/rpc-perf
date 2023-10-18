@@ -41,18 +41,18 @@ endpoints = [
 connect_timeout = 10000
 publish_timeout = 1000
 # the number of threads in the publisher runtime
-publisher_threads = 4
+publisher_threads = 20
+publisher_poolsize = 1
+publisher_concurrency = 20
 # the number of threads in the subscriber runtime
 subscriber_threads = 4
-publisher_poolsize = 1
-publisher_concurrency = 1
 
 
 [workload]
 # the number of threads that will be used to generate requests
 threads = 1
 # the global ratelimit
-ratelimit = 100
+ratelimit = 1000
 
 # An example set of
 #topics using a single consumer multiple producer.
@@ -65,12 +65,14 @@ subscriber_poolsize = 1
 subscriber_concurrency = 1
 # sets the number of topics
 topics = 1
+# set the length of the topic names, in bytes
+topic_len = 5
+# set the topic names, if empty or the length and the number do not match topics and topic_len, generate random names
+topic_names = ["hello"]
 # sets the number of partitions in each topic
 partitions = 10
-# set the length of the topic names, in bytes
-topic_len = 10
 # sets the value length, in bytes
-message_len = 128
+message_len = 512
 # sets the key length, in bytes
-key_len = 4
+key_len = 8
 

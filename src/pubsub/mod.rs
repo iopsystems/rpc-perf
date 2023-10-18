@@ -4,7 +4,6 @@ use crate::workload::PublisherWorkItem as WorkItem;
 use crate::*;
 use ahash::RandomState;
 use async_channel::Receiver;
-use clocksource::Nanoseconds;
 use std::io::{Error, ErrorKind, Result};
 use tokio::runtime::Runtime;
 
@@ -14,8 +13,8 @@ mod momento;
 struct MessageStamp {
     hash_builder: RandomState,
 }
-pub enum MessageValidator {
-    ValidatedMessage(clocksource::Duration<Nanoseconds<u64>>, Instant),
+pub enum MessageValidationResult {
+    ValidatedMessage(u64),
     UnexpectedMessage,
     CorruptedMessage,
 }
@@ -31,7 +30,7 @@ impl MessageStamp {
             ),
         }
     }
-    pub fn stamp_msg(&self, message: &mut Vec<u8>) -> u64 {
+    pub fn stamp_msg(&self, message: &mut [u8]) -> u64 {
         let timestamp = (UnixInstant::now() - UnixInstant::from_nanos(0)).as_nanos();
         let ts = timestamp.to_be_bytes();
         // write the current unix time into the message
@@ -61,24 +60,21 @@ impl MessageStamp {
         ] = self.hash_builder.hash_one(&message).to_be_bytes();
         timestamp
     }
-    pub fn validate_msg(&self, v: &mut Vec<u8>) -> MessageValidator {
-        let now = Instant::now();
+    pub fn validate_msg(&self, v: &mut Vec<u8>) -> MessageValidationResult {
         let now_unix = UnixInstant::now();
         if [v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7]]
             != [0x54, 0x45, 0x53, 0x54, 0x49, 0x4E, 0x47, 0x21]
         {
-            return MessageValidator::UnexpectedMessage;
+            return MessageValidationResult::UnexpectedMessage;
         }
         let csum = [v[8], v[9], v[10], v[11], v[12], v[13], v[14], v[15]];
         [v[8], v[9], v[10], v[11], v[12], v[13], v[14], v[15]] = [0; 8];
         if csum != self.hash_builder.hash_one(&v).to_be_bytes() {
-            return MessageValidator::CorruptedMessage;
+            return MessageValidationResult::CorruptedMessage;
         }
         let ts = u64::from_be_bytes([v[16], v[17], v[18], v[19], v[20], v[21], v[22], v[23]]);
-
         let latency = now_unix - UnixInstant::from_nanos(ts);
-        let then = now - latency;
-        MessageValidator::ValidatedMessage(latency, then)
+        MessageValidationResult::ValidatedMessage(latency.as_nanos())
     }
 }
 
@@ -118,8 +114,8 @@ pub fn launch_pubsub(
     }
 
     PubsubRuntimes {
-        subscriber_rt: launch_subscribers(config, &workload_components),
         publisher_rt: launch_publishers(config, work_receiver),
+        subscriber_rt: launch_subscribers(config, &workload_components),
     }
 }
 

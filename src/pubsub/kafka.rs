@@ -11,10 +11,12 @@ use std::sync::Arc;
 fn get_kafka_producer(config: &Config) -> FutureProducer {
     let bootstrap_servers = config.target().endpoints().join(",");
     let timeout = format!("{}", config.pubsub().unwrap().publish_timeout().as_millis());
-    // initialize the Momento topic client
     let client = ClientConfig::new()
         .set("bootstrap.servers", &bootstrap_servers)
         .set("message.timeout.ms", timeout)
+        .set("acks", "1")
+        .set("linger.ms", "1")
+        .set("batch.size", "131072")
         .set("client.id", "rpcperf_publisher")
         .create()
         .unwrap();
@@ -23,7 +25,6 @@ fn get_kafka_producer(config: &Config) -> FutureProducer {
 
 fn get_kafka_consumer(config: &Config, group_id: &str) -> StreamConsumer {
     let bootstrap_servers = config.target().endpoints().join(",");
-    // initialize the Momento topic client
     let client = ClientConfig::new()
         .set("bootstrap.servers", &bootstrap_servers)
         .set("group.id", group_id)
@@ -41,18 +42,16 @@ fn get_kafka_consumer(config: &Config, group_id: &str) -> StreamConsumer {
 
 fn get_kafka_admin(config: &Config) -> AdminClient<DefaultClientContext> {
     let bootstrap_servers = config.target().endpoints().join(",");
-    let timeout = format!("{}", config.pubsub().unwrap().publish_timeout().as_millis());
-    // initialize the Momento topic client
     let client = ClientConfig::new()
         .set("bootstrap.servers", &bootstrap_servers)
-        .set("message.timeout.ms", timeout)
         .set("client.id", "rpcperf_admin")
         .create()
         .unwrap();
     return client;
 }
 
-fn validate_partition(config: &Config, topic: &str, partitions: usize) {
+fn validate_topic(runtime: &mut Runtime, config: &Config, topic: &str, partitions: usize) {
+    let _guard = runtime.enter();
     let consumer_client = get_kafka_consumer(&config, "topic_validator");
     let timeout = Some(Duration::from_secs(1));
     let metadata = consumer_client
@@ -74,12 +73,10 @@ fn validate_partition(config: &Config, topic: &str, partitions: usize) {
 }
 
 pub fn create_topics(runtime: &mut Runtime, config: Config, workload_components: &Vec<Component>) {
-    debug!("Create Kafka topics");
     let admin_client = get_kafka_admin(&config);
     for component in workload_components {
         if let Component::Topics(topics) = component {
             let partitions = topics.partitions();
-            //let admin_client: AdminClient<_> = consumer_config("create_topic", &bootstrap_servers, None).create().unwrap();
             for topic in topics.topics() {
                 let topic_results = runtime
                     .block_on(admin_client.create_topics(
@@ -93,13 +90,10 @@ pub fn create_topics(runtime: &mut Runtime, config: Config, workload_components:
                     .unwrap();
                 for r in topic_results {
                     match r {
-                        Ok(ret) => {
-                            debug!("Created topic {} returns {}", topic, ret);
-                        }
+                        Ok(_) => {}
                         Err(err) => {
                             if err.1 == TopicAlreadyExists {
-                                validate_partition(&config, topic, partitions);
-                                debug!("Topic {} exists and has {} partitions", topic, partitions);
+                                validate_topic(runtime, &config, topic, partitions);
                             } else {
                                 error!("Failed to create the topic {}:{} ", err.0, err.1);
                                 std::process::exit(1);
@@ -110,7 +104,6 @@ pub fn create_topics(runtime: &mut Runtime, config: Config, workload_components:
             }
         }
     }
-    debug!("Created Kafka topics");
 }
 
 /// Launch tasks with one channel per task as Kafka connection is mux-enabled.
@@ -119,7 +112,6 @@ pub fn launch_subscribers(
     config: Config,
     workload_components: &Vec<Component>, /*  */
 ) {
-    debug!("launching Kafka subscriber tasks");
     let group_id = "rpc_subscriber";
     for component in workload_components {
         if let Component::Topics(topics) = component {
@@ -147,9 +139,7 @@ pub fn launch_subscribers(
 async fn subscriber_task(client: Arc<StreamConsumer>, topics: Vec<String>) {
     PUBSUB_SUBSCRIBE.increment();
     let sub_topics: Vec<&str> = topics.iter().map(AsRef::as_ref).collect();
-    debug!("Subscribe to topics {:?}", sub_topics);
     if let Ok(_) = client.subscribe(&sub_topics) {
-        debug!("Subscribed to topic {:?}", topics);
         PUBSUB_SUBSCRIBER_CURR.add(1);
         PUBSUB_SUBSCRIBE_OK.increment();
 
@@ -157,51 +147,42 @@ async fn subscriber_task(client: Arc<StreamConsumer>, topics: Vec<String>) {
 
         while RUNNING.load(Ordering::Relaxed) {
             match client.recv().await {
-                Ok(m) => {
-                    match m.payload_view::<[u8]>() {
-                        Some(Ok(m)) => {
-                            let mut v = Vec::new();
-                            v.extend_from_slice(m);
+                Ok(m) => match m.payload_view::<[u8]>() {
+                    Some(Ok(m)) => {
+                        let mut v = Vec::new();
+                        v.extend_from_slice(m);
 
-                            match msg_stamp.validate_msg(&mut v) {
-                                MessageValidator::UnexpectedMessage => {
-                                    error!("pubsub: invalid message received");
-                                    RESPONSE_EX.increment();
-                                    PUBSUB_RECEIVE_INVALID.increment();
-                                    continue;
-                                }
-                                MessageValidator::CorruptedMessage => {
-                                    error!("pubsub: corrupt message received");
-                                    PUBSUB_RECEIVE.increment();
-                                    PUBSUB_RECEIVE_CORRUPT.increment();
-                                    continue;
-                                }
-                                MessageValidator::ValidatedMessage(latency, then) => {
-                                    let _ = PUBSUB_LATENCY.increment(latency.as_nanos());
-                                    debug!(
-                                        "Recive one message with latency:{:?} and then:{:?}",
-                                        latency, then
-                                    );
-
-                                    PUBSUB_RECEIVE.increment();
-                                    PUBSUB_RECEIVE_OK.increment();
-                                }
+                        match msg_stamp.validate_msg(&mut v) {
+                            MessageValidationResult::UnexpectedMessage => {
+                                error!("pubsub: invalid message received");
+                                RESPONSE_EX.increment();
+                                PUBSUB_RECEIVE_INVALID.increment();
+                                continue;
+                            }
+                            MessageValidationResult::CorruptedMessage => {
+                                error!("pubsub: corrupt message received");
+                                PUBSUB_RECEIVE.increment();
+                                PUBSUB_RECEIVE_CORRUPT.increment();
+                                continue;
+                            }
+                            MessageValidationResult::ValidatedMessage(latency) => {
+                                let _ = PUBSUB_LATENCY.increment(latency);
+                                PUBSUB_RECEIVE.increment();
+                                PUBSUB_RECEIVE_OK.increment();
                             }
                         }
-                        Some(Err(e)) => {
-                            debug!("Error in deserializing the message:{:?}", e);
-                            // unexpected message
-                            PUBSUB_RECEIVE.increment();
-                            PUBSUB_RECEIVE_EX.increment();
-                        }
-                        None => {
-                            debug!("Empty Message");
-                            // unexpected message
-                            PUBSUB_RECEIVE.increment();
-                            PUBSUB_RECEIVE_EX.increment();
-                        }
                     }
-                }
+                    Some(Err(e)) => {
+                        error!("Error in deserializing the message:{:?}", e);
+                        PUBSUB_RECEIVE.increment();
+                        PUBSUB_RECEIVE_EX.increment();
+                    }
+                    None => {
+                        error!("Empty Message");
+                        PUBSUB_RECEIVE.increment();
+                        PUBSUB_RECEIVE_EX.increment();
+                    }
+                },
                 Err(e) => {
                     debug!("Kafka Message Error {}", e);
                     PUBSUB_RECEIVE.increment();
@@ -210,22 +191,19 @@ async fn subscriber_task(client: Arc<StreamConsumer>, topics: Vec<String>) {
             }
         }
     } else {
-        debug!("Failed to create subscriber");
+        error!("Failed to create subscriber");
         PUBSUB_SUBSCRIBE_EX.increment();
     }
 }
 
-/// Launch tasks with one channel per task as gRPC is mux-enabled.
+/// Launch tasks with one channel per task as Kafka connection is mux-enabled.
 pub fn launch_publishers(runtime: &mut Runtime, config: Config, work_receiver: Receiver<WorkItem>) {
-    debug!("launching Kafka protocol publishers");
-    //?    let _guard = runtime.enter();
     for _ in 0..config.pubsub().unwrap().publisher_poolsize() {
         let client = {
             let _guard = runtime.enter();
             Arc::new(get_kafka_producer(&config))
         };
         PUBSUB_PUBLISHER_CONNECT.increment();
-
         for _ in 0..config.pubsub().unwrap().publisher_concurrency() {
             runtime.spawn(publisher_task(client.clone(), work_receiver.clone()));
         }
@@ -237,15 +215,12 @@ async fn publisher_task(
     work_receiver: Receiver<WorkItem>,
 ) -> Result<()> {
     PUBSUB_PUBLISHER_CURR.add(1);
-    debug!("Producer started");
     let msg_stamp = MessageStamp::new();
-
     while RUNNING.load(Ordering::Relaxed) {
         let work_item = work_receiver
             .recv()
             .await
             .map_err(|_| Error::new(ErrorKind::Other, "channel closed"))?;
-
         REQUEST.increment();
         let start = Instant::now();
         let result = match work_item {
@@ -272,16 +247,12 @@ async fn publisher_task(
                     .await
             }
         };
-
         let stop = Instant::now();
-
         match result {
-            Ok(a) => {
+            Ok(_) => {
                 let latency = stop.duration_since(start).as_nanos();
-
                 PUBSUB_PUBLISH_OK.increment();
                 let _ = PUBSUB_PUBLISH_LATENCY.increment(latency);
-                debug!("One producing request {} {:?}", latency, a);
             }
             Err(e) => {
                 debug!("Error in producing: {:?}", e);
@@ -289,8 +260,6 @@ async fn publisher_task(
             }
         }
     }
-
     PUBSUB_PUBLISHER_CURR.sub(1);
-
     Ok(())
 }

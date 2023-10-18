@@ -8,7 +8,6 @@ pub struct Pubsub {
     publisher_threads: usize,
     // number of threads for subscriber tasks
     subscriber_threads: usize,
-
     publisher_poolsize: usize,
     publisher_concurrency: usize,
 }
