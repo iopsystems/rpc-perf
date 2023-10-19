@@ -81,7 +81,7 @@ impl MessageValidator {
         }
 
         // calculate and return the end to end latency
-        let ts = u64::from_be_bytes([v[16], v[17], v[18], v[19], v[20], v[21], v[22], v[23]]);
+        let ts = u64::from_be_bytes(v[16..24].try_into().unwrap());
         let latency = now_unix.duration_since(UNIX_EPOCH).unwrap().as_nanos() as u64 - ts;
 
         let _ = PUBSUB_LATENCY.increment(latency);

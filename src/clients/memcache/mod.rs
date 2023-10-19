@@ -109,7 +109,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
             let remaining_time = client_config
                 .request_timeout()
                 .as_millis()
-                .saturating_sub(start.elapsed().as_millis().into());
+                .saturating_sub(start.elapsed().as_millis());
             if remaining_time == 0 {
                 break Err(ResponseError::Timeout);
             }
