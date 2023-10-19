@@ -1,4 +1,3 @@
-use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use crate::clients::*;
 use crate::workload::Component;
 use crate::workload::PublisherWorkItem as WorkItem;
@@ -6,6 +5,7 @@ use crate::*;
 use ahash::RandomState;
 use async_channel::Receiver;
 use std::io::{Error, ErrorKind, Result};
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use tokio::runtime::Runtime;
 
 mod kafka;
@@ -40,7 +40,10 @@ impl MessageValidator {
 
     /// Sets the checksum and timestamp in the message. Returns the timestamp.
     pub fn stamp(&self, message: &mut [u8]) -> u64 {
-        let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos() as u64;
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos() as u64;
         let ts = timestamp.to_be_bytes();
 
         // write the current unix time into the message
