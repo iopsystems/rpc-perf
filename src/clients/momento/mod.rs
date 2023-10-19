@@ -170,7 +170,7 @@ async fn task(
             Ok(_) => {
                 RESPONSE_OK.increment();
 
-                let latency = stop.duration_since(start).as_nanos();
+                let latency = stop.duration_since(start).as_nanos() as u64;
 
                 let _ = RESPONSE_LATENCY.increment(latency);
             }

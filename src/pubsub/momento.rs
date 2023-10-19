@@ -3,6 +3,7 @@ use ::momento::preview::topics::{SubscriptionItem, TopicClient, ValueKind};
 use ::momento::CredentialProviderBuilder;
 use futures::stream::StreamExt;
 use std::sync::Arc;
+use std::time::Instant;
 use tokio::time::timeout;
 
 /// Launch tasks with one channel per task as gRPC is mux-enabled.
@@ -184,6 +185,7 @@ async fn publisher_task(
                 key: _,
             } => {
                 validator.stamp(&mut message);
+
                 PUBSUB_PUBLISH.increment();
 
                 match timeout(
@@ -206,7 +208,7 @@ async fn publisher_task(
 
         match result {
             Ok(_) => {
-                let latency = stop.duration_since(start).as_nanos();
+                let latency = stop.duration_since(start).as_nanos() as u64;
 
                 PUBSUB_PUBLISH_OK.increment();
                 let _ = PUBSUB_PUBLISH_LATENCY.increment(latency);

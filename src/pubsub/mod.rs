@@ -5,6 +5,7 @@ use crate::*;
 use ahash::RandomState;
 use async_channel::Receiver;
 use std::io::{Error, ErrorKind, Result};
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use tokio::runtime::Runtime;
 
 mod kafka;
@@ -39,7 +40,10 @@ impl MessageValidator {
 
     /// Sets the checksum and timestamp in the message. Returns the timestamp.
     pub fn stamp(&self, message: &mut [u8]) -> u64 {
-        let timestamp = (UnixInstant::now() - UnixInstant::from_nanos(0)).as_nanos();
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos() as u64;
         let ts = timestamp.to_be_bytes();
 
         // write the current unix time into the message
@@ -56,7 +60,7 @@ impl MessageValidator {
 
     /// Validate the message checksum and returns a validation result.
     pub fn validate(&self, v: &mut Vec<u8>) -> std::result::Result<u64, ValidationError> {
-        let now_unix = UnixInstant::now();
+        let now_unix = SystemTime::now();
 
         // check if the magic bytes match
         if v[0..8] != [0x54, 0x45, 0x53, 0x54, 0x49, 0x4E, 0x47, 0x21] {
@@ -77,14 +81,14 @@ impl MessageValidator {
         }
 
         // calculate and return the end to end latency
-        let ts = u64::from_be_bytes([v[16], v[17], v[18], v[19], v[20], v[21], v[22], v[23]]);
-        let latency = now_unix - UnixInstant::from_nanos(ts);
+        let ts = u64::from_be_bytes(v[16..24].try_into().unwrap());
+        let latency = now_unix.duration_since(UNIX_EPOCH).unwrap().as_nanos() as u64 - ts;
 
-        let _ = PUBSUB_LATENCY.increment(latency.as_nanos());
+        let _ = PUBSUB_LATENCY.increment(latency);
         PUBSUB_RECEIVE.increment();
         PUBSUB_RECEIVE_OK.increment();
 
-        Ok(latency.as_nanos())
+        Ok(latency)
     }
 }
 

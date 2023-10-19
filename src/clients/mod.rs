@@ -4,6 +4,7 @@ use crate::*;
 use ::momento::MomentoError;
 use async_channel::Receiver;
 use std::io::{Error, ErrorKind, Result};
+use std::time::Instant;
 use tokio::io::*;
 use tokio::runtime::Runtime;
 use tokio::time::{timeout, Duration};

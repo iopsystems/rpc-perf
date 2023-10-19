@@ -5,12 +5,12 @@ use async_channel::{bounded, Sender};
 use backtrace::Backtrace;
 use clap::{Arg, Command};
 use core::sync::atomic::{AtomicBool, Ordering};
-use core::time::Duration;
 use metriken::{AtomicHistogram, Counter, Gauge};
 use once_cell::sync::Lazy;
 use ringlog::*;
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::runtime::Builder;
 use tokio::sync::RwLock;
 use tokio::time::sleep;
@@ -26,9 +26,6 @@ mod workload;
 
 use config::*;
 use metrics::*;
-
-type Instant = clocksource::Instant<clocksource::Nanoseconds<u64>>;
-type UnixInstant = clocksource::UnixInstant<clocksource::Nanoseconds<u64>>;
 
 static RUNNING: AtomicBool = AtomicBool::new(true);
 
@@ -112,7 +109,6 @@ fn main() {
     // spawn logging thread
     control_runtime.spawn(async move {
         while RUNNING.load(Ordering::Relaxed) {
-            clocksource::refresh_clock();
             sleep(Duration::from_millis(1)).await;
             let _ = log.flush();
         }

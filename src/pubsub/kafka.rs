@@ -252,7 +252,7 @@ async fn publisher_task(
 
         match result {
             Ok(_) => {
-                let latency = stop.duration_since(start).as_nanos();
+                let latency = stop.duration_since(start).as_nanos() as u64;
                 PUBSUB_PUBLISH_OK.increment();
                 let _ = PUBSUB_PUBLISH_LATENCY.increment(latency);
             }

@@ -36,7 +36,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
         if session.is_none() {
             if session_requests != 0 {
                 let stop = Instant::now();
-                let lifecycle_ns = (stop - session_start).as_nanos();
+                let lifecycle_ns = (stop - session_start).as_nanos() as u64;
                 let _ = SESSION_LIFECYCLE_REQUESTS.increment(lifecycle_ns);
             }
             CONNECT.increment();
@@ -166,7 +166,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
 
                 RESPONSE_OK.increment();
 
-                let latency = stop.duration_since(start).as_nanos();
+                let latency = stop.duration_since(start).as_nanos() as u64;
 
                 let _ = RESPONSE_LATENCY.increment(latency);
 
