@@ -11,6 +11,14 @@ pub struct Pubsub {
 
     publisher_poolsize: usize,
     publisher_concurrency: usize,
+
+    // kafka specific configs
+    kafka_acks: Option<String>,
+    kafka_linger_ms: Option<String>,
+    kafka_batch_size: Option<String>,
+    kafka_batch_num_messages: Option<String>,
+    kafka_fetch_message_max_bytes: Option<String>,
+    kafka_request_timeout_ms: Option<String>,
 }
 
 impl Pubsub {
@@ -32,5 +40,29 @@ impl Pubsub {
 
     pub fn publisher_concurrency(&self) -> usize {
         self.publisher_concurrency
+    }
+
+    pub fn kafka_acks(&self) -> &Option<String> {
+        &self.kafka_acks
+    }
+
+    pub fn kafka_linger_ms(&self) -> &Option<String> {
+        &self.kafka_linger_ms
+    }
+
+    pub fn kafka_batch_size(&self) -> &Option<String> {
+        &self.kafka_batch_size
+    }
+
+    pub fn kafka_batch_num_messages(&self) -> &Option<String> {
+        &self.kafka_batch_num_messages
+    }
+
+    pub fn kafka_fetch_message_max_bytes(&self) -> &Option<String> {
+        &self.kafka_fetch_message_max_bytes
+    }
+
+    pub fn kafka_request_timeout_ms(&self) -> &Option<String> {
+        &self.kafka_request_timeout_ms
     }
 }

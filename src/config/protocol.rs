@@ -9,4 +9,5 @@ pub enum Protocol {
     Momento,
     Ping,
     Resp,
+    Kafka,
 }

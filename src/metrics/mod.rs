@@ -316,7 +316,7 @@ macro_rules! request {
         });
         paste! {
             #[allow(dead_code)]
-            pub static [<$ident _COUNTER>]: &'static str = $name;
+            pub static [<$ident _COUNTER>]: &'static str = concat!($name, "/total");
         }
 
         paste! {
@@ -330,7 +330,7 @@ macro_rules! request {
             });
             paste! {
                 #[allow(dead_code)]
-                pub static [<$ident _EX_COUNTER>]: &'static str = $name;
+                pub static [<$ident _EX_COUNTER>]: &'static str = concat!($name, "/exception");
             }   
         }
 
@@ -345,7 +345,7 @@ macro_rules! request {
             });
             paste! {
                 #[allow(dead_code)]
-                pub static [<$ident _OK_COUNTER>]: &'static str = $name;
+                pub static [<$ident _OK_COUNTER>]: &'static str = concat!($name, "/ok");
             }
         }
 
@@ -360,7 +360,7 @@ macro_rules! request {
             });
             paste! {
                 #[allow(dead_code)]
-                pub static [<$ident _TIMEOUT_COUNTER>]: &'static str = $name;
+                pub static [<$ident _TIMEOUT_COUNTER>]: &'static str = concat!($name, "/timeout");
             }
         }
     }
