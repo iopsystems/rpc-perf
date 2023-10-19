@@ -589,7 +589,7 @@ request!(SORTED_SET_SCORE, "sorted_set_score");
  * PUBSUB
  */
 
-request!(PUBSUB_PUBLISH, "publisher/publish/total");
+request!(PUBSUB_PUBLISH, "publisher/publish");
 counter!(PUBSUB_PUBLISH_RATELIMITED, "publisher/publish/ratelimiter");
 
 request!(PUBSUB_SUBSCRIBE, "subscriber/subscribe");
