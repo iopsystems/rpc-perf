@@ -163,9 +163,7 @@ async fn subscriber_task(client: Arc<StreamConsumer>, topics: Vec<String>) {
             match client.recv().await {
                 Ok(message) => match message.payload_view::<[u8]>() {
                     Some(Ok(message)) => {
-                        let mut message = message.to_owned();
-
-                        match validator.validate(&mut message) {
+                        match validator.validate(&mut message.to_owned()) {
                             Err(ValidationError::Unexpected) => {
                                 error!("pubsub: invalid message received");
                                 RESPONSE_EX.increment();
