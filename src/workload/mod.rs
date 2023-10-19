@@ -150,16 +150,24 @@ impl Generator {
     }
 
     fn generate_pubsub(&self, topics: &Topics, rng: &mut dyn RngCore) -> PublisherWorkItem {
-        let index = topics.topic_dist.sample(rng);
-        let topic = topics.topics[index].clone();
+        let topic_index = topics.topic_dist.sample(rng);
+        let topic = topics.topics[topic_index].clone();
+        let partition = topics.partition_dist.sample(rng);
 
         let mut m = vec![0_u8; topics.message_len];
         // add a header
         [m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7]] =
             [0x54, 0x45, 0x53, 0x54, 0x49, 0x4E, 0x47, 0x21];
         rng.fill(&mut m[32..topics.message_len]);
+        let mut k = vec![0_u8; topics.key_len];
+        rng.fill(&mut k[0..topics.key_len]);
 
-        PublisherWorkItem::Publish { topic, message: m }
+        PublisherWorkItem::Publish {
+            topic,
+            partition,
+            key: k,
+            message: m,
+        }
     }
 
     fn generate_request(&self, keyspace: &Keyspace, rng: &mut dyn RngCore) -> ClientWorkItem {
@@ -374,7 +382,10 @@ pub enum Component {
 #[derive(Clone)]
 pub struct Topics {
     topics: Vec<Arc<String>>,
+    partitions: usize,
     topic_dist: Distribution,
+    partition_dist: Distribution,
+    key_len: usize,
     message_len: usize,
     subscriber_poolsize: usize,
     subscriber_concurrency: usize,
@@ -384,8 +395,12 @@ impl Topics {
     pub fn new(config: &Config, topics: &config::Topics) -> Self {
         // ntopics must be >= 1
         let ntopics = std::cmp::max(1, topics.topics());
+        // partitions must be >= 1
+        let partitions = std::cmp::max(1, topics.partitions());
         let topiclen = topics.topic_len();
         let message_len = topics.message_len();
+        // key_len must be >= 1
+        let key_len = std::cmp::max(1, topics.key_len());
         let subscriber_poolsize = topics.subscriber_poolsize();
         let subscriber_concurrency = topics.subscriber_concurrency();
         let topic_dist = match topics.topic_distribution() {
@@ -394,30 +409,50 @@ impl Topics {
                 Distribution::Zipf(ZipfDistribution::new(ntopics, 1.0).unwrap())
             }
         };
-
-        // initialize a PRNG with the default initial seed
-        let mut rng = Xoshiro512PlusPlus::from_seed(config.general().initial_seed());
-
-        // generate the seed for topic name PRNG
-        let mut raw_seed = [0_u8; 64];
-        rng.fill_bytes(&mut raw_seed);
-        let topic_name_seed = Seed512(raw_seed);
-
-        // initialize topic name PRNG and generate a set of unique topics
-        let mut rng = Xoshiro512PlusPlus::from_seed(topic_name_seed);
-        let mut topics = HashSet::with_capacity(ntopics);
-        while topics.len() < ntopics {
-            let topic = (&mut rng)
-                .sample_iter(&Alphanumeric)
-                .take(topiclen)
-                .collect::<Vec<u8>>();
-            let _ = topics.insert(unsafe { std::str::from_utf8_unchecked(&topic) }.to_string());
+        let partition_dist = match topics.partition_distribution() {
+            config::Distribution::Uniform => Distribution::Uniform(Uniform::new(0, partitions)),
+            config::Distribution::Zipf => {
+                Distribution::Zipf(ZipfDistribution::new(partitions, 1.0).unwrap())
+            }
+        };
+        let topic_names: Vec<Arc<String>>;
+        // if the given topic_names has the matched format, we use topic names there
+        if topics
+            .topic_names()
+            .iter()
+            .map(|n| n.len() == topiclen)
+            .fold(topics.topic_names().len() == ntopics, |acc, c| acc && c)
+        {
+            topic_names = topics
+                .topic_names()
+                .iter()
+                .map(|k| Arc::new((*k).clone()))
+                .collect();
+            debug!("Use given topic names:{:?}", topic_names);
+        } else {
+            // initialize topic name PRNG and generate a set of unique topics
+            let mut rng = Xoshiro512PlusPlus::from_seed(config.general().initial_seed());
+            let mut raw_seed = [0_u8; 64];
+            rng.fill_bytes(&mut raw_seed);
+            let topic_name_seed = Seed512(raw_seed);
+            let mut rng = Xoshiro512PlusPlus::from_seed(topic_name_seed);
+            let mut topics = HashSet::with_capacity(ntopics);
+            while topics.len() < ntopics {
+                let topic = (&mut rng)
+                    .sample_iter(&Alphanumeric)
+                    .take(topiclen)
+                    .collect::<Vec<u8>>();
+                let _ = topics.insert(unsafe { std::str::from_utf8_unchecked(&topic) }.to_string());
+            }
+            topic_names = topics.drain().map(|k| k.into()).collect();
         }
-        let topics = topics.drain().map(|k| k.into()).collect();
 
         Self {
-            topics,
+            topics: topic_names,
+            partitions,
             topic_dist,
+            partition_dist,
+            key_len,
             message_len,
             subscriber_poolsize,
             subscriber_concurrency,
@@ -426,6 +461,10 @@ impl Topics {
 
     pub fn topics(&self) -> &[Arc<String>] {
         &self.topics
+    }
+
+    pub fn partitions(&self) -> usize {
+        self.partitions
     }
 
     pub fn subscriber_poolsize(&self) -> usize {

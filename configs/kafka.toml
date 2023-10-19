@@ -1,0 +1,83 @@
+# An example configuration for benchmarking Momento (https://www.gomomento.com)
+# and demonstrating the use of the preview functionality for collections. Each
+# command family is using its own keyspace and covers key-value, hash, list,
+# set, and sorted set.
+
+[general]
+# specify the protocol to be used
+protocol = "kafka"
+# the interval for stats integration and reporting
+interval = 1
+# the number of intervals to run the test for
+duration = 300
+# optionally, we can write some detailed stats to a file during the run
+#json_output = "stats.json"
+# run the admin thread with a HTTP listener at the address provided, this allows
+# stats exposition via HTTP
+admin = "127.0.0.1:9090"
+# optionally, set an initial seed for the PRNGs used to generate the workload.
+# The default is to intialize from the OS entropy pool.
+#initial_seed = "0"
+
+[debug]
+# choose from: error, warn, info, debug, trace
+log_level = "error"
+# optionally, log to the file below instead of standard out
+# log_file = "rpc-perf.log"
+# backup file name for use with log rotation
+log_backup = "rpc-perf.log.old"
+# trigger log rotation when the file grows beyond this size (in bytes). Set this
+# option to '0' to disable log rotation.
+log_max_size = 1073741824
+
+[target]
+# kafka broker ip:port
+endpoints = [
+  "127.0.0.1:9092"
+]
+
+[pubsub]
+# TODO the connect timeout in milliseconds
+connect_timeout = 10000
+publish_timeout = 1000
+# the number of threads in the publisher runtime
+publisher_threads = 4
+publisher_poolsize = 1
+publisher_concurrency = 20
+# the number of threads in the subscriber runtime
+subscriber_threads = 4
+# kafka-specific client configurations
+kafka_acks = "1"
+kafka_linger_ms = "1"
+#kafka_batch_size
+#kafka_batch_num_messages
+#kafka_fetch_message_max_bytes
+#kafka_request_timeout_ms
+
+[workload]
+# the number of threads that will be used to generate requests
+threads = 1
+# the global ratelimit
+ratelimit = 1000
+
+# An example set of
+#topics using a single consumer multiple producer.
+[[workload.topics]]
+# the weight relative to other workload components
+weight = 1
+# the total number of Momento clients for subscribers to this set of topics
+subscriber_poolsize = 1
+# the total number of gRPC sessions per Momento client for this set of topics
+subscriber_concurrency = 1
+# sets the number of topics
+topics = 1
+# set the length of the topic names, in bytes
+topic_len = 5
+# set the topic names, if empty or the length and the number do not match topics and topic_len, generate random names
+topic_names = ["hello"]
+# sets the number of partitions in each topic
+partitions = 10
+# sets the value length, in bytes
+message_len = 512
+# sets the key length, in bytes
+key_len = 8

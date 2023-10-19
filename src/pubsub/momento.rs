@@ -1,17 +1,16 @@
 use super::*;
 use ::momento::preview::topics::{SubscriptionItem, TopicClient, ValueKind};
 use ::momento::CredentialProviderBuilder;
-use ahash::RandomState;
 use futures::stream::StreamExt;
 use std::sync::Arc;
-use std::time::{Instant, UNIX_EPOCH};
+use std::time::Instant;
 use tokio::time::timeout;
 
 /// Launch tasks with one channel per task as gRPC is mux-enabled.
 pub fn launch_subscribers(
     runtime: &mut Runtime,
     config: Config,
-    workload_components: Vec<Component>,
+    workload_components: &[Component],
 ) {
     debug!("launching momento subscriber tasks");
 
@@ -78,54 +77,13 @@ async fn subscriber_task(client: Arc<TopicClient>, cache_name: String, topic: St
         PUBSUB_SUBSCRIBER_CURR.add(1);
         PUBSUB_SUBSCRIBE_OK.increment();
 
-        // Create a new hasher state to validate the integrity of received
-        // messages. Deterministic seeds are used so that multiple processes can
-        // verify the messages.
-        let hash_builder = RandomState::with_seeds(
-            0xd5b96f9126d61cee,
-            0x50af85c9d1b6de70,
-            0xbd7bdf2fee6d15b2,
-            0x3dbe88bb183ac6f4,
-        );
+        let validator = MessageValidator::new();
 
         while RUNNING.load(Ordering::Relaxed) {
             match subscription.next().await {
                 Some(SubscriptionItem::Value(v)) => {
                     if let ValueKind::Binary(mut v) = v.kind {
-                        let now_unix = UNIX_EPOCH.elapsed().unwrap().as_nanos() as u64;
-
-                        if [v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7]]
-                            != [0x54, 0x45, 0x53, 0x54, 0x49, 0x4E, 0x47, 0x21]
-                        {
-                            // unexpected message
-                            error!("pubsub: invalid message received");
-                            RESPONSE_EX.increment();
-                            PUBSUB_RECEIVE_INVALID.increment();
-                            continue;
-                        }
-
-                        // grab the checksum and zero it in the message
-                        let csum = [v[8], v[9], v[10], v[11], v[12], v[13], v[14], v[15]];
-                        [v[8], v[9], v[10], v[11], v[12], v[13], v[14], v[15]] = [0; 8];
-
-                        if csum != hash_builder.hash_one(&v).to_be_bytes() {
-                            // corrupted message
-                            error!("pubsub: corrupt message received");
-                            PUBSUB_RECEIVE.increment();
-                            PUBSUB_RECEIVE_CORRUPT.increment();
-                            continue;
-                        }
-
-                        let ts = u64::from_be_bytes([
-                            v[16], v[17], v[18], v[19], v[20], v[21], v[22], v[23],
-                        ]);
-
-                        let latency = now_unix - ts;
-
-                        let _ = PUBSUB_LATENCY.increment(latency);
-
-                        PUBSUB_RECEIVE.increment();
-                        PUBSUB_RECEIVE_OK.increment();
+                        let _ = validator.validate(&mut v);
                     } else {
                         error!("there was a string in the topic");
                         // unexpected message
@@ -209,15 +167,7 @@ async fn publisher_task(
         })
         .to_string();
 
-    // Create a new hasher state to validate the integrity of received
-    // messages. Deterministic seeds are used so that multiple processes can
-    // verify the messages.
-    let hash_builder = RandomState::with_seeds(
-        0xd5b96f9126d61cee,
-        0x50af85c9d1b6de70,
-        0xbd7bdf2fee6d15b2,
-        0x3dbe88bb183ac6f4,
-    );
+    let validator = MessageValidator::new();
 
     while RUNNING.load(Ordering::Relaxed) {
         let work_item = work_receiver
@@ -227,36 +177,14 @@ async fn publisher_task(
 
         REQUEST.increment();
         let start = Instant::now();
-        let now_unix = UNIX_EPOCH.elapsed().unwrap().as_nanos() as u64;
         let result = match work_item {
-            WorkItem::Publish { topic, mut message } => {
-                let ts = now_unix.to_be_bytes();
-
-                // write the current unix time into the message
-                [
-                    message[16],
-                    message[17],
-                    message[18],
-                    message[19],
-                    message[20],
-                    message[21],
-                    message[22],
-                    message[23],
-                ] = ts;
-
-                // todo, write a sequence number into the message
-
-                // checksum the message and put the checksum into the message
-                [
-                    message[8],
-                    message[9],
-                    message[10],
-                    message[11],
-                    message[12],
-                    message[13],
-                    message[14],
-                    message[15],
-                ] = hash_builder.hash_one(&message).to_be_bytes();
+            WorkItem::Publish {
+                topic,
+                mut message,
+                partition: _,
+                key: _,
+            } => {
+                validator.stamp(&mut message);
 
                 PUBSUB_PUBLISH.increment();
 
