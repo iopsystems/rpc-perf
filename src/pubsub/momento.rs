@@ -76,7 +76,7 @@ async fn subscriber_task(client: Arc<TopicClient>, cache_name: String, topic: St
         PUBSUB_SUBSCRIBER_CURR.add(1);
         PUBSUB_SUBSCRIBE_OK.increment();
 
-        let msg_stamp = MessageStamp::new();
+        let msg_stamp = MessageValidator::new();
 
         while RUNNING.load(Ordering::Relaxed) {
             match subscription.next().await {
@@ -184,7 +184,7 @@ async fn publisher_task(
         })
         .to_string();
 
-    let msg_stamp = MessageStamp::new();
+    let msg_stamp = MessageValidator::new();
 
     while RUNNING.load(Ordering::Relaxed) {
         let work_item = work_receiver

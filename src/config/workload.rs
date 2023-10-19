@@ -4,10 +4,6 @@ fn one() -> usize {
     1
 }
 
-fn empty_names() -> Vec<String> {
-    Vec::new()
-}
-
 #[derive(Clone, Deserialize)]
 pub struct Workload {
     #[serde(default)]
@@ -51,7 +47,7 @@ pub struct Topics {
     #[serde(default = "one")]
     partitions: usize,
     topic_len: usize,
-    #[serde(default = "empty_names")]
+    #[serde(default)]
     topic_names: Vec<String>,
     message_len: usize,
     #[serde(default = "one")]

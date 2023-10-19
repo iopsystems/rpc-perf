@@ -84,7 +84,7 @@ fn validate_topic(runtime: &mut Runtime, config: &Config, topic: &str, partition
     }
 }
 
-pub fn create_topics(runtime: &mut Runtime, config: Config, workload_components: &Vec<Component>) {
+pub fn create_topics(runtime: &mut Runtime, config: Config, workload_components: &[Component]) {
     let admin_client = get_kafka_admin(&config);
     for component in workload_components {
         if let Component::Topics(topics) = component {
@@ -154,13 +154,12 @@ async fn subscriber_task(client: Arc<StreamConsumer>, topics: Vec<String>) {
     if client.subscribe(&sub_topics).is_ok() {
         PUBSUB_SUBSCRIBER_CURR.add(1);
         PUBSUB_SUBSCRIBE_OK.increment();
-        let msg_stamp = MessageStamp::new();
+        let msg_stamp = MessageValidator::new();
         while RUNNING.load(Ordering::Relaxed) {
             match client.recv().await {
                 Ok(m) => match m.payload_view::<[u8]>() {
                     Some(Ok(m)) => {
-                        let mut v = Vec::new();
-                        v.extend_from_slice(m);
+                        let mut v = m.to_owned();
                         match msg_stamp.validate_msg(&mut v) {
                             MessageValidationResult::Unexpected => {
                                 error!("pubsub: invalid message received");
@@ -224,7 +223,7 @@ async fn publisher_task(
     work_receiver: Receiver<WorkItem>,
 ) -> Result<()> {
     PUBSUB_PUBLISHER_CURR.add(1);
-    let msg_stamp = MessageStamp::new();
+    let msg_stamp = MessageValidator::new();
     while RUNNING.load(Ordering::Relaxed) {
         let work_item = work_receiver
             .recv()

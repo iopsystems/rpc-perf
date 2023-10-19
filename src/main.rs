@@ -154,7 +154,7 @@ fn main() {
 
     let client_runtime = launch_clients(&config, client_receiver);
 
-    let mut pubsub_runtimes = launch_pubsub(&config, pubsub_receiver, workload_components);
+    let mut pubsub_runtimes = launch_pubsub(&config, pubsub_receiver, &workload_components);
 
     // launch json log output
     {

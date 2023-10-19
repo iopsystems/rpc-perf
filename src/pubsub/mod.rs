@@ -10,7 +10,7 @@ use tokio::runtime::Runtime;
 mod kafka;
 mod momento;
 
-struct MessageStamp {
+struct MessageValidator {
     hash_builder: RandomState,
 }
 pub enum MessageValidationResult {
@@ -19,10 +19,10 @@ pub enum MessageValidationResult {
     Unexpected,
     Corrupted,
 }
-impl MessageStamp {
+impl MessageValidator {
     // Deterministic seeds are used so that multiple MessageStamp can stamp and validate messages
     pub fn new() -> Self {
-        MessageStamp {
+        MessageValidator {
             hash_builder: RandomState::with_seeds(
                 0xd5b96f9126d61cee,
                 0x50af85c9d1b6de70,
@@ -98,26 +98,19 @@ impl PubsubRuntimes {
 pub fn launch_pubsub(
     config: &Config,
     work_receiver: Receiver<WorkItem>,
-    workload_components: Vec<Component>,
+    workload_components: &[Component],
 ) -> PubsubRuntimes {
-    if config.pubsub().is_some() {
-        if let Protocol::Kafka = config.general().protocol() {
-            let mut topic_rt = Builder::new_multi_thread()
-                .enable_all()
-                .worker_threads(1)
-                .build()
-                .expect("failed to initialize tokio runtime");
-            kafka::create_topics(&mut topic_rt, config.clone(), &workload_components)
-        }
-    }
-
     PubsubRuntimes {
-        publisher_rt: launch_publishers(config, work_receiver),
-        subscriber_rt: launch_subscribers(config, &workload_components),
+        publisher_rt: launch_publishers(config, work_receiver, workload_components),
+        subscriber_rt: launch_subscribers(config, workload_components),
     }
 }
 
-fn launch_publishers(config: &Config, work_receiver: Receiver<WorkItem>) -> Option<Runtime> {
+fn launch_publishers(
+    config: &Config,
+    work_receiver: Receiver<WorkItem>,
+    workload_components: &[Component],
+) -> Option<Runtime> {
     if config.pubsub().is_none() {
         debug!("No pubsub configuration specified");
         return None;
@@ -137,6 +130,7 @@ fn launch_publishers(config: &Config, work_receiver: Receiver<WorkItem>) -> Opti
             momento::launch_publishers(&mut publisher_rt, config.clone(), work_receiver);
         }
         Protocol::Kafka => {
+            kafka::create_topics(&mut publisher_rt, config.clone(), workload_components);
             kafka::launch_publishers(&mut publisher_rt, config.clone(), work_receiver);
         }
         _ => {
@@ -148,7 +142,7 @@ fn launch_publishers(config: &Config, work_receiver: Receiver<WorkItem>) -> Opti
     Some(publisher_rt)
 }
 
-fn launch_subscribers(config: &Config, workload_components: &Vec<Component>) -> Option<Runtime> {
+fn launch_subscribers(config: &Config, workload_components: &[Component]) -> Option<Runtime> {
     if config.pubsub().is_none() {
         debug!("No pubsub configuration specified");
         return None;
