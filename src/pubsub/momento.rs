@@ -76,26 +76,26 @@ async fn subscriber_task(client: Arc<TopicClient>, cache_name: String, topic: St
         PUBSUB_SUBSCRIBER_CURR.add(1);
         PUBSUB_SUBSCRIBE_OK.increment();
 
-        let msg_stamp = MessageValidator::new();
+        let validator = MessageValidator::new();
 
         while RUNNING.load(Ordering::Relaxed) {
             match subscription.next().await {
                 Some(SubscriptionItem::Value(v)) => {
                     if let ValueKind::Binary(mut v) = v.kind {
-                        match msg_stamp.validate_msg(&mut v) {
-                            MessageValidationResult::Unexpected => {
+                        match validator.validate(&mut v) {
+                            Err(ValidationError::Unexpected) => {
                                 error!("pubsub: invalid message received");
                                 RESPONSE_EX.increment();
                                 PUBSUB_RECEIVE_INVALID.increment();
                                 continue;
                             }
-                            MessageValidationResult::Corrupted => {
+                            Err(ValidationError::Corrupted) => {
                                 error!("pubsub: corrupt message received");
                                 PUBSUB_RECEIVE.increment();
                                 PUBSUB_RECEIVE_CORRUPT.increment();
                                 continue;
                             }
-                            MessageValidationResult::Validated(latency) => {
+                            Ok(latency) => {
                                 let _ = PUBSUB_LATENCY.increment(latency);
                                 PUBSUB_RECEIVE.increment();
                                 PUBSUB_RECEIVE_OK.increment();
@@ -184,7 +184,7 @@ async fn publisher_task(
         })
         .to_string();
 
-    let msg_stamp = MessageValidator::new();
+    let validator = MessageValidator::new();
 
     while RUNNING.load(Ordering::Relaxed) {
         let work_item = work_receiver
@@ -201,7 +201,7 @@ async fn publisher_task(
                 partition: _,
                 key: _,
             } => {
-                msg_stamp.stamp_msg(&mut message);
+                validator.stamp(&mut message);
                 PUBSUB_PUBLISH.increment();
 
                 match timeout(

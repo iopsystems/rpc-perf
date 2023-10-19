@@ -10,30 +10,38 @@ use tokio::runtime::Runtime;
 mod kafka;
 mod momento;
 
+pub fn hasher() -> RandomState {
+    RandomState::with_seeds(
+        0xd5b96f9126d61cee,
+        0x50af85c9d1b6de70,
+        0xbd7bdf2fee6d15b2,
+        0x3dbe88bb183ac6f4,
+    )
+}
+
 struct MessageValidator {
     hash_builder: RandomState,
 }
-pub enum MessageValidationResult {
-    // u64 is the end-to-end latency in nanosecond)
-    Validated(u64),
+
+pub enum ValidationError {
     Unexpected,
     Corrupted,
 }
+
 impl MessageValidator {
-    // Deterministic seeds are used so that multiple MessageStamp can stamp and validate messages
+    /// Deterministic seeds are used so that multiple validators can stamp and
+    /// validate messages produced by other instances.
     pub fn new() -> Self {
         MessageValidator {
-            hash_builder: RandomState::with_seeds(
-                0xd5b96f9126d61cee,
-                0x50af85c9d1b6de70,
-                0xbd7bdf2fee6d15b2,
-                0x3dbe88bb183ac6f4,
-            ),
+            hash_builder: hasher(),
         }
     }
-    pub fn stamp_msg(&self, message: &mut [u8]) -> u64 {
+
+    /// Sets the checksum and timestamp in the message. Returns the timestamp.
+    pub fn stamp(&self, message: &mut [u8]) -> u64 {
         let timestamp = (UnixInstant::now() - UnixInstant::from_nanos(0)).as_nanos();
         let ts = timestamp.to_be_bytes();
+
         // write the current unix time into the message
         [
             message[16],
@@ -59,23 +67,33 @@ impl MessageValidator {
             message[14],
             message[15],
         ] = self.hash_builder.hash_one(&message).to_be_bytes();
+
         timestamp
     }
-    pub fn validate_msg(&self, v: &mut Vec<u8>) -> MessageValidationResult {
+
+    /// Validate the message checksum and returns a validation result.
+    pub fn validate(&self, v: &mut Vec<u8>) -> std::result::Result<u64, ValidationError> {
         let now_unix = UnixInstant::now();
+
+        // check if the magic bytes match
         if [v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7]]
             != [0x54, 0x45, 0x53, 0x54, 0x49, 0x4E, 0x47, 0x21]
         {
-            return MessageValidationResult::Unexpected;
+            return Err(ValidationError::Unexpected);
         }
+
+        // validate the checksum
         let csum = [v[8], v[9], v[10], v[11], v[12], v[13], v[14], v[15]];
         [v[8], v[9], v[10], v[11], v[12], v[13], v[14], v[15]] = [0; 8];
         if csum != self.hash_builder.hash_one(&v).to_be_bytes() {
-            return MessageValidationResult::Corrupted;
+            return Err(ValidationError::Corrupted);
         }
+
+        // calculate and return the end to end latency
         let ts = u64::from_be_bytes([v[16], v[17], v[18], v[19], v[20], v[21], v[22], v[23]]);
         let latency = now_unix - UnixInstant::from_nanos(ts);
-        MessageValidationResult::Validated(latency.as_nanos())
+
+        Ok(latency.as_nanos())
     }
 }
 
@@ -89,6 +107,7 @@ impl PubsubRuntimes {
         if let Some(rt) = self.publisher_rt.take() {
             rt.shutdown_timeout(duration);
         }
+
         if let Some(rt) = self.subscriber_rt.take() {
             rt.shutdown_timeout(duration);
         }
