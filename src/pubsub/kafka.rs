@@ -162,25 +162,9 @@ async fn subscriber_task(client: Arc<StreamConsumer>, topics: Vec<String>) {
         while RUNNING.load(Ordering::Relaxed) {
             match client.recv().await {
                 Ok(message) => match message.payload_view::<[u8]>() {
-                    Some(Ok(message)) => match validator.validate(&mut message.to_owned()) {
-                        Err(ValidationError::Unexpected) => {
-                            error!("pubsub: invalid message received");
-                            RESPONSE_EX.increment();
-                            PUBSUB_RECEIVE_INVALID.increment();
-                            continue;
-                        }
-                        Err(ValidationError::Corrupted) => {
-                            error!("pubsub: corrupt message received");
-                            PUBSUB_RECEIVE.increment();
-                            PUBSUB_RECEIVE_CORRUPT.increment();
-                            continue;
-                        }
-                        Ok(latency) => {
-                            let _ = PUBSUB_LATENCY.increment(latency);
-                            PUBSUB_RECEIVE.increment();
-                            PUBSUB_RECEIVE_OK.increment();
-                        }
-                    },
+                    Some(Ok(message)) => {
+                        let _ = validator.validate(&mut message.to_owned());
+                    }
                     Some(Err(e)) => {
                         error!("Error in deserializing the message:{:?}", e);
                         PUBSUB_RECEIVE.increment();

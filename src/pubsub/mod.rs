@@ -60,6 +60,9 @@ impl MessageValidator {
 
         // check if the magic bytes match
         if v[0..8] != [0x54, 0x45, 0x53, 0x54, 0x49, 0x4E, 0x47, 0x21] {
+            error!("pubsub: unexpected/invalid message received");
+            RESPONSE_EX.increment();
+            PUBSUB_RECEIVE_INVALID.increment();
             return Err(ValidationError::Unexpected);
         }
 
@@ -67,12 +70,19 @@ impl MessageValidator {
         let csum = v[8..16].to_owned();
         v[8..16].copy_from_slice(&[0; 8]);
         if csum != self.hash_builder.hash_one(&v).to_be_bytes() {
+            error!("pubsub: corrupt message received");
+            PUBSUB_RECEIVE.increment();
+            PUBSUB_RECEIVE_CORRUPT.increment();
             return Err(ValidationError::Corrupted);
         }
 
         // calculate and return the end to end latency
         let ts = u64::from_be_bytes([v[16], v[17], v[18], v[19], v[20], v[21], v[22], v[23]]);
         let latency = now_unix - UnixInstant::from_nanos(ts);
+
+        let _ = PUBSUB_LATENCY.increment(latency.as_nanos());
+        PUBSUB_RECEIVE.increment();
+        PUBSUB_RECEIVE_OK.increment();
 
         Ok(latency.as_nanos())
     }

@@ -82,25 +82,7 @@ async fn subscriber_task(client: Arc<TopicClient>, cache_name: String, topic: St
             match subscription.next().await {
                 Some(SubscriptionItem::Value(v)) => {
                     if let ValueKind::Binary(mut v) = v.kind {
-                        match validator.validate(&mut v) {
-                            Err(ValidationError::Unexpected) => {
-                                error!("pubsub: invalid message received");
-                                RESPONSE_EX.increment();
-                                PUBSUB_RECEIVE_INVALID.increment();
-                                continue;
-                            }
-                            Err(ValidationError::Corrupted) => {
-                                error!("pubsub: corrupt message received");
-                                PUBSUB_RECEIVE.increment();
-                                PUBSUB_RECEIVE_CORRUPT.increment();
-                                continue;
-                            }
-                            Ok(latency) => {
-                                let _ = PUBSUB_LATENCY.increment(latency);
-                                PUBSUB_RECEIVE.increment();
-                                PUBSUB_RECEIVE_OK.increment();
-                            }
-                        }
+                        let _ = validator.validate(&mut v);
                     } else {
                         error!("there was a string in the topic");
                         // unexpected message
