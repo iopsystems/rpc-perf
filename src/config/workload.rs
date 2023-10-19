@@ -44,15 +44,22 @@ impl Workload {
 #[derive(Clone, Deserialize)]
 pub struct Topics {
     topics: usize,
+    #[serde(default = "one")]
+    partitions: usize,
     topic_len: usize,
+    #[serde(default)]
+    topic_names: Vec<String>,
     message_len: usize,
     #[serde(default = "one")]
+    key_len: usize,
     weight: usize,
     subscriber_poolsize: usize,
     #[serde(default = "one")]
     subscriber_concurrency: usize,
     #[serde(default)]
     topic_distribution: Distribution,
+    #[serde(default)]
+    partition_distribution: Distribution,
 }
 
 impl Topics {
@@ -60,12 +67,24 @@ impl Topics {
         self.weight
     }
 
+    pub fn partitions(&self) -> usize {
+        self.partitions
+    }
+
     pub fn topics(&self) -> usize {
         self.topics
     }
 
+    pub fn topic_names(&self) -> &[String] {
+        &self.topic_names
+    }
+
     pub fn topic_len(&self) -> usize {
         self.topic_len
+    }
+
+    pub fn key_len(&self) -> usize {
+        self.key_len
     }
 
     pub fn message_len(&self) -> usize {
@@ -82,6 +101,10 @@ impl Topics {
 
     pub fn topic_distribution(&self) -> Distribution {
         self.topic_distribution
+    }
+
+    pub fn partition_distribution(&self) -> Distribution {
+        self.partition_distribution
     }
 }
 

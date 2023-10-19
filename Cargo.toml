@@ -47,6 +47,7 @@ rand_distr = "0.4.3"
 rand_xoshiro = "0.6.0"
 ratelimit = "0.7.0"
 redis = { version = "0.22.3", features = ["tokio-comp"] }
+rdkafka = { version = "0.25", features = ["cmake-build"] }
 ringlog = "0.3.0"
 rpcperf-dataspec = { path = "lib/dataspec" }
 serde = { workspace = true }

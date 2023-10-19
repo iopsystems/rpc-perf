@@ -46,6 +46,10 @@ pub fn launch_clients(config: &Config, work_receiver: Receiver<WorkItem>) -> Opt
         Protocol::Resp => {
             clients::redis::launch_tasks(&mut client_rt, config.clone(), work_receiver)
         }
+        Protocol::Kafka => {
+            error!("keyspace is not supported for the kafka protocol");
+            std::process::exit(1);
+        }
     }
 
     Some(client_rt)
