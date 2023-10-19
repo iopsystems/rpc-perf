@@ -316,7 +316,7 @@ macro_rules! request {
         });
         paste! {
             #[allow(dead_code)]
-            pub static [<$ident _COUNTER>]: &'static str = $name;
+            pub static [<$ident _COUNTER>]: &'static str = concat!($name, "/total");
         }
 
         paste! {
@@ -330,7 +330,7 @@ macro_rules! request {
             });
             paste! {
                 #[allow(dead_code)]
-                pub static [<$ident _EX_COUNTER>]: &'static str = $name;
+                pub static [<$ident _EX_COUNTER>]: &'static str = concat!($name, "/exception");
             }   
         }
 
@@ -345,7 +345,7 @@ macro_rules! request {
             });
             paste! {
                 #[allow(dead_code)]
-                pub static [<$ident _OK_COUNTER>]: &'static str = $name;
+                pub static [<$ident _OK_COUNTER>]: &'static str = concat!($name, "/ok");
             }
         }
 
@@ -360,7 +360,7 @@ macro_rules! request {
             });
             paste! {
                 #[allow(dead_code)]
-                pub static [<$ident _TIMEOUT_COUNTER>]: &'static str = $name;
+                pub static [<$ident _TIMEOUT_COUNTER>]: &'static str = concat!($name, "/timeout");
             }
         }
     }
@@ -589,11 +589,8 @@ request!(SORTED_SET_SCORE, "sorted_set_score");
  * PUBSUB
  */
 
-counter!(PUBSUB_PUBLISH, "publisher/publish/total");
-counter!(PUBSUB_PUBLISH_OK, "publisher/publish/ok");
-counter!(PUBSUB_PUBLISH_EX, "publisher/publish/ex");
+request!(PUBSUB_PUBLISH, "publisher/publish/total");
 counter!(PUBSUB_PUBLISH_RATELIMITED, "publisher/publish/ratelimiter");
-counter!(PUBSUB_PUBLISH_TIMEOUT, "publisher/publish/timeout");
 
 request!(PUBSUB_SUBSCRIBE, "subscriber/subscribe");
 
