@@ -150,35 +150,20 @@ pub fn launch_subscribers(
 
 async fn subscriber_task(client: Arc<StreamConsumer>, topics: Vec<String>) {
     PUBSUB_SUBSCRIBE.increment();
+
     let sub_topics: Vec<&str> = topics.iter().map(AsRef::as_ref).collect();
+
     if client.subscribe(&sub_topics).is_ok() {
         PUBSUB_SUBSCRIBER_CURR.add(1);
         PUBSUB_SUBSCRIBE_OK.increment();
-        let msg_stamp = MessageValidator::new();
+
+        let validator = MessageValidator::new();
+
         while RUNNING.load(Ordering::Relaxed) {
             match client.recv().await {
-                Ok(m) => match m.payload_view::<[u8]>() {
-                    Some(Ok(m)) => {
-                        let mut v = m.to_owned();
-                        match msg_stamp.validate_msg(&mut v) {
-                            MessageValidationResult::Unexpected => {
-                                error!("pubsub: invalid message received");
-                                RESPONSE_EX.increment();
-                                PUBSUB_RECEIVE_INVALID.increment();
-                                continue;
-                            }
-                            MessageValidationResult::Corrupted => {
-                                error!("pubsub: corrupt message received");
-                                PUBSUB_RECEIVE.increment();
-                                PUBSUB_RECEIVE_CORRUPT.increment();
-                                continue;
-                            }
-                            MessageValidationResult::Validated(latency) => {
-                                let _ = PUBSUB_LATENCY.increment(latency);
-                                PUBSUB_RECEIVE.increment();
-                                PUBSUB_RECEIVE_OK.increment();
-                            }
-                        }
+                Ok(message) => match message.payload_view::<[u8]>() {
+                    Some(Ok(message)) => {
+                        let _ = validator.validate(&mut message.to_owned());
                     }
                     Some(Err(e)) => {
                         error!("Error in deserializing the message:{:?}", e);
@@ -211,7 +196,9 @@ pub fn launch_publishers(runtime: &mut Runtime, config: Config, work_receiver: R
             let _guard = runtime.enter();
             Arc::new(get_kafka_producer(&config))
         };
+
         PUBSUB_PUBLISHER_CONNECT.increment();
+
         for _ in 0..config.pubsub().unwrap().publisher_concurrency() {
             runtime.spawn(publisher_task(client.clone(), work_receiver.clone()));
         }
@@ -223,14 +210,19 @@ async fn publisher_task(
     work_receiver: Receiver<WorkItem>,
 ) -> Result<()> {
     PUBSUB_PUBLISHER_CURR.add(1);
-    let msg_stamp = MessageValidator::new();
+
+    let validator = MessageValidator::new();
+
     while RUNNING.load(Ordering::Relaxed) {
         let work_item = work_receiver
             .recv()
             .await
             .map_err(|_| Error::new(ErrorKind::Other, "channel closed"))?;
+
         REQUEST.increment();
+
         let start = Instant::now();
+
         let result = match work_item {
             WorkItem::Publish {
                 topic,
@@ -238,7 +230,7 @@ async fn publisher_task(
                 key,
                 mut message,
             } => {
-                let timestamp = msg_stamp.stamp_msg(&mut message);
+                let timestamp = validator.stamp(&mut message);
                 PUBSUB_PUBLISH.increment();
                 client
                     .send(
@@ -255,7 +247,9 @@ async fn publisher_task(
                     .await
             }
         };
+
         let stop = Instant::now();
+
         match result {
             Ok(_) => {
                 let latency = stop.duration_since(start).as_nanos();
@@ -268,6 +262,8 @@ async fn publisher_task(
             }
         }
     }
+
     PUBSUB_PUBLISHER_CURR.sub(1);
+
     Ok(())
 }
