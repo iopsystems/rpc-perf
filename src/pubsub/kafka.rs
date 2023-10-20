@@ -10,11 +10,15 @@ use std::sync::Arc;
 
 fn get_kafka_producer(config: &Config) -> FutureProducer {
     let bootstrap_servers = config.target().endpoints().join(",");
-    let timeout = format!("{}", config.pubsub().unwrap().publish_timeout().as_millis());
+    let pubsub_config = config.pubsub().unwrap();
+    let publish_timeout = format!("{}", pubsub_config.publish_timeout().as_millis());
+    let connect_timeout = format!("{}", pubsub_config.connect_timeout().as_millis());
     let pubsub_config = config.pubsub().unwrap();
     let mut client_config = ClientConfig::new();
-    client_config.set("bootstrap.servers", &bootstrap_servers);
-    client_config.set("message.timeout.ms", timeout);
+    client_config
+        .set("bootstrap.servers", &bootstrap_servers)
+        .set("socket.timeout.ms", connect_timeout)
+        .set("message.timeout.ms", publish_timeout);
     if let Some(acks) = pubsub_config.kafka_acks() {
         client_config.set("acks", acks);
     }
@@ -35,7 +39,8 @@ fn get_kafka_producer(config: &Config) -> FutureProducer {
 
 fn get_kafka_consumer(config: &Config, group_id: &str) -> StreamConsumer {
     let bootstrap_servers = config.target().endpoints().join(",");
-    let pubsub_config = config.pubsub().unwrap();
+    let pubsub_config: &Pubsub = config.pubsub().unwrap();
+    let connect_timeout = format!("{}", pubsub_config.connect_timeout().as_millis());
     let mut client_config = ClientConfig::new();
     client_config
         .set("bootstrap.servers", &bootstrap_servers)
@@ -43,10 +48,8 @@ fn get_kafka_consumer(config: &Config, group_id: &str) -> StreamConsumer {
         .set("client.id", "rpcperf_subscriber")
         .set("enable.partition.eof", "false")
         .set("enable.auto.commit", "false")
-        .set("statistics.interval.ms", "500")
-        .set("api.version.request", "true")
         .set("auto.offset.reset", "earliest")
-        .set("session.timeout.ms", "6000");
+        .set("socket.timeout.ms", connect_timeout);
     if let Some(fetch_message_max_bytes) = pubsub_config.kafka_fetch_message_max_bytes() {
         client_config.set("fetch_message_max_bytes", fetch_message_max_bytes);
     }
@@ -55,9 +58,11 @@ fn get_kafka_consumer(config: &Config, group_id: &str) -> StreamConsumer {
 
 fn get_kafka_admin(config: &Config) -> AdminClient<DefaultClientContext> {
     let bootstrap_servers = config.target().endpoints().join(",");
+    let connect_timeout = format!("{}", config.pubsub().unwrap().connect_timeout().as_millis());
     ClientConfig::new()
         .set("bootstrap.servers", &bootstrap_servers)
         .set("client.id", "rpcperf_admin")
+        .set("socket.timeout.ms", connect_timeout)
         .create()
         .unwrap()
 }
@@ -65,20 +70,20 @@ fn get_kafka_admin(config: &Config) -> AdminClient<DefaultClientContext> {
 fn validate_topic(runtime: &mut Runtime, config: &Config, topic: &str, partitions: usize) {
     let _guard = runtime.enter();
     let consumer_client = get_kafka_consumer(config, "topic_validator");
-    let timeout = Some(Duration::from_secs(1));
+    let timeout = Some(Duration::from_secs(10));
     let metadata = consumer_client
         .fetch_metadata(Some(topic), timeout)
         .map_err(|e| e.to_string())
         .unwrap();
     if metadata.topics().is_empty() {
-        error!("Invalidated topic");
+        eprintln!("Kafka topic validation failure: empty topic in metadata");
         std::process::exit(1);
     }
     let topic_partitions = metadata.topics()[0].partitions().len();
     if topic_partitions != partitions {
-        error!(
-            "Invalidated partition: asked {} found {}\n Please delete or recreate the topic {}",
-            partitions, topic_partitions, topic
+        eprintln!(
+            "Kafka topic validation failure: asked {} partitions found {} in topic {}\nPlease delete or recreate the topic {}",
+            partitions, topic_partitions, topic, topic
         );
         std::process::exit(1);
     }
@@ -90,27 +95,36 @@ pub fn create_topics(runtime: &mut Runtime, config: Config, workload_components:
         if let Component::Topics(topics) = component {
             let partitions = topics.partitions();
             for topic in topics.topics() {
-                let topic_results = runtime
-                    .block_on(admin_client.create_topics(
-                        &[NewTopic::new(
-                            topic,
-                            partitions as i32,
-                            TopicReplication::Fixed(1),
-                        )],
-                        &AdminOptions::new(),
-                    ))
-                    .unwrap();
-                for r in topic_results {
-                    match r {
-                        Ok(_) => {}
-                        Err(err) => {
-                            if err.1 == TopicAlreadyExists {
-                                validate_topic(runtime, &config, topic, partitions);
-                            } else {
-                                error!("Failed to create the topic {}:{} ", err.0, err.1);
-                                std::process::exit(1);
+                //let topic_results = runtime
+                match runtime.block_on(admin_client.create_topics(
+                    &[NewTopic::new(
+                        topic,
+                        partitions as i32,
+                        TopicReplication::Fixed(1),
+                    )],
+                    &AdminOptions::new(),
+                )) {
+                    Ok(topic_results) => {
+                        for r in topic_results {
+                            match r {
+                                Ok(_) => {}
+                                Err(err) => {
+                                    if err.1 == TopicAlreadyExists {
+                                        validate_topic(runtime, &config, topic, partitions);
+                                    } else {
+                                        eprintln!(
+                                            "Kafka: failed to create the topic {}:{} ",
+                                            err.0, err.1
+                                        );
+                                        std::process::exit(1);
+                                    }
+                                }
                             }
                         }
+                    }
+                    Err(err) => {
+                        eprintln!("Kafka: no response when creating the topic ({})", err);
+                        std::process::exit(1);
                     }
                 }
             }

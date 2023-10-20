@@ -2,7 +2,9 @@ use super::*;
 
 #[derive(Clone, Deserialize)]
 pub struct Pubsub {
-    /// Publish timeout
+    // connection timeout in ms
+    connect_timeout: u64,
+    // publish timeout in ms
     publish_timeout: u64,
     // number of threads for publisher tasks
     publisher_threads: usize,
@@ -22,6 +24,10 @@ pub struct Pubsub {
 }
 
 impl Pubsub {
+    pub fn connect_timeout(&self) -> Duration {
+        Duration::from_millis(self.connect_timeout)
+    }
+
     pub fn publish_timeout(&self) -> Duration {
         Duration::from_millis(self.publish_timeout)
     }
