@@ -95,7 +95,6 @@ pub fn create_topics(runtime: &mut Runtime, config: Config, workload_components:
         if let Component::Topics(topics) = component {
             let partitions = topics.partitions();
             for topic in topics.topics() {
-                //let topic_results = runtime
                 match runtime.block_on(admin_client.create_topics(
                     &[NewTopic::new(
                         topic,
