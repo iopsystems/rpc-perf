@@ -145,24 +145,36 @@ fn main() {
     // spawn the admin thread
     control_runtime.spawn(admin::http(config.clone(), workload_ratelimit.clone()));
 
-    let workload_runtime =
-        launch_workload(workload_generator, &config, client_sender, pubsub_sender);
-
-    let client_runtime = launch_clients(&config, client_receiver);
-
-    let mut pubsub_runtimes = launch_pubsub(&config, pubsub_receiver, &workload_components);
-
     // launch json log output
     {
         let config = config.clone();
         control_runtime.spawn_blocking(move || output::json(config, workload_ratelimit.as_deref()));
     }
 
-    // provide output on cli and block until run is over
-    output::log(&config);
+    // begin cli output
+    {
+        let config = config.clone();
+        control_runtime.spawn_blocking(move || {
+            // provide output on cli and block until run is over
+            output::log(&config);
+            // signal to other threads to shutdown
+            RUNNING.store(false, Ordering::Relaxed);
+        });
+    }
 
-    // signal to other threads to shutdown
-    RUNNING.store(false, Ordering::Relaxed);
+    // start the workload generator(s)
+    let workload_runtime =
+        launch_workload(workload_generator, &config, client_sender, pubsub_sender);
+
+    // start client(s)
+    let client_runtime = launch_clients(&config, client_receiver);
+
+    // start publisher(s) and subscriber(s)
+    let mut pubsub_runtimes = launch_pubsub(&config, pubsub_receiver, &workload_components);
+
+    while RUNNING.load(Ordering::Relaxed) {
+        std::thread::sleep(Duration::from_secs(1));
+    }
 
     if let Some(client_runtime) = client_runtime {
         client_runtime.shutdown_timeout(std::time::Duration::from_millis(100));
