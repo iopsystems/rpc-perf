@@ -283,8 +283,7 @@ pub fn json(config: Config, ratelimit: Option<&Ratelimiter>) {
                     responses,
                     response_latency: snapshot
                         .histogram_delta(RESPONSE_LATENCY_HISTOGRAM)
-                        .map(rpcperf_dataspec::Histogram::from)
-                        .unwrap_or_default(),
+                        .map_or_else(|| None, |h| Some(histogram::SparseHistogram::from(h))),
                 },
                 pubsub: PubsubStats {
                     publishers: Publishers {

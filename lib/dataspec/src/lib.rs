@@ -1,12 +1,9 @@
 //! Format of JSON output from rpc-perf. These structures can be used
 //! by any consumer of the produced data to parse the files.
-
-pub mod histogram;
-pub use crate::histogram::Histogram;
-
+use histogram::SparseHistogram;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Default, Deserialize, Serialize)]
 pub struct Connections {
     /// number of current connections (gauge)
     pub current: i64,
@@ -20,7 +17,7 @@ pub struct Connections {
     pub timeout: u64,
 }
 
-#[derive(Copy, Clone, Serialize, Deserialize)]
+#[derive(Default, Deserialize, Serialize)]
 pub struct Requests {
     pub total: u64,
     pub ok: u64,
@@ -28,7 +25,7 @@ pub struct Requests {
     pub unsupported: u64,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Default, Deserialize, Serialize)]
 pub struct Responses {
     /// total number of responses
     pub total: u64,
@@ -44,33 +41,34 @@ pub struct Responses {
     pub miss: u64,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Default, Deserialize, Serialize)]
 pub struct ClientStats {
     pub connections: Connections,
     pub requests: Requests,
     pub responses: Responses,
-    pub response_latency: Histogram,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub response_latency: Option<SparseHistogram>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Default, Deserialize, Serialize)]
 pub struct PubsubStats {
     pub publishers: Publishers,
     pub subscribers: Subscribers,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Default, Deserialize, Serialize)]
 pub struct Publishers {
     // current number of publishers
     pub current: i64,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Default, Deserialize, Serialize)]
 pub struct Subscribers {
     // current number of subscribers
     pub current: i64,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Default, Deserialize, Serialize)]
 pub struct JsonSnapshot {
     pub window: u64,
     pub elapsed: f64,
