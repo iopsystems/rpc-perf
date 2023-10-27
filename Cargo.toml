@@ -16,7 +16,7 @@ repository = { workspace = true }
 license = { workspace = true }
 
 [workspace.dependencies]
-histogram = { version = "0.8.2", features = ["serde-serialize"] }
+histogram = { version = "0.8.3", features = ["serde-serialize"] }
 serde = { version = "1.0.185", features = ["derive"] }
 
 [dependencies]
@@ -34,7 +34,7 @@ histogram = { workspace = true }
 http-body-util = "0.1.0-rc.3"
 humantime = "2.1.0"
 hyper = { version = "1.0.0-rc.4", features = ["http1", "http2", "client"]}
-metriken = "0.3.2"
+metriken = "0.3.3"
 mio = "0.8.8"
 momento = "0.32.1"
 net = { git = "https://github.com/pelikan-io/pelikan" }
@@ -48,7 +48,7 @@ rand_xoshiro = "0.6.0"
 ratelimit = "0.7.1"
 redis = { version = "0.23.3", features = ["tokio-comp"] }
 rdkafka = { version = "0.25", features = ["cmake-build"] }
-ringlog = "0.3.1"
+ringlog = "0.3.2"
 rpcperf-dataspec = { path = "lib/dataspec" }
 serde = { workspace = true }
 serde_json = "1.0.107"
