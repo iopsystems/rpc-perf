@@ -1,7 +1,4 @@
-# An example configuration for benchmarking Momento (https://www.gomomento.com)
-# and demonstrating the use of the preview functionality for collections. Each
-# command family is using its own keyspace and covers key-value, hash, list,
-# set, and sorted set.
+# An example configuration for benchmarking Kafka (https://kafka.apache.org/)
 
 [general]
 # specify the protocol to be used
@@ -31,18 +28,21 @@ log_backup = "rpc-perf.log.old"
 log_max_size = 1073741824
 
 [target]
-# kafka broker ip:port
+# Kafka broker ip:port
 endpoints = [
   "127.0.0.1:9092"
 ]
 
 [pubsub]
-# TODO the connect timeout in milliseconds
-connect_timeout = 10000
+# Set the "socket.timeout.ms" Kafka client configuration
+connect_timeout = 1000
+# Set the "message.timeout.ms" Kafka client configuration
 publish_timeout = 1000
 # the number of threads in the publisher runtime
 publisher_threads = 4
+# the total number of Kafka producer clients
 publisher_poolsize = 1
+# the total number of Kafka producing tasks per producer client
 publisher_concurrency = 20
 # the number of threads in the subscriber runtime
 subscriber_threads = 4
@@ -65,19 +65,19 @@ ratelimit = 1000
 [[workload.topics]]
 # the weight relative to other workload components
 weight = 1
-# the total number of Momento clients for subscribers to this set of topics
+# the total number of Kafka consumer clients for topics in this compoment
 subscriber_poolsize = 1
-# the total number of gRPC sessions per Momento client for this set of topics
-subscriber_concurrency = 1
-# sets the number of topics
-topics = 1
-# set the length of the topic names, in bytes
+# the total number of Kafka tasks per Kafka consumer client
+subscriber_concurrency = 2
+# the number of topics
+topics = 2
+# the length of the topic names, in bytes
 topic_len = 5
-# set the topic names, if empty or the length and the number do not match topics and topic_len, generate random names
-topic_names = ["hello"]
-# sets the number of partitions in each topic
+# the topic names, if empty or the length and the number do not match topics and topic_len, generate random names
+topic_names = ["hello", "world"]
+# the number of partitions in each topic
 partitions = 10
-# sets the value length, in bytes
+# the value length, in bytes
 message_len = 512
-# sets the key length, in bytes
+# the key length, in bytes
 key_len = 8
