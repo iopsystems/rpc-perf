@@ -165,7 +165,7 @@ checksum = "3b829e4e32b91e643de6eafe82b1d90675f5874230191a4ffbc1b336dec4d6bf"
 dependencies = [
  "async-trait",
  "axum-core",
- "bitflags",
+ "bitflags 1.3.2",
  "bytes 1.5.0",
  "futures-util",
  "http",
@@ -231,11 +231,11 @@ checksum = "9ba43ea6f343b788c8764558649e08df62f86c6ef251fdaeb1ffd010a9ae50a2"
 
 [[package]]
 name = "bindgen"
-version = "0.60.1"
+version = "0.66.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "062dddbc1ba4aca46de6338e2bf87771414c335f7b2f2036e8f3e9befebf88e6"
+checksum = "f2b84e06fc203107bfbad243f4aba2af864eb7db3b1cf46ea0a023b0b433d2a7"
 dependencies = [
- "bitflags",
+ "bitflags 2.4.1",
  "cexpr",
  "clang-sys",
  "lazy_static",
@@ -246,6 +246,7 @@ dependencies = [
  "regex",
  "rustc-hash",
  "shlex",
+ "syn 2.0.38",
 ]
 
 [[package]]
@@ -253,6 +254,12 @@ name = "bitflags"
 version = "1.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bef38d45163c2f1dde094a7dfd33ccf595c92905c8f8f4fdc18d06fb1037718a"
+
+[[package]]
+name = "bitflags"
+version = "2.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "327762f6e5a765692301e5bb513e0d9fef63be86bbc14528052b1cd3e6f03e07"
 
 [[package]]
 name = "block-buffer"
@@ -265,25 +272,27 @@ dependencies = [
 
 [[package]]
 name = "boring"
-version = "2.1.0"
+version = "3.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4c713ad6d8d7a681a43870ac37b89efd2a08015ceb4b256d82707509c1f0b6bb"
+checksum = "7ae1aba472e42d3cf45ac6d0a6c8fc3ddf743871209e1b40229aed9fbdf48ece"
 dependencies = [
- "bitflags",
+ "bitflags 2.4.1",
  "boring-sys",
  "foreign-types",
- "lazy_static",
  "libc",
+ "once_cell",
 ]
 
 [[package]]
 name = "boring-sys"
-version = "2.1.0"
+version = "3.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7663d3069437a5ccdb2b5f4f481c8b80446daea10fa8503844e89ac65fcdc363"
+checksum = "ceced5be0047c7c48d77599535fd7f0a81c1b0f0a1e97e7eece24c45022bb481"
 dependencies = [
  "bindgen",
  "cmake",
+ "fs_extra",
+ "fslock",
 ]
 
 [[package]]
@@ -438,7 +447,7 @@ dependencies = [
 [[package]]
 name = "common"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#9e53a295d5d919004ba8ed8616b9cb3d3b8e9863"
+source = "git+https://github.com/pelikan-io/pelikan#db11f2ae4fc30a6b36e04a042f0d23d2eecd48e7"
 dependencies = [
  "boring",
  "clocksource",
@@ -461,13 +470,13 @@ dependencies = [
 [[package]]
 name = "config"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#9e53a295d5d919004ba8ed8616b9cb3d3b8e9863"
+source = "git+https://github.com/pelikan-io/pelikan#db11f2ae4fc30a6b36e04a042f0d23d2eecd48e7"
 dependencies = [
  "common",
  "log",
  "serde",
  "serde_json",
- "toml 0.6.0",
+ "toml",
  "zookeeper",
 ]
 
@@ -610,12 +619,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "fs_extra"
+version = "1.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "42703706b716c37f96a77aea830392ad231f44c9e9a67872fa5548707e11b11c"
+
+[[package]]
+name = "fslock"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "04412b8935272e3a9bae6f48c7bfff74c2911f60525404edfdd28e49884c3bfb"
+dependencies = [
+ "libc",
+ "winapi 0.3.9",
+]
+
+[[package]]
 name = "fuchsia-zircon"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2e9763c69ebaae630ba35f74888db465e49e259ba1bc0eda7d06f4a067615d82"
 dependencies = [
- "bitflags",
+ "bitflags 1.3.2",
  "fuchsia-zircon-sys",
 ]
 
@@ -810,9 +835,9 @@ checksum = "d77f7ec81a6d05a3abb01ab6eb7590f6083d08449fe5a1c8b1e620283546ccb7"
 
 [[package]]
 name = "histogram"
-version = "0.8.2"
+version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "00d339e8af821567df15d3fefaead03adcea924c0e1e5e97f52fd86167896b30"
+checksum = "72cc09ccef50843ffa24cfc42861950fd45a2b377cc4b66c49ac47d17449f144"
 dependencies = [
  "serde",
  "thiserror",
@@ -1142,7 +1167,7 @@ checksum = "b5e6163cb8c49088c2c36f57875e58ccd8c87c7427f7fbd50ea6710b2f3f2e8f"
 [[package]]
 name = "logger"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#9e53a295d5d919004ba8ed8616b9cb3d3b8e9863"
+source = "git+https://github.com/pelikan-io/pelikan#db11f2ae4fc30a6b36e04a042f0d23d2eecd48e7"
 dependencies = [
  "common",
  "config",
@@ -1161,11 +1186,11 @@ dependencies = [
 [[package]]
 name = "macros"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#9e53a295d5d919004ba8ed8616b9cb3d3b8e9863"
+source = "git+https://github.com/pelikan-io/pelikan#db11f2ae4fc30a6b36e04a042f0d23d2eecd48e7"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 1.0.109",
+ "syn 2.0.38",
 ]
 
 [[package]]
@@ -1182,9 +1207,9 @@ checksum = "f665ee40bc4a3c5590afb1e9677db74a508659dfd71e126420da8274909a0167"
 
 [[package]]
 name = "metriken"
-version = "0.3.2"
+version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "625d5305e15e9553b7d2eb971ac07e87a3f9ff515ee519474c2ad49d3514bb7e"
+checksum = "033e8371ec83b73e4605dd1b1bbf1eaa0eea2884244eb3f713490ab08ca5ae6e"
 dependencies = [
  "histogram",
  "linkme",
@@ -1350,7 +1375,7 @@ dependencies = [
 [[package]]
 name = "net"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#9e53a295d5d919004ba8ed8616b9cb3d3b8e9863"
+source = "git+https://github.com/pelikan-io/pelikan#db11f2ae4fc30a6b36e04a042f0d23d2eecd48e7"
 dependencies = [
  "boring",
  "boring-sys",
@@ -1379,15 +1404,6 @@ checksum = "d273983c5a657a70a3e8f2a01329822f3b8c8172b73826411a55751e404a0a4a"
 dependencies = [
  "memchr",
  "minimal-lexical",
-]
-
-[[package]]
-name = "nom8"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ae01545c9c7fc4486ab7debaf2aad7003ac19431791868fb2e8066df97fad2f8"
-dependencies = [
- "memchr",
 ]
 
 [[package]]
@@ -1660,7 +1676,7 @@ dependencies = [
 [[package]]
 name = "protocol-common"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#9e53a295d5d919004ba8ed8616b9cb3d3b8e9863"
+source = "git+https://github.com/pelikan-io/pelikan#db11f2ae4fc30a6b36e04a042f0d23d2eecd48e7"
 dependencies = [
  "bytes 1.5.0",
  "common",
@@ -1672,7 +1688,7 @@ dependencies = [
 [[package]]
 name = "protocol-memcache"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#9e53a295d5d919004ba8ed8616b9cb3d3b8e9863"
+source = "git+https://github.com/pelikan-io/pelikan#db11f2ae4fc30a6b36e04a042f0d23d2eecd48e7"
 dependencies = [
  "common",
  "logger",
@@ -1684,7 +1700,7 @@ dependencies = [
 [[package]]
 name = "protocol-ping"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#9e53a295d5d919004ba8ed8616b9cb3d3b8e9863"
+source = "git+https://github.com/pelikan-io/pelikan#db11f2ae4fc30a6b36e04a042f0d23d2eecd48e7"
 dependencies = [
  "common",
  "config",
@@ -1821,7 +1837,7 @@ version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4722d768eff46b75989dd134e5c353f0d6296e5aaa3132e776cbdb56be7731aa"
 dependencies = [
- "bitflags",
+ "bitflags 1.3.2",
 ]
 
 [[package]]
@@ -1884,9 +1900,9 @@ dependencies = [
 
 [[package]]
 name = "ringlog"
-version = "0.3.1"
+version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b78044b29e73c8d21b18830aa13113614cd28e672fb8f1944c0c0f1b20f6155d"
+checksum = "325bf804f14769bdcd0bcf437a9ac2af50d12986e969df4448205397684ca5dc"
 dependencies = [
  "ahash",
  "clocksource",
@@ -1936,7 +1952,7 @@ dependencies = [
  "slab",
  "tokio",
  "tokio-boring",
- "toml 0.8.2",
+ "toml",
  "warp",
  "zipf",
 ]
@@ -2054,7 +2070,7 @@ version = "2.9.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "05b64fb303737d99b81884b2c63433e9ae28abebe5eb5045dcdd175dc2ecf4de"
 dependencies = [
- "bitflags",
+ "bitflags 1.3.2",
  "core-foundation",
  "core-foundation-sys",
  "libc",
@@ -2126,7 +2142,7 @@ dependencies = [
 [[package]]
 name = "session"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#9e53a295d5d919004ba8ed8616b9cb3d3b8e9863"
+source = "git+https://github.com/pelikan-io/pelikan#db11f2ae4fc30a6b36e04a042f0d23d2eecd48e7"
 dependencies = [
  "bytes 1.5.0",
  "common",
@@ -2253,7 +2269,7 @@ checksum = "6980e8d7511241f8acf4aebddbb1ff938df5eebe98691418c4468d0b72a96a67"
 [[package]]
 name = "storage-types"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#9e53a295d5d919004ba8ed8616b9cb3d3b8e9863"
+source = "git+https://github.com/pelikan-io/pelikan#db11f2ae4fc30a6b36e04a042f0d23d2eecd48e7"
 
 [[package]]
 name = "strsim"
@@ -2374,9 +2390,9 @@ dependencies = [
 
 [[package]]
 name = "tokio-boring"
-version = "2.1.5"
+version = "3.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eb059337235a89f03252c6285da8f0a6747a85bbd42e9ece70178d578054cba7"
+checksum = "961385cffda2112d02c6e17169965ed604b9953078f2ec55740b8cf7b55c122e"
 dependencies = [
  "boring",
  "boring-sys",
@@ -2453,35 +2469,14 @@ dependencies = [
 
 [[package]]
 name = "toml"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4fb9d890e4dc9298b70f740f615f2e05b9db37dce531f6b24fb77ac993f9f217"
-dependencies = [
- "serde",
- "serde_spanned",
- "toml_datetime 0.5.1",
- "toml_edit 0.18.1",
-]
-
-[[package]]
-name = "toml"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "185d8ab0dfbb35cf1399a6344d8484209c088f75f8f68230da55d48d95d43e3d"
 dependencies = [
  "serde",
  "serde_spanned",
- "toml_datetime 0.6.3",
+ "toml_datetime",
  "toml_edit 0.20.2",
-]
-
-[[package]]
-name = "toml_datetime"
-version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4553f467ac8e3d374bc9a177a26801e5d0f9b211aa1673fb137a403afd1c9cf5"
-dependencies = [
- "serde",
 ]
 
 [[package]]
@@ -2495,25 +2490,12 @@ dependencies = [
 
 [[package]]
 name = "toml_edit"
-version = "0.18.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "56c59d8dd7d0dcbc6428bf7aa2f0e823e26e43b3c9aca15bbc9475d23e5fa12b"
-dependencies = [
- "indexmap 1.9.3",
- "nom8",
- "serde",
- "serde_spanned",
- "toml_datetime 0.5.1",
-]
-
-[[package]]
-name = "toml_edit"
 version = "0.19.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1b5bb770da30e5cbfde35a2d7b9b8a2c4b8ef89548a7a6aeab5c9a576e3e7421"
 dependencies = [
  "indexmap 2.0.2",
- "toml_datetime 0.6.3",
+ "toml_datetime",
  "winnow",
 ]
 
@@ -2526,7 +2508,7 @@ dependencies = [
  "indexmap 2.0.2",
  "serde",
  "serde_spanned",
- "toml_datetime 0.6.3",
+ "toml_datetime",
  "winnow",
 ]
 
@@ -2989,9 +2971,9 @@ dependencies = [
 
 [[package]]
 name = "zookeeper"
-version = "0.7.0"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9ad5aef26217dec3996c044b71493aed1b94f42efad1139b63c3f309ffa75605"
+checksum = "2312b424380193701a7341cec0551b80d2e3afd827ea0d3440af67899156ce10"
 dependencies = [
  "byteorder",
  "bytes 0.5.6",
