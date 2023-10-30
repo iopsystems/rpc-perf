@@ -50,7 +50,7 @@ If you want to submit a patch, please follow these steps:
 4. push your feature branch
 5. create a pull request linked to the issue
 
-[ci-build-badge]: https://img.shields.io/github/workflow/status/iopsystems/rpc-perf/CI/master?label=CI
+[ci-build-badge]: https://img.shields.io/github/actions/workflow/status/iopsystems/rpc-perf/cargo.yml?branch=main
 [ci-build-url]: https://github.com/iopsystems/rpc-perf/actions/workflows/cargo.yml?query=branch%3Amaster+event%3Apush
 [license-badge-apache]: https://img.shields.io/badge/license-Apache%202.0-blue.svg
 [license-badge-mit]: https://img.shields.io/badge/license-MIT-blue.svg
