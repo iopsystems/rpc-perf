@@ -68,6 +68,9 @@ weight = 1
 # the total number of Kafka consumer clients for topics in this compoment
 subscriber_poolsize = 1
 # the total number of Kafka tasks per Kafka consumer client
+# NOTE: received messages will not fanout to all tasks per client. To compare
+# with other pubsub implementations, set the concurrency to `1` and increase the
+# poolsize instead.
 subscriber_concurrency = 2
 # the number of topics
 topics = 2

@@ -137,16 +137,15 @@ pub fn launch_subscribers(
     config: Config,
     workload_components: &[Component],
 ) {
-    let group_id = "rpc_subscriber";
     for component in workload_components {
         if let Component::Topics(topics) = component {
             let poolsize = topics.subscriber_poolsize();
             let concurrency = topics.subscriber_concurrency();
 
-            for _ in 0..poolsize {
+            for id in 0..poolsize {
                 let client = {
                     let _guard = runtime.enter();
-                    Arc::new(get_kafka_consumer(&config, group_id))
+                    Arc::new(get_kafka_consumer(&config, &format!("rpcperf_subscriber_{id}")))
                 };
                 for _ in 0..concurrency {
                     let mut sub_topics: Vec<String> = Vec::new();
