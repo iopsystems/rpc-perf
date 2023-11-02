@@ -145,7 +145,10 @@ pub fn launch_subscribers(
             for id in 0..poolsize {
                 let client = {
                     let _guard = runtime.enter();
-                    Arc::new(get_kafka_consumer(&config, &format!("rpcperf_subscriber_{id}")))
+                    Arc::new(get_kafka_consumer(
+                        &config,
+                        &format!("rpcperf_subscriber_{id}"),
+                    ))
                 };
                 for _ in 0..concurrency {
                     let mut sub_topics: Vec<String> = Vec::new();
