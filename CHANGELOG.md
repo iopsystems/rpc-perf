@@ -1,5 +1,22 @@
 ## [Unreleased]
 
+## [5.3.0] - 2023-11-21
+
+### Changed
+
+- Metrics endpoints now use a configurable integration period controlled by the
+  value for the `interval` in the general config section. This means that
+  percentile metrics will be reflect the behavior across that period of time.
+- Use rustcommon compact histogram instead of the local implementation.
+
+### Added
+
+- Support for benchmarking Apache Kafka.
+
+### Fixed
+
+- Early connection attempts are now reflected in the stats for the first window.
+
 ## [5.2.0] - 2023-10-17
 
 ### Changed
@@ -47,7 +64,8 @@
 - Support Momento topics.
 - Basic HTTP/1.1 and HTTP/2.0 load generation.
 
-[unreleased]: https://github.com/iopsystems/rpc-perf/compare/v5.2.0...HEAD
+[unreleased]: https://github.com/iopsystems/rpc-perf/compare/v5.3.0...HEAD
+[5.3.0]: https://github.com/iopsystems/rezolus/compare/v5.2.0...v5.3.0
 [5.2.0]: https://github.com/iopsystems/rezolus/compare/v5.1.0...v5.2.0
 [5.1.0]: https://github.com/iopsystems/rezolus/compare/v5.0.0...v5.1.0
 [5.0.0]: https://github.com/iopsystems/rezolus/releases/tag/v5.0.0
