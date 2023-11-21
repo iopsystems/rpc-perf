@@ -116,18 +116,21 @@ fn main() {
     });
 
     // spawn thread to maintain histogram snapshots
-    control_runtime.spawn(async {
-        while RUNNING.load(Ordering::Relaxed) {
-            // acquire a lock and update the snapshots
-            {
-                let mut snapshots = METRICS_SNAPSHOT.write().await;
-                snapshots.update();
-            }
+    {
+        let interval = config.general().interval();
+        control_runtime.spawn(async move {
+            while RUNNING.load(Ordering::Relaxed) {
+                // acquire a lock and update the snapshots
+                {
+                    let mut snapshots = METRICS_SNAPSHOT.write().await;
+                    snapshots.update();
+                }
 
-            // delay until next update
-            sleep(core::time::Duration::from_secs(1)).await;
-        }
-    });
+                // delay until next update
+                sleep(interval).await;
+            }
+        });
+    }
 
     // TODO: figure out what a reasonable size is here
     let (client_sender, client_receiver) = bounded(128);
