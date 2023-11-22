@@ -7,7 +7,14 @@ homepage = { workspace = true }
 repository = { workspace = true }
 license = { workspace = true }
 
+[features]
+utoipa = [ "dep:utoipa" ]
+
 [dependencies]
 histogram = { workspace = true }
 serde = { workspace = true }
 thiserror = "1.0.47"
+
+[dependencies.utoipa]
+version = "4.1.0"
+optional = true
