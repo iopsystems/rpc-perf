@@ -4,6 +4,8 @@ use histogram::SparseHistogram;
 use serde::{Deserialize, Serialize};
 
 #[derive(Default, Deserialize, Serialize)]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "utoipa", schema(as = rpcperf_dataspec::Connections))]
 pub struct Connections {
     /// number of current connections (gauge)
     pub current: i64,
@@ -18,6 +20,8 @@ pub struct Connections {
 }
 
 #[derive(Default, Deserialize, Serialize)]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "utoipa", schema(as = rpcperf_dataspec::Requests))]
 pub struct Requests {
     pub total: u64,
     pub ok: u64,
@@ -26,6 +30,8 @@ pub struct Requests {
 }
 
 #[derive(Default, Deserialize, Serialize)]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "utoipa", schema(as = rpcperf_dataspec::Responses))]
 pub struct Responses {
     /// total number of responses
     pub total: u64,
@@ -42,6 +48,8 @@ pub struct Responses {
 }
 
 #[derive(Default, Deserialize, Serialize)]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "utoipa", schema(as = rpcperf_dataspec::ClientStats))]
 pub struct ClientStats {
     pub connections: Connections,
     pub requests: Requests,
@@ -51,24 +59,32 @@ pub struct ClientStats {
 }
 
 #[derive(Default, Deserialize, Serialize)]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "utoipa", schema(as = rpcperf_dataspec::PubsubStats))]
 pub struct PubsubStats {
     pub publishers: Publishers,
     pub subscribers: Subscribers,
 }
 
 #[derive(Default, Deserialize, Serialize)]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "utoipa", schema(as = rpcperf_dataspec::Publishers))]
 pub struct Publishers {
     // current number of publishers
     pub current: i64,
 }
 
 #[derive(Default, Deserialize, Serialize)]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "utoipa", schema(as = rpcperf_dataspec::Subscribers))]
 pub struct Subscribers {
     // current number of subscribers
     pub current: i64,
 }
 
 #[derive(Default, Deserialize, Serialize)]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "utoipa", schema(as = rpcperf_dataspec::JsonSnapshot))]
 pub struct JsonSnapshot {
     pub window: u64,
     pub elapsed: f64,
