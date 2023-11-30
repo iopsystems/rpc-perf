@@ -9,7 +9,8 @@ Build-Depends:
  clang:native,
  protobuf-compiler,
  cmake,
- libstdc++6
+ libstdc++6,
+ git
 # Note the libstd++6 dependency is to pull in dependencies that are needed when
 # identifying the shlib deps of the rpc-perf binary.
 
