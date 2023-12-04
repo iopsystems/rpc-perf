@@ -1,7 +1,5 @@
 # An example configuration for benchmarking Momento (https://www.gomomento.com)
-# and demonstrating the use of the preview functionality for collections. Each
-# command family is using its own keyspace and covers key-value, hash, list,
-# set, and sorted set.
+# and demonstrating how to use RPC-Perf with Momento Topics (pubsub).
 
 [general]
 # specify the protocol to be used
@@ -55,6 +53,8 @@ ratelimit = 10
 [[workload.topics]]
 # the weight relative to other workload components
 weight = 1
+# limits the rate at which new subscribers are created (secondly rate)
+# subscribe_ratelimt = 1
 # the total number of Momento clients for subscribers to this set of topics
 subscriber_poolsize = 1
 # the total number of gRPC sessions per Momento client for this set of topics
@@ -70,6 +70,8 @@ message_len = 128
 [[workload.topics]]
 # the weight relative to other workload components
 weight = 1
+# limits the rate at which new subscribers are created (secondly rate)
+# subscribe_ratelimt = 1
 # the total number of Momento clients for subscribers to this set of topics
 subscriber_poolsize = 1
 # the total number of gRPC sessions per Momento client for this set of topics

@@ -44,7 +44,11 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
             )
             .await
             {
-                Ok(Ok(s)) => Some(s),
+                Ok(Ok(s)) => {
+                    CONNECT_OK.increment();
+                    CONNECT_CURR.increment();
+                    Some(s)
+                }
                 Ok(Err(_)) => {
                     CONNECT_EX.increment();
                     sleep(Duration::from_millis(100)).await;

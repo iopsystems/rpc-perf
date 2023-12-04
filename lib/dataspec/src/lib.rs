@@ -64,6 +64,10 @@ pub struct ClientStats {
 pub struct PubsubStats {
     pub publishers: Publishers,
     pub subscribers: Subscribers,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub publish_latency: Option<SparseHistogram>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub total_latency: Option<SparseHistogram>,
 }
 
 #[derive(Default, Deserialize, Serialize)]

@@ -1,12 +1,5 @@
 use super::*;
 
-const PAGESIZE: usize = 4096;
-const DEFAULT_BUFFER_SIZE: usize = 4 * PAGESIZE;
-
-fn default_buffer_size() -> usize {
-    DEFAULT_BUFFER_SIZE
-}
-
 #[derive(Clone, Deserialize)]
 pub struct Client {
     /// The number of connections this process will have to each endpoint.
