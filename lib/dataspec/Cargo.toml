@@ -1,5 +1,6 @@
 [package]
 name = "rpcperf-dataspec"
+description = "Data structure specifications for interoperability with rpc-perf"
 version = "0.2.0"
 authors = { workspace = true }
 edition = { workspace = true }
