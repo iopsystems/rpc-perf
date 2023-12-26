@@ -14,6 +14,19 @@ pub struct Pubsub {
     publisher_poolsize: usize,
     publisher_concurrency: usize,
 
+    /// Specify the default sizes for the read and write buffers (in bytes).
+    /// It is useful to increase the sizes if you expect to send and/or receive
+    /// large requests/responses as part of the workload.
+    ///
+    /// The default is a 16KB for each the read and write buffers.
+    ///
+    /// Not all client implementations allow setting these values, so this is a
+    /// best effort basis.
+    #[serde(default = "default_buffer_size")]
+    read_buffer_size: usize,
+    #[serde(default = "default_buffer_size")]
+    write_buffer_size: usize,
+
     // kafka specific configs
     kafka_acks: Option<String>,
     kafka_linger_ms: Option<String>,
@@ -46,6 +59,19 @@ impl Pubsub {
 
     pub fn publisher_concurrency(&self) -> usize {
         self.publisher_concurrency
+    }
+
+    pub fn read_buffer_size(&self) -> usize {
+        // rounds the read buffer size up to the next nearest multiple of the
+        // pagesize
+        ((std::cmp::max(1, self.read_buffer_size) + PAGESIZE - 1) / PAGESIZE) * PAGESIZE
+    }
+
+    #[allow(dead_code)]
+    pub fn write_buffer_size(&self) -> usize {
+        // rounds the write buffer size up to the next nearest multiple of the
+        // pagesize
+        ((std::cmp::max(1, self.write_buffer_size) + PAGESIZE - 1) / PAGESIZE) * PAGESIZE
     }
 
     pub fn kafka_acks(&self) -> &Option<String> {

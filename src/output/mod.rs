@@ -292,6 +292,12 @@ pub fn json(config: Config, ratelimit: Option<&Ratelimiter>) {
                     subscribers: Subscribers {
                         current: PUBSUB_SUBSCRIBER_CURR.value(),
                     },
+                    publish_latency: snapshot
+                        .histogram_delta(PUBSUB_PUBLISH_LATENCY_HISTOGRAM)
+                        .map_or_else(|| None, |h| Some(histogram::SparseHistogram::from(h))),
+                    total_latency: snapshot
+                        .histogram_delta(PUBSUB_LATENCY_HISTOGRAM)
+                        .map_or_else(|| None, |h| Some(histogram::SparseHistogram::from(h))),
                 },
             };
 

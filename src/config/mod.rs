@@ -21,6 +21,13 @@ pub use target::Target;
 pub use tls::Tls;
 pub use workload::{Command, Distribution, Keyspace, Topics, ValueKind, Verb, Workload};
 
+pub const PAGESIZE: usize = 4096;
+pub const DEFAULT_BUFFER_SIZE: usize = 4 * PAGESIZE;
+
+pub fn default_buffer_size() -> usize {
+    DEFAULT_BUFFER_SIZE
+}
+
 #[derive(Clone, Deserialize)]
 pub struct Config {
     general: General,

@@ -51,6 +51,10 @@ pub fn launch_clients(config: &Config, work_receiver: Receiver<WorkItem>) -> Opt
             error!("keyspace is not supported for the kafka protocol");
             std::process::exit(1);
         }
+        Protocol::Blabber => {
+            error!("keyspace is not supported for the blabber protocol");
+            std::process::exit(1);
+        }
     }
 
     Some(client_rt)

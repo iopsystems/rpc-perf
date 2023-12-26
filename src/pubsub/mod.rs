@@ -8,6 +8,7 @@ use std::io::{Error, ErrorKind, Result};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use tokio::runtime::Runtime;
 
+mod blabber;
 mod kafka;
 mod momento;
 
@@ -59,12 +60,11 @@ impl MessageValidator {
     }
 
     /// Validate the message checksum and returns a validation result.
-    pub fn validate(&self, v: &mut Vec<u8>) -> std::result::Result<u64, ValidationError> {
+    pub fn validate(&self, v: &mut [u8]) -> std::result::Result<u64, ValidationError> {
         let now_unix = SystemTime::now();
 
         // check if the magic bytes match
         if v[0..8] != [0x54, 0x45, 0x53, 0x54, 0x49, 0x4E, 0x47, 0x21] {
-            error!("pubsub: unexpected/invalid message received");
             RESPONSE_EX.increment();
             PUBSUB_RECEIVE_INVALID.increment();
             return Err(ValidationError::Unexpected);
@@ -73,8 +73,8 @@ impl MessageValidator {
         // validate the checksum
         let csum = v[8..16].to_owned();
         v[8..16].copy_from_slice(&[0; 8]);
-        if csum != self.hash_builder.hash_one(&v).to_be_bytes() {
-            error!("pubsub: corrupt message received");
+        let calculated_csum = self.hash_builder.hash_one(&v).to_be_bytes();
+        if csum != calculated_csum {
             PUBSUB_RECEIVE.increment();
             PUBSUB_RECEIVE_CORRUPT.increment();
             return Err(ValidationError::Corrupted);
@@ -140,6 +140,9 @@ fn launch_publishers(
         .expect("failed to initialize tokio runtime");
 
     match config.general().protocol() {
+        Protocol::Blabber => {
+            blabber::launch_publishers(&mut publisher_rt, config.clone(), work_receiver);
+        }
         Protocol::Momento => {
             momento::launch_publishers(&mut publisher_rt, config.clone(), work_receiver);
         }
@@ -172,6 +175,9 @@ fn launch_subscribers(config: &Config, workload_components: &[Component]) -> Opt
         .expect("failed to initialize tokio runtime");
 
     match config.general().protocol() {
+        Protocol::Blabber => {
+            blabber::launch_subscribers(&mut subscriber_rt, config.clone(), workload_components);
+        }
         Protocol::Momento => {
             momento::launch_subscribers(&mut subscriber_rt, config.clone(), workload_components);
         }
