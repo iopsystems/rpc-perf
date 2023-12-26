@@ -18,7 +18,7 @@ pub struct Pubsub {
     /// It is useful to increase the sizes if you expect to send and/or receive
     /// large requests/responses as part of the workload.
     ///
-    /// The default is a single page (4KB) for each the read and write buffers.
+    /// The default is a 16KB for each the read and write buffers.
     ///
     /// Not all client implementations allow setting these values, so this is a
     /// best effort basis.
