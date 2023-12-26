@@ -143,30 +143,8 @@ async fn subscriber_task(endpoint: String, config: Config) -> Result<()> {
 }
 
 /// Launch tasks with one channel per task as gRPC is mux-enabled.
-pub fn launch_publishers(runtime: &mut Runtime, config: Config, work_receiver: Receiver<WorkItem>) {
-    debug!("launching blabber publisher tasks");
-
-    for _ in 0..config.pubsub().unwrap().publisher_poolsize() {
-        PUBSUB_PUBLISHER_CONNECT.increment();
-
-        // create one task per channel
-        for _ in 0..config.pubsub().unwrap().publisher_concurrency() {
-            runtime.spawn(publisher_task(work_receiver.clone()));
-        }
-    }
-}
-
-async fn publisher_task(work_receiver: Receiver<WorkItem>) -> Result<()> {
-    PUBSUB_PUBLISHER_CURR.add(1);
-
-    while RUNNING.load(Ordering::Relaxed) {
-        let _work_item = work_receiver
-            .recv()
-            .await
-            .map_err(|_| Error::new(ErrorKind::Other, "channel closed"))?;
-    }
-
-    PUBSUB_PUBLISHER_CURR.sub(1);
-
-    Ok(())
+pub fn launch_publishers(_runtime: &mut Runtime, _config: Config, _work_receiver: Receiver<WorkItem>) {
+    // note: there are no publish tasks for blabber, instead the server is
+    // expected to publish compatible messages to the subscribers
+    debug!("skipping blabber publisher tasks");
 }
