@@ -1,6 +1,6 @@
 use crate::clients::launch_clients;
 use crate::pubsub::launch_pubsub;
-use crate::workload::{launch_workload, Generator};
+use crate::workload::{launch_workload, Generator, Ratelimit};
 use async_channel::{bounded, Sender};
 use backtrace::Backtrace;
 use clap::{Arg, Command};
@@ -151,7 +151,8 @@ fn main() {
     // launch json log output
     {
         let config = config.clone();
-        control_runtime.spawn_blocking(move || output::json(config, workload_ratelimit.as_deref()));
+        let ratelimiter = workload_ratelimit.clone();
+        control_runtime.spawn_blocking(move || output::json(config, ratelimiter.as_deref()));
     }
 
     // begin cli output
@@ -174,6 +175,23 @@ fn main() {
 
     // start publisher(s) and subscriber(s)
     let mut pubsub_runtimes = launch_pubsub(&config, pubsub_receiver, &workload_components);
+
+    // start ratelimit controller thread if a dynamic ratelimit is configured
+    {
+        if let Some(mut ratelimit_controller) = Ratelimit::new(&config) {
+            control_runtime.spawn(async move {
+                while RUNNING.load(Ordering::Relaxed) {
+                    // delay until next step function
+                    sleep(ratelimit_controller.interval()).await;
+                    let _ = admin::handlers::update_ratelimit(
+                        ratelimit_controller.next_ratelimit(),
+                        workload_ratelimit.clone(),
+                    )
+                    .await;
+                }
+            });
+        }
+    }
 
     while RUNNING.load(Ordering::Relaxed) {
         std::thread::sleep(Duration::from_secs(1));

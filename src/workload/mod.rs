@@ -76,7 +76,7 @@ pub struct Generator {
 
 impl Generator {
     pub fn new(config: &Config) -> Self {
-        let ratelimiter = config.workload().ratelimit().map(|rate| {
+        let ratelimiter = config.workload().ratelimit().start().map(|rate| {
             let amount = (rate.get() as f64 / 1_000_000.0).ceil() as u64;
 
             // even though we might not have nanosecond level clock resolution,
@@ -722,4 +722,49 @@ pub async fn reconnect(work_sender: Sender<ClientWorkItem>, config: Config) -> R
     }
 
     Ok(())
+}
+
+#[derive(Clone)]
+pub struct Ratelimit {
+    end: u64,
+    step: u64,
+    interval: Duration,
+    current: u64,
+}
+
+impl Ratelimit {
+    pub fn new(config: &Config) -> Option<Self> {
+        let ratelimit_config = config.workload().ratelimit();
+        ratelimit_config.validate();
+
+        if !ratelimit_config.is_dynamic() {
+            return None;
+        }
+
+        // Unwrapping values is safe since the structure has already been
+        // validated for dynamic ratelimit parameters
+        let end = ratelimit_config.end().unwrap();
+        let step = ratelimit_config.step().unwrap();
+        let interval = ratelimit_config.interval().unwrap();
+        let current: u64 = ratelimit_config.start().unwrap().into();
+
+        Some(Ratelimit {
+            end,
+            step,
+            interval,
+            current,
+        })
+    }
+
+    pub fn interval(&self) -> Duration {
+        self.interval
+    }
+
+    pub fn next_ratelimit(&mut self) -> u64 {
+        if self.current + self.step <= self.end {
+            self.current += self.step;
+        }
+
+        self.current
+    }
 }

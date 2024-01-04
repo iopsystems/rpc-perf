@@ -94,7 +94,7 @@ mod filters {
     }
 }
 
-mod handlers {
+pub mod handlers {
     use super::*;
     use core::convert::Infallible;
     use std::time::UNIX_EPOCH;

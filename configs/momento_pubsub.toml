@@ -46,8 +46,10 @@ publisher_concurrency = 20
 [workload]
 # the number of threads that will be used to generate requests
 threads = 1
+
+[workload.ratelimit]
 # the global ratelimit
-ratelimit = 10
+start = 10
 
 # An example set of topics using a low number of subscribers per topic.
 [[workload.topics]]

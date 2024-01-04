@@ -55,8 +55,10 @@ request_timeout = 1000
 [workload]
 # the number of threads that will be used to generate the workload
 threads = 1
+
+[workload.ratelimit]
 # set a global ratelimit for the workload
-ratelimit = 50
+start = 50
 
 # An example keyspace showcasing the use of the `key-value` family of commands.
 #

@@ -83,8 +83,10 @@ request_timeout = 1000
 [workload]
 # the number of threads that will be used to generate the workload
 threads = 1
+
+[workload.ratelimit]
 # set a global ratelimit for the workload
-ratelimit = 10_000
+start = 10_000
 
 
 [[workload.keyspace]]

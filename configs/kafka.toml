@@ -57,8 +57,10 @@ kafka_linger_ms = "1"
 [workload]
 # the number of threads that will be used to generate requests
 threads = 1
+
+[workload.ratelimit]
 # the global ratelimit
-ratelimit = 1000
+start = 1000
 
 # An example set of
 #topics using a single consumer multiple producer.

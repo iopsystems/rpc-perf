@@ -1,11 +1,11 @@
-# An example configuration for benchmarking memcached with an 80/20 read/write
-# mix in a keyspace of 1M keys using 32B keys and 128B values.
+# An example configuration for benchmarking Pelikan Segcache with an 80/20
+# read/write mix in a keyspace of 1M keys using 32B keys and 128B values.
 
 [general]
 # specify the protocol to be used
 protocol = "memcache"
 # the interval for stats integration and reporting
-interval = 60
+interval = 15
 # the number of intervals to run the test for
 duration = 300
 # optionally, we can write some detailed stats to a file during the run
@@ -31,7 +31,7 @@ log_max_size = 1073741824
 [target]
 # specify one or more endpoints as IP:PORT pairs
 endpoints = [
-	"127.0.0.1:11211",
+	"127.0.0.1:12321",
 ]
 
 [client]
@@ -49,8 +49,15 @@ request_timeout = 1000
 threads = 1
 
 [workload.ratelimit]
-# set a global ratelimit for the workload
+# starting range of ratelimit for a dynamically changing ratelimit
 start = 10_000
+# end range for a dynamic ratelimit
+end = 100_000
+# step size for the ratelimit, i.e., number of rates between the start and
+# end to be tested
+step = 10_000
+# time interval between steps in seconds
+interval = 30
 
 [[workload.keyspace]]
 # sets the relative weight of this keyspace: defaults to 1
@@ -63,8 +70,6 @@ nkeys = 1_000_000
 vlen = 128
 # use random bytes for the values
 vkind = "bytes"
-# optionally: specify a TTL for the keys, by default there is no expiration
-# ttl = "15m"
 # controls what commands will be used in this keyspace
 commands = [
 	# get a value
