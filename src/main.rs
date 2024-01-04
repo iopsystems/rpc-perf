@@ -1,6 +1,6 @@
 use crate::clients::launch_clients;
 use crate::pubsub::launch_pubsub;
-use crate::workload::{launch_workload, Generator};
+use crate::workload::{launch_workload, Generator, Ratelimit};
 use async_channel::{bounded, Sender};
 use backtrace::Backtrace;
 use clap::{Arg, Command};
@@ -151,7 +151,8 @@ fn main() {
     // launch json log output
     {
         let config = config.clone();
-        control_runtime.spawn_blocking(move || output::json(config, workload_ratelimit.as_deref()));
+        let ratelimiter = workload_ratelimit.clone();
+        control_runtime.spawn_blocking(move || output::json(config, ratelimiter.as_deref()));
     }
 
     // begin cli output
@@ -174,6 +175,37 @@ fn main() {
 
     // start publisher(s) and subscriber(s)
     let mut pubsub_runtimes = launch_pubsub(&config, pubsub_receiver, &workload_components);
+
+    // start ratelimit controller thread if a dynamic ratelimit is configured
+    {
+        let ratelimit_config = config.workload().ratelimit();
+        if ratelimit_config.is_dynamic() {
+            if !ratelimit_config.validate_dynamic() {
+                eprintln!("invalid configuration for dynamic workload ratelimiting");
+                std::process::exit(1);
+            }
+
+            // unwrap is safe since it has already been checked
+            let interval = ratelimit_config.interval().unwrap();
+            let mut ratelimit_controller = Ratelimit::new(
+                ratelimit_config.start(),
+                ratelimit_config.end(),
+                ratelimit_config.step(),
+            );
+
+            control_runtime.spawn(async move {
+                while RUNNING.load(Ordering::Relaxed) {
+                    // delay until next step function
+                    sleep(interval).await;
+                    let _ = admin::handlers::update_ratelimit(
+                        ratelimit_controller.next(),
+                        workload_ratelimit.clone(),
+                    )
+                    .await;
+                }
+            });
+        }
+    }
 
     while RUNNING.load(Ordering::Relaxed) {
         std::thread::sleep(Duration::from_secs(1));

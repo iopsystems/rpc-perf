@@ -11,9 +11,7 @@ pub struct Workload {
     #[serde(default)]
     topics: Vec<Topics>,
     threads: usize,
-    #[serde(default)]
-    // zero is treated as unlimited
-    ratelimit: u64,
+    ratelimit: Ratelimit,
 }
 
 #[derive(Clone, Deserialize, Copy, Debug, Ord, Eq, PartialOrd, PartialEq, Hash)]
@@ -36,8 +34,8 @@ impl Workload {
         self.threads
     }
 
-    pub fn ratelimit(&self) -> Option<NonZeroU64> {
-        NonZeroU64::new(self.ratelimit)
+    pub fn ratelimit(&self) -> &Ratelimit {
+        &self.ratelimit
     }
 }
 
@@ -466,5 +464,59 @@ impl Verb {
 
     pub fn supports_truncate(&self) -> bool {
         matches!(self, Self::ListPushBack | Self::ListPushFront)
+    }
+}
+
+#[derive(Clone, Deserialize)]
+pub struct Ratelimit {
+    #[serde(default)]
+    ratelimit: u64,
+
+    #[serde(default)]
+    ratelimit_end: Option<u64>,
+
+    #[serde(default)]
+    step_size: Option<u64>,
+
+    #[serde(default)]
+    step_interval: Option<u64>,
+}
+
+impl Ratelimit {
+    pub fn start(&self) -> Option<NonZeroU64> {
+        NonZeroU64::new(self.ratelimit)
+    }
+
+    pub fn end(&self) -> Option<u64> {
+        self.ratelimit_end
+    }
+
+    pub fn step(&self) -> Option<u64> {
+        self.step_size
+    }
+
+    pub fn interval(&self) -> Option<Duration> {
+        self.step_interval.map(Duration::from_secs)
+    }
+
+    pub fn is_dynamic(&self) -> bool {
+        self.ratelimit_end.is_some() || self.step_size.is_some() || self.step_interval.is_some()
+    }
+
+    pub fn validate_dynamic(&self) -> bool {
+        if !(self.ratelimit_end.is_some()
+            && self.step_size.is_some()
+            && self.step_interval.is_some())
+        {
+            return false;
+        }
+
+        if self.ratelimit > self.ratelimit_end.unwrap()
+            || self.step_size.unwrap() > self.ratelimit_end.unwrap()
+        {
+            return false;
+        }
+
+        true
     }
 }

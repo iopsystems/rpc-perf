@@ -57,6 +57,8 @@ kafka_linger_ms = "1"
 [workload]
 # the number of threads that will be used to generate requests
 threads = 1
+
+[workload.ratelimit]
 # the global ratelimit
 ratelimit = 1000
 

@@ -44,6 +44,8 @@ publisher_concurrency = 20
 [workload]
 # the number of threads that will be used to generate requests
 threads = 1
+
+[workload.ratelimit]
 # the global ratelimit
 ratelimit = 1
 

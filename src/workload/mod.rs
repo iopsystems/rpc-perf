@@ -1,5 +1,6 @@
 use super::*;
 use config::{Command, ValueKind, Verb};
+use core::num::NonZeroU64;
 use rand::distributions::{Alphanumeric, Uniform};
 use rand::{Rng, RngCore, SeedableRng};
 use rand_distr::Distribution as RandomDistribution;
@@ -76,7 +77,7 @@ pub struct Generator {
 
 impl Generator {
     pub fn new(config: &Config) -> Self {
-        let ratelimiter = config.workload().ratelimit().map(|rate| {
+        let ratelimiter = config.workload().ratelimit().start().map(|rate| {
             let amount = (rate.get() as f64 / 1_000_000.0).ceil() as u64;
 
             // even though we might not have nanosecond level clock resolution,
@@ -722,4 +723,36 @@ pub async fn reconnect(work_sender: Sender<ClientWorkItem>, config: Config) -> R
     }
 
     Ok(())
+}
+
+#[derive(Clone)]
+pub struct Ratelimit {
+    start: u64,
+    end: u64,
+    step: u64,
+    current: u64,
+}
+
+impl Ratelimit {
+    pub fn new(start: Option<NonZeroU64>, end: Option<u64>, step: Option<u64>) -> Self {
+        let start: u64 = start.unwrap().into();
+        let end = end.unwrap();
+        let step = step.unwrap();
+        let current = start;
+
+        Ratelimit {
+            start,
+            end,
+            step,
+            current,
+        }
+    }
+
+    pub fn next(&mut self) -> u64 {
+        if self.current + self.step <= self.end {
+            self.current += self.step;
+        }
+
+        self.current
+    }
 }
