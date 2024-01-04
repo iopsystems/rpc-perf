@@ -178,27 +178,13 @@ fn main() {
 
     // start ratelimit controller thread if a dynamic ratelimit is configured
     {
-        let ratelimit_config = config.workload().ratelimit();
-        if ratelimit_config.is_dynamic() {
-            if !ratelimit_config.validate_dynamic() {
-                eprintln!("invalid configuration for dynamic workload ratelimiting");
-                std::process::exit(1);
-            }
-
-            // unwrap is safe since it has already been checked
-            let interval = ratelimit_config.interval().unwrap();
-            let mut ratelimit_controller = Ratelimit::new(
-                ratelimit_config.start(),
-                ratelimit_config.end(),
-                ratelimit_config.step(),
-            );
-
+        if let Some(mut ratelimit_controller) = Ratelimit::new(&config) {
             control_runtime.spawn(async move {
                 while RUNNING.load(Ordering::Relaxed) {
                     // delay until next step function
-                    sleep(interval).await;
+                    sleep(ratelimit_controller.interval()).await;
                     let _ = admin::handlers::update_ratelimit(
-                        ratelimit_controller.next(),
+                        ratelimit_controller.next_ratelimit(),
                         workload_ratelimit.clone(),
                     )
                     .await;

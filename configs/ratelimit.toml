@@ -49,11 +49,15 @@ request_timeout = 1000
 threads = 1
 
 [workload.ratelimit]
-# set a global ratelimit for the workload
-ratelimit = 10_000
-ratelimit_end = 100_000
-step_size = 10_000
-step_interval = 15
+# starting range of ratelimit for a dynamically changing ratelimit
+start = 10_000
+# end range for a dynamic ratelimit
+end = 100_000
+# step size for the ratelimit, i.e., number of rates between the start and
+# end to be tested
+step = 10_000
+# time interval between steps in seconds
+interval = 15
 
 [[workload.keyspace]]
 # sets the relative weight of this keyspace: defaults to 1

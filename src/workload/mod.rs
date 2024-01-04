@@ -730,25 +730,41 @@ pub struct Ratelimit {
     start: u64,
     end: u64,
     step: u64,
+    interval: Duration,
     current: u64,
 }
 
 impl Ratelimit {
-    pub fn new(start: Option<NonZeroU64>, end: Option<u64>, step: Option<u64>) -> Self {
-        let start: u64 = start.unwrap().into();
-        let end = end.unwrap();
-        let step = step.unwrap();
+    pub fn new(config: &Config) -> Option<Self> {
+        let ratelimit_config = config.workload().ratelimit();
+        ratelimit_config.validate();
+
+        if !ratelimit_config.is_dynamic() {
+            return None;
+        }
+
+        // Unwrapping values is safe since the structure has already been
+        // validated for dynamic ratelimit parameters
+        let start: u64 = ratelimit_config.start().unwrap().into();
+        let end = ratelimit_config.end().unwrap();
+        let step = ratelimit_config.end().unwrap();
+        let interval = ratelimit_config.interval().unwrap();
         let current = start;
 
-        Ratelimit {
+        Some(Ratelimit {
             start,
             end,
             step,
+            interval,
             current,
-        }
+        })
     }
 
-    pub fn next(&mut self) -> u64 {
+    pub fn interval(&self) -> Duration {
+        self.interval
+    }
+
+    pub fn next_ratelimit(&mut self) -> u64 {
         if self.current + self.step <= self.end {
             self.current += self.step;
         }

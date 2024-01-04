@@ -470,53 +470,52 @@ impl Verb {
 #[derive(Clone, Deserialize)]
 pub struct Ratelimit {
     #[serde(default)]
-    ratelimit: u64,
+    start: u64,
 
     #[serde(default)]
-    ratelimit_end: Option<u64>,
+    end: Option<u64>,
 
     #[serde(default)]
-    step_size: Option<u64>,
+    step: Option<u64>,
 
     #[serde(default)]
-    step_interval: Option<u64>,
+    interval: Option<u64>,
 }
 
 impl Ratelimit {
     pub fn start(&self) -> Option<NonZeroU64> {
-        NonZeroU64::new(self.ratelimit)
+        NonZeroU64::new(self.start)
     }
 
     pub fn end(&self) -> Option<u64> {
-        self.ratelimit_end
+        self.end
     }
 
     pub fn step(&self) -> Option<u64> {
-        self.step_size
+        self.step
     }
 
     pub fn interval(&self) -> Option<Duration> {
-        self.step_interval.map(Duration::from_secs)
+        self.interval.map(Duration::from_secs)
     }
 
     pub fn is_dynamic(&self) -> bool {
-        self.ratelimit_end.is_some() || self.step_size.is_some() || self.step_interval.is_some()
+        self.end.is_some() || self.step.is_some() || self.interval.is_some()
     }
 
-    pub fn validate_dynamic(&self) -> bool {
-        if !(self.ratelimit_end.is_some()
-            && self.step_size.is_some()
-            && self.step_interval.is_some())
-        {
-            return false;
+    pub fn validate(&self) {
+        if !self.is_dynamic() {
+            return;
         }
 
-        if self.ratelimit > self.ratelimit_end.unwrap()
-            || self.step_size.unwrap() > self.ratelimit_end.unwrap()
-        {
-            return false;
+        if !(self.end.is_some() && self.step.is_some() && self.interval.is_some()) {
+            eprintln!("end, step, and interval need to be specified for dynamic ratelimit");
+            std::process::exit(2);
         }
 
-        true
+        if self.start > self.end.unwrap() || self.step.unwrap() > self.end.unwrap() {
+            eprintln!("invalid configuration for dynamic workload ratelimiting");
+            std::process::exit(2);
+        }
     }
 }

@@ -47,7 +47,7 @@ threads = 1
 
 [workload.ratelimit]
 # the global ratelimit
-ratelimit = 1
+start = 1
 
 # An example set of topics using a low number of subscribers per topic.
 [[workload.topics]]
