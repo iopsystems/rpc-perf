@@ -1,6 +1,5 @@
 use super::*;
 use config::{Command, ValueKind, Verb};
-use core::num::NonZeroU64;
 use rand::distributions::{Alphanumeric, Uniform};
 use rand::{Rng, RngCore, SeedableRng};
 use rand_distr::Distribution as RandomDistribution;
@@ -727,7 +726,6 @@ pub async fn reconnect(work_sender: Sender<ClientWorkItem>, config: Config) -> R
 
 #[derive(Clone)]
 pub struct Ratelimit {
-    start: u64,
     end: u64,
     step: u64,
     interval: Duration,
@@ -745,14 +743,12 @@ impl Ratelimit {
 
         // Unwrapping values is safe since the structure has already been
         // validated for dynamic ratelimit parameters
-        let start: u64 = ratelimit_config.start().unwrap().into();
         let end = ratelimit_config.end().unwrap();
-        let step = ratelimit_config.end().unwrap();
+        let step = ratelimit_config.step().unwrap();
         let interval = ratelimit_config.interval().unwrap();
-        let current = start;
+        let current: u64 = ratelimit_config.start().unwrap().into();
 
         Some(Ratelimit {
-            start,
             end,
             step,
             interval,
