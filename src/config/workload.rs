@@ -467,6 +467,37 @@ impl Verb {
     }
 }
 
+fn ramp_linear() -> RampType {
+    RampType::Linear
+}
+
+fn ramp_completion() -> RampCompletionAction {
+    RampCompletionAction::Stable
+}
+
+// A linear ramp means that the ratelimit is increased between the start
+// and end value by the step function in a sequence. A shuffled ramp means
+// that the same stepwise ratelimits are explored in random order; however,
+// only ratelimits at the specified steps are applied.
+#[derive(Clone, Copy, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum RampType {
+    Linear,
+    Shuffled,
+}
+
+// Once the ramp is completed, the workload can remain at the final stable
+// state, it can loop around and repeat the entire workload in the same
+// sequence, or can repeat the same workload in reverse order (for example,
+// to perform a corresponding ramp-down to the initial ramp-up).
+#[derive(Clone, Copy, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum RampCompletionAction {
+    Stable,
+    Loop,
+    Mirror,
+}
+
 #[derive(Clone, Deserialize)]
 pub struct Ratelimit {
     #[serde(default)]
@@ -480,6 +511,12 @@ pub struct Ratelimit {
 
     #[serde(default)]
     interval: Option<u64>,
+
+    #[serde(default = "ramp_linear")]
+    ramp: RampType,
+
+    #[serde(default = "ramp_completion")]
+    on_ramp_completion: RampCompletionAction,
 }
 
 impl Ratelimit {
@@ -497,6 +534,14 @@ impl Ratelimit {
 
     pub fn interval(&self) -> Option<Duration> {
         self.interval.map(Duration::from_secs)
+    }
+
+    pub fn ramp_type(&self) -> RampType {
+        self.ramp
+    }
+
+    pub fn ramp_completion_action(&self) -> RampCompletionAction {
+        self.on_ramp_completion
     }
 
     pub fn is_dynamic(&self) -> bool {

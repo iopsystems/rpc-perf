@@ -58,6 +58,17 @@ end = 100_000
 step = 10_000
 # time interval between steps in seconds
 interval = 30
+# specify how the workload is ramped: options are linear or shuffled
+# linear: the ratelimit is increased stepwise between the start and end range
+# shuffled: the space between start and end is explored in random order, but
+# each individual ratelimit is the same as one from the linear ramp, thereby
+# exploring all the same ratelimit points, just in a different order.
+ramp = "shuffled"
+# specify how the ratelimit is changed after the ramp is complete. options are:
+# stable: ratelimit is maintained at the final point in the ramp
+# loop: loop around and re-run the ramp from start to finish
+# mirror: run the ramp in the opposite direction and continue looping
+on_ramp_completion = "mirror"
 
 [[workload.keyspace]]
 # sets the relative weight of this keyspace: defaults to 1
