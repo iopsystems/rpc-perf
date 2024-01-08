@@ -1,6 +1,8 @@
 use super::*;
-use config::{Command, ValueKind, Verb};
+use config::{Command, RampCompletionAction, RampType, ValueKind, Verb};
 use rand::distributions::{Alphanumeric, Uniform};
+use rand::seq::SliceRandom;
+use rand::thread_rng;
 use rand::{Rng, RngCore, SeedableRng};
 use rand_distr::Distribution as RandomDistribution;
 use rand_distr::WeightedAliasIndex;
@@ -726,10 +728,10 @@ pub async fn reconnect(work_sender: Sender<ClientWorkItem>, config: Config) -> R
 
 #[derive(Clone)]
 pub struct Ratelimit {
-    end: u64,
-    step: u64,
+    limits: Vec<u64>,
     interval: Duration,
-    current: u64,
+    ramp_completion_action: RampCompletionAction,
+    current_idx: usize,
 }
 
 impl Ratelimit {
@@ -743,16 +745,38 @@ impl Ratelimit {
 
         // Unwrapping values is safe since the structure has already been
         // validated for dynamic ratelimit parameters
+        let start: u64 = ratelimit_config.start().unwrap().into();
         let end = ratelimit_config.end().unwrap();
-        let step = ratelimit_config.step().unwrap();
+        let step = ratelimit_config.step().unwrap() as usize;
         let interval = ratelimit_config.interval().unwrap();
-        let current: u64 = ratelimit_config.start().unwrap().into();
+        let ramp_type = ratelimit_config.ramp_type();
+        let ramp_completion_action = ratelimit_config.ramp_completion_action();
+
+        // Store all the ratelimits to test in a vector
+        let nsteps = ((end - start) as usize / step) + 1;
+        let mut limits: Vec<u64> = Vec::with_capacity(nsteps);
+        for i in (start..end + 1).step_by(step) {
+            limits.push(i);
+        }
+
+        // Shuffle the order of ratelimits if specified
+        if ramp_type == RampType::Shuffled {
+            limits.shuffle(&mut thread_rng());
+        }
+
+        // If the test is to be mirrored, store the ratelimits in reverse
+        // order in the vector as well
+        if ramp_completion_action == RampCompletionAction::Mirror {
+            for i in (0..limits.len()).rev() {
+                limits.push(limits[i]);
+            }
+        }
 
         Some(Ratelimit {
-            end,
-            step,
+            limits,
             interval,
-            current,
+            ramp_completion_action,
+            current_idx: 0,
         })
     }
 
@@ -761,10 +785,22 @@ impl Ratelimit {
     }
 
     pub fn next_ratelimit(&mut self) -> u64 {
-        if self.current + self.step <= self.end {
-            self.current += self.step;
+        let limit = self.limits[self.current_idx];
+        self.current_idx += 1;
+
+        if self.current_idx == self.limits.len() {
+            // If the test is to be looped or mirrored reset the pointer to the
+            // beginning of the vector and start again, else move back to the
+            // previous (final stable) value
+            if self.ramp_completion_action == RampCompletionAction::Loop
+                || self.ramp_completion_action == RampCompletionAction::Mirror
+            {
+                self.current_idx = 0;
+            } else {
+                self.current_idx -= 1;
+            }
         }
 
-        self.current
+        limit
     }
 }

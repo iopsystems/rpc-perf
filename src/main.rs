@@ -181,13 +181,13 @@ fn main() {
         if let Some(mut ratelimit_controller) = Ratelimit::new(&config) {
             control_runtime.spawn(async move {
                 while RUNNING.load(Ordering::Relaxed) {
-                    // delay until next step function
-                    sleep(ratelimit_controller.interval()).await;
                     let _ = admin::handlers::update_ratelimit(
                         ratelimit_controller.next_ratelimit(),
                         workload_ratelimit.clone(),
                     )
                     .await;
+                    // delay until next step function
+                    sleep(ratelimit_controller.interval()).await;
                 }
             });
         }

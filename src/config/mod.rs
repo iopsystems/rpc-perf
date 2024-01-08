@@ -19,7 +19,10 @@ pub use protocol::Protocol;
 pub use pubsub::Pubsub;
 pub use target::Target;
 pub use tls::Tls;
-pub use workload::{Command, Distribution, Keyspace, Topics, ValueKind, Verb, Workload};
+pub use workload::{
+    Command, Distribution, Keyspace, RampCompletionAction, RampType, Topics, ValueKind, Verb,
+    Workload,
+};
 
 pub const PAGESIZE: usize = 4096;
 pub const DEFAULT_BUFFER_SIZE: usize = 4 * PAGESIZE;
