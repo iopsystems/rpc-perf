@@ -159,7 +159,7 @@ jobs:
         run: |
           cargo build --workspace --all-features --all-targets --locked --release
           memcached -t 1 -p 11211 -m 256 &
-          target/release/rpc-perf config/memcached.toml
+          target/release/rpc-perf configs/memcached.toml
 
   check-success:
     name: verify all tests pass
