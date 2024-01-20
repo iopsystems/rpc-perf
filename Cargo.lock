@@ -452,7 +452,7 @@ source = "git+https://github.com/pelikan-io/pelikan#3ce36a45215a013e4be2134e7b3b
 dependencies = [
  "boring",
  "clocksource",
- "metriken 0.3.3",
+ "metriken 0.3.5",
  "pelikan-net 0.1.0 (git+https://github.com/pelikan-io/pelikan)",
  "ringlog",
  "serde",
@@ -1242,16 +1242,15 @@ checksum = "f665ee40bc4a3c5590afb1e9677db74a508659dfd71e126420da8274909a0167"
 
 [[package]]
 name = "metriken"
-version = "0.3.3"
+version = "0.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "033e8371ec83b73e4605dd1b1bbf1eaa0eea2884244eb3f713490ab08ca5ae6e"
+checksum = "9baea67418f728439d5a806bb1d18a4ab84a21388d768c1d400a3e6cc2dc1948"
 dependencies = [
  "histogram 0.8.3",
- "linkme",
- "metriken-derive 0.2.0",
+ "metriken-core",
+ "metriken-derive 0.3.4",
  "once_cell",
  "parking_lot",
- "phf",
 ]
 
 [[package]]
@@ -1280,9 +1279,9 @@ dependencies = [
 
 [[package]]
 name = "metriken-derive"
-version = "0.2.0"
+version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0213a7a12e01c66357d1f3491e2d7d74b2373540ea0a4bfd928a4c0e5e02f432"
+checksum = "1738842f3a54b57e8a665cb2f6eb5e4ad7301089a41655c2cddecf92354a4992"
 dependencies = [
  "proc-macro-crate 1.3.1",
  "proc-macro2",
@@ -1592,7 +1591,7 @@ dependencies = [
  "boring-sys",
  "foreign-types-shared",
  "libc",
- "metriken 0.3.3",
+ "metriken 0.3.5",
  "mio 0.8.10",
 ]
 
@@ -1605,7 +1604,7 @@ dependencies = [
  "boring-sys",
  "foreign-types-shared",
  "libc",
- "metriken 0.3.3",
+ "metriken 0.3.5",
  "mio 0.8.10",
 ]
 
@@ -1810,7 +1809,7 @@ source = "git+https://github.com/pelikan-io/pelikan#3ce36a45215a013e4be2134e7b3b
 dependencies = [
  "common",
  "logger",
- "metriken 0.3.3",
+ "metriken 0.3.5",
  "nom",
  "protocol-common",
 ]
@@ -1823,7 +1822,7 @@ dependencies = [
  "common",
  "config",
  "logger",
- "metriken 0.3.3",
+ "metriken 0.3.5",
  "protocol-common",
  "storage-types",
 ]
@@ -2025,7 +2024,7 @@ dependencies = [
  "ahash",
  "clocksource",
  "log",
- "metriken 0.3.3",
+ "metriken 0.3.5",
  "mpmc",
 ]
 
@@ -2302,7 +2301,7 @@ dependencies = [
  "bytes 1.5.0",
  "common",
  "log",
- "metriken 0.3.3",
+ "metriken 0.3.5",
  "pelikan-net 0.1.0 (git+https://github.com/pelikan-io/pelikan)",
  "protocol-common",
 ]
