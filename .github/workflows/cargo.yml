@@ -139,6 +139,31 @@ jobs:
           name: binaries
           path: install
 
+  # Smoke tests are even more expensive, so they run last.
+  smoketest:
+    name: smoketest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/setup-rust
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: smoketest-ubuntu-latest
+      - name: install memcached
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install memcached
+      - name: build
+        shell: bash
+        run: |
+          cargo build --workspace --all-features --all-targets --locked --release
+      - name: test
+        shell: bash
+        run: |
+          memcached -t 1 -p 11211 -m 256 &
+          target/release/rpc-perf configs/memcached.toml
+
   check-success:
     name: verify all tests pass
     runs-on: ubuntu-latest
@@ -149,6 +174,7 @@ jobs:
       - clippy
       - clippy-upload
       - audit
+      - smoketest
 
     steps:
       - name: no-op
