@@ -158,6 +158,9 @@ jobs:
         shell: bash
         run: |
           cargo build --workspace --all-features --all-targets --locked --release
+      - name: test
+        shell: bash
+        run: |
           memcached -t 1 -p 11211 -m 256 &
           target/release/rpc-perf configs/memcached.toml
 
