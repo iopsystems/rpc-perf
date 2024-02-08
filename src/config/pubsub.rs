@@ -28,12 +28,15 @@ pub struct Pubsub {
     write_buffer_size: usize,
 
     // kafka specific configs
+    #[serde(default = "default_as_false")]
+    kafka_exactly_once: bool,
     kafka_acks: Option<String>,
     kafka_linger_ms: Option<String>,
     kafka_batch_size: Option<String>,
     kafka_batch_num_messages: Option<String>,
     kafka_fetch_message_max_bytes: Option<String>,
     kafka_request_timeout_ms: Option<String>,
+    kafka_compression_type: Option<String>,
 }
 
 impl Pubsub {
@@ -96,5 +99,13 @@ impl Pubsub {
 
     pub fn kafka_request_timeout_ms(&self) -> &Option<String> {
         &self.kafka_request_timeout_ms
+    }
+
+    pub fn kafka_compression_type(&self) -> &Option<String> {
+        &self.kafka_compression_type
+    }
+
+    pub fn kafka_exactly_once(&self) -> bool {
+        self.kafka_exactly_once
     }
 }

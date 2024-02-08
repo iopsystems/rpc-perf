@@ -34,6 +34,13 @@ fn get_kafka_producer(config: &Config) -> FutureProducer {
     if let Some(request_timeout_ms) = pubsub_config.kafka_request_timeout_ms() {
         client_config.set("request.timeout.ms", request_timeout_ms);
     }
+    if let Some(compression_type) = pubsub_config.kafka_compression_type() {
+        client_config.set("compression.type", compression_type);
+    }
+    if pubsub_config.kafka_exactly_once() {
+        client_config.set("enable.idempotence", "true");
+        client_config.set("max.in.flight.requests.per.connection", "1");
+    }
     client_config.create().unwrap()
 }
 
@@ -51,7 +58,10 @@ fn get_kafka_consumer(config: &Config, group_id: &str) -> StreamConsumer {
         .set("auto.offset.reset", "earliest")
         .set("socket.timeout.ms", connect_timeout);
     if let Some(fetch_message_max_bytes) = pubsub_config.kafka_fetch_message_max_bytes() {
-        client_config.set("fetch_message_max_bytes", fetch_message_max_bytes);
+        client_config.set("fetch.message.max.bytes", fetch_message_max_bytes);
+    }
+    if let Some(compression_type) = pubsub_config.kafka_compression_type() {
+        client_config.set("compression.type", compression_type);
     }
     client_config.create().unwrap()
 }

@@ -31,6 +31,10 @@ pub fn default_buffer_size() -> usize {
     DEFAULT_BUFFER_SIZE
 }
 
+pub fn default_as_false() -> bool {
+    false
+}
+
 #[derive(Clone, Deserialize)]
 pub struct Config {
     general: General,

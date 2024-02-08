@@ -18,7 +18,7 @@ admin = "127.0.0.1:9090"
 
 [debug]
 # choose from: error, warn, info, debug, trace
-log_level = "error"
+log_level = "trace"
 # optionally, log to the file below instead of standard out
 # log_file = "rpc-perf.log"
 # backup file name for use with log rotation
@@ -47,8 +47,12 @@ publisher_concurrency = 20
 # the number of threads in the subscriber runtime
 subscriber_threads = 4
 # kafka-specific client configurations
-kafka_acks = "1"
+kafka_acks = "all"
 kafka_linger_ms = "1"
+kafka_exactly_once = true
+kafka_batch.size="131072"
+kafka_fetch_message_max_bytes="10485760"
+kafka_compression_type="gzip"
 #kafka_batch_size
 #kafka_batch_num_messages
 #kafka_fetch_message_max_bytes
