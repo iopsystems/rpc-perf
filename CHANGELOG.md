@@ -1,5 +1,18 @@
 ## [Unreleased]
 
+## [5.4.0] - 2024-02-09
+
+### Added
+
+- Advanced ratelimit controller that can produce ramps, loops, mirrored ramps,
+  and random steps.
+- Latency percentiles now include max latency and are included in the json
+  output.
+
+### Fixed
+
+- Fixes incorrect implementation of list_length for Momento.
+
 ## [5.3.0] - 2023-11-21
 
 ### Changed
@@ -64,7 +77,8 @@
 - Support Momento topics.
 - Basic HTTP/1.1 and HTTP/2.0 load generation.
 
-[unreleased]: https://github.com/iopsystems/rpc-perf/compare/v5.3.0...HEAD
+[unreleased]: https://github.com/iopsystems/rpc-perf/compare/v5.4.0...HEAD
+[5.4.0]: https://github.com/iopsystems/rezolus/compare/v5.3.0...v5.4.0
 [5.3.0]: https://github.com/iopsystems/rezolus/compare/v5.2.0...v5.3.0
 [5.2.0]: https://github.com/iopsystems/rezolus/compare/v5.1.0...v5.2.0
 [5.1.0]: https://github.com/iopsystems/rezolus/compare/v5.0.0...v5.1.0
