@@ -60,6 +60,7 @@ pub struct ClientStats {
     pub responses: Responses,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub response_latency: Option<SparseHistogram>,
+    pub response_latency_percentiles: Vec<(String, f64, u64)>,
 }
 
 #[derive(Default, Deserialize, Serialize)]
@@ -71,8 +72,10 @@ pub struct PubsubStats {
     pub subscribers: Subscribers,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub publish_latency: Option<SparseHistogram>,
+    pub publish_latency_percentiles: Vec<(String, f64, u64)>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub total_latency: Option<SparseHistogram>,
+    pub total_latency_percentiles: Vec<(String, f64, u64)>,
 }
 
 #[derive(Default, Deserialize, Serialize)]

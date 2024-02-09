@@ -273,6 +273,7 @@ pub fn json(config: Config, ratelimit: Option<&Ratelimiter>) {
                 miss: snapshot.counter_delta(RESPONSE_MISS_COUNTER),
             };
 
+            let publish_delta = snapshot.histogram_delta(PUBSUB_PUBLISH_LATENCY_HISTOGRAM);
             let json = JsonSnapshot {
                 window: window_id,
                 elapsed,
@@ -284,6 +285,7 @@ pub fn json(config: Config, ratelimit: Option<&Ratelimiter>) {
                     response_latency: snapshot
                         .histogram_delta(RESPONSE_LATENCY_HISTOGRAM)
                         .map_or_else(|| None, |h| Some(histogram::SparseHistogram::from(h))),
+                    response_latency_percentiles: snapshot.percentiles(RESPONSE_LATENCY_HISTOGRAM),
                 },
                 pubsub: PubsubStats {
                     publishers: Publishers {
@@ -292,12 +294,14 @@ pub fn json(config: Config, ratelimit: Option<&Ratelimiter>) {
                     subscribers: Subscribers {
                         current: PUBSUB_SUBSCRIBER_CURR.value(),
                     },
-                    publish_latency: snapshot
-                        .histogram_delta(PUBSUB_PUBLISH_LATENCY_HISTOGRAM)
+                    publish_latency: publish_delta
                         .map_or_else(|| None, |h| Some(histogram::SparseHistogram::from(h))),
+                    publish_latency_percentiles: snapshot
+                        .percentiles(PUBSUB_PUBLISH_LATENCY_HISTOGRAM),
                     total_latency: snapshot
                         .histogram_delta(PUBSUB_LATENCY_HISTOGRAM)
                         .map_or_else(|| None, |h| Some(histogram::SparseHistogram::from(h))),
+                    total_latency_percentiles: snapshot.percentiles(PUBSUB_LATENCY_HISTOGRAM),
                 },
             };
 
