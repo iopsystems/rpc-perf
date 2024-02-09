@@ -10,7 +10,7 @@ pub async fn list_length(
     LIST_LENGTH.increment();
     let result = timeout(
         config.client().unwrap().request_timeout(),
-        client.list_fetch(cache_name, &*request.key),
+        client.list_length(cache_name, &*request.key),
     )
     .await;
     record_result!(result, LIST_LENGTH)
