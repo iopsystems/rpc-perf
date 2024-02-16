@@ -1,7 +1,7 @@
 [package]
 name = "rpcperf-dataspec"
 description = "Data structure specifications for interoperability with rpc-perf"
-version = "0.3.0"
+version = "0.4.0"
 authors = { workspace = true }
 edition = { workspace = true }
 homepage = { workspace = true }
@@ -13,6 +13,7 @@ utoipa = [ "dep:utoipa" ]
 schemars = [ "dep:schemars", "histogram/schemars" ]
 
 [dependencies]
+datafusion = { workspace = true }
 histogram = { workspace = true }
 schemars = { version = "0.8", optional = true }
 serde = { workspace = true }

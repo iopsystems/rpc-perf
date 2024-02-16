@@ -18,7 +18,7 @@ interval = 1
 duration = 300
 
 # optionally, we can write some detailed stats to a file during the run
-#json_output = "stats.json"
+#output_file = "stats.json"
 
 # run the admin thread with a HTTP listener at the address provided, this allows
 # stats exposition via HTTP

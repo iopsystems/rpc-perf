@@ -16,6 +16,7 @@ repository = { workspace = true }
 license = { workspace = true }
 
 [workspace.dependencies]
+datafusion = "35.0.0"
 histogram = { version = "0.9.0", features = ["serde"] }
 serde = { version = "1.0.185", features = ["derive"] }
 

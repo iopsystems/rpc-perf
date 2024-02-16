@@ -1,7 +1,7 @@
 use crate::*;
 use ratelimit::Ratelimiter;
 use rpcperf_dataspec::*;
-use std::io::{BufWriter, Write};
+use std::io::{BufRead, BufReader, BufWriter, Write};
 
 #[macro_export]
 macro_rules! output {
@@ -209,11 +209,20 @@ fn pubsub_stats(snapshot: &mut MetricsSnapshot) {
 }
 
 pub fn json(config: Config, ratelimit: Option<&Ratelimiter>) {
-    if config.general().json_output().is_none() {
+    if config.general().output_file().is_none() {
         return;
     }
 
-    let file = std::fs::File::create(config.general().json_output().unwrap());
+    let output_file = config.general().output_file().clone().unwrap();
+    let (json_file, pq_file) = match output_file.ends_with(".parquet") {
+        true => (
+            format!("{}.json", output_file.strip_suffix(".parquet").unwrap()),
+            Some(output_file),
+        ),
+        false => (output_file, None),
+    };
+
+    let file = std::fs::File::create(&json_file);
 
     if file.is_err() {
         return;
@@ -274,7 +283,7 @@ pub fn json(config: Config, ratelimit: Option<&Ratelimiter>) {
             };
 
             let publish_delta = snapshot.histogram_delta(PUBSUB_PUBLISH_LATENCY_HISTOGRAM);
-            let json = JsonSnapshot {
+            let window_stats = WindowStatistics {
                 window: window_id,
                 elapsed,
                 target_qps: ratelimit.as_ref().map(|ratelimit| ratelimit.rate()),
@@ -306,7 +315,7 @@ pub fn json(config: Config, ratelimit: Option<&Ratelimiter>) {
             };
 
             let _ = writer.write_all(
-                serde_json::to_string(&json)
+                serde_json::to_string(&window_stats)
                     .expect("failed to serialize")
                     .as_bytes(),
             );
@@ -314,5 +323,49 @@ pub fn json(config: Config, ratelimit: Option<&Ratelimiter>) {
 
             window_id += 1;
         }
+    }
+
+    let _ = writer.flush();
+    drop(writer);
+
+    // Covert to parquet
+    if let Some(pq_path) = pq_file {
+        let file = std::fs::File::open(&json_file);
+        if let Err(e) = file {
+            eprintln!("Error opening json file: {}", e);
+            return;
+        }
+
+        let pq_schema = WindowStatistics::parquet_schema();
+        let pq_writer = WindowStatistics::try_new_parquet(&pq_path, pq_schema.clone());
+        if let Err(e) = pq_writer {
+            eprintln!("Error creating parquet file: {}", e);
+            return;
+        }
+        let mut pq_writer = pq_writer.unwrap();
+
+        let mut window_stats: Vec<WindowStatistics> = Vec::new();
+        let reader = BufReader::new(file.unwrap());
+        for line in reader.lines() {
+            let line = line.unwrap();
+            let ws: WindowStatistics = serde_json::from_str(&line).expect("failed to deserialize");
+            window_stats.push(ws);
+        }
+
+        if let Err(e) = WindowStatistics::write_parquet_recordbatch(
+            &mut pq_writer,
+            pq_schema.clone(),
+            window_stats,
+        ) {
+            eprintln!("Error writing parquet record batch: {}", e);
+            return;
+        }
+
+        if let Err(e) = WindowStatistics::finalize_parquet(pq_writer) {
+            eprintln!("Error writing parquet footer: {}", e);
+            return;
+        }
+
+        let _ = std::fs::remove_file(json_file);
     }
 }

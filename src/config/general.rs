@@ -13,7 +13,7 @@ pub struct General {
     duration: u64,
     /// Optional path to output JSON metrics
     #[serde(default)]
-    json_output: Option<String>,
+    output_file: Option<String>,
     /// The admin listen address
     admin: String,
     /// The initial seed for initializing the PRNGs. This can be any string and
@@ -34,8 +34,8 @@ impl General {
         Duration::from_secs(self.duration)
     }
 
-    pub fn json_output(&self) -> Option<String> {
-        self.json_output.clone()
+    pub fn output_file(&self) -> Option<String> {
+        self.output_file.clone()
     }
 
     pub fn admin(&self) -> String {
