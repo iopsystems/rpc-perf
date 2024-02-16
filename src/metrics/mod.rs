@@ -17,6 +17,7 @@ pub static PERCENTILES: &[(&str, f64)] = &[
     ("p99", 99.0),
     ("p999", 99.9),
     ("p9999", 99.99),
+    ("max", 100.0),
 ];
 
 pub struct MetricsSnapshot {
