@@ -1,7 +1,16 @@
 use super::*;
 use rand::Rng;
 use rand_xoshiro::Seed512;
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha512};
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum MetricsFormat {
+    #[default]
+    Json,
+    Messagepack,
+}
 
 #[derive(Clone, Deserialize)]
 pub struct General {
@@ -11,9 +20,14 @@ pub struct General {
     interval: u64,
     /// The test duration in seconds.
     duration: u64,
-    /// Optional path to output JSON metrics
+    /// Optional path to output metrics. The extension, if specified, is
+    /// ignored and the metrics stored in the format specified below.
     #[serde(default)]
-    json_output: Option<String>,
+    metrics_output: Option<String>,
+    /// Format for output metrics. Defaults to JSON if not specified and is
+    /// ignored if no metrics output is specified.
+    #[serde(default)]
+    metrics_format: MetricsFormat,
     /// The admin listen address
     admin: String,
     /// The initial seed for initializing the PRNGs. This can be any string and
@@ -34,8 +48,12 @@ impl General {
         Duration::from_secs(self.duration)
     }
 
-    pub fn json_output(&self) -> Option<String> {
-        self.json_output.clone()
+    pub fn metrics_output(&self) -> Option<String> {
+        self.metrics_output.clone()
+    }
+
+    pub fn metrics_format(&self) -> MetricsFormat {
+        self.metrics_format
     }
 
     pub fn admin(&self) -> String {
