@@ -1961,7 +1961,6 @@ dependencies = [
  "clap",
  "foreign-types-shared",
  "futures",
- "histogram 0.9.1",
  "http-body-util",
  "humantime",
  "hyper 1.1.0",
