@@ -148,10 +148,10 @@ fn main() {
     // spawn the admin thread
     control_runtime.spawn(admin::http(config.clone(), workload_ratelimit.clone()));
 
-    // launch json log output
+    // launch metrics log output
     {
         let config = config.clone();
-        control_runtime.spawn_blocking(move || output::json(config));
+        control_runtime.spawn_blocking(move || output::metrics(config));
     }
 
     // begin cli output

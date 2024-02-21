@@ -57,10 +57,6 @@ impl MetricsSnapshot {
         self.histograms.percentiles(name)
     }
 
-    pub fn histogram_delta(&self, name: &str) -> Option<&metriken::histogram::Snapshot> {
-        self.histograms.deltas.get(name)
-    }
-
     pub fn counter_rate(&self, name: &str) -> f64 {
         self.counter_delta(name) as f64
             / (self.current.duration_since(self.previous).unwrap()).as_secs_f64()
