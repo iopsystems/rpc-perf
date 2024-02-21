@@ -151,8 +151,7 @@ fn main() {
     // launch json log output
     {
         let config = config.clone();
-        let ratelimiter = workload_ratelimit.clone();
-        control_runtime.spawn_blocking(move || output::json(config, ratelimiter.as_deref()));
+        control_runtime.spawn_blocking(move || output::json(config));
     }
 
     // begin cli output

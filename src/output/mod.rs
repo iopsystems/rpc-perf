@@ -1,5 +1,4 @@
 use crate::*;
-use ratelimit::Ratelimiter;
 use rpcperf_dataspec::*;
 use std::io::{BufWriter, Write};
 
@@ -208,7 +207,7 @@ fn pubsub_stats(snapshot: &mut MetricsSnapshot) {
     output!("{latencies}");
 }
 
-pub fn json(config: Config, ratelimit: Option<&Ratelimiter>) {
+pub fn json(config: Config) {
     if config.general().json_output().is_none() {
         return;
     }
@@ -277,7 +276,7 @@ pub fn json(config: Config, ratelimit: Option<&Ratelimiter>) {
             let json = JsonSnapshot {
                 window: window_id,
                 elapsed,
-                target_qps: ratelimit.as_ref().map(|ratelimit| ratelimit.rate()),
+                target_qps: Some(RATELIMIT_CURR.value() as f64),
                 client: ClientStats {
                     connections,
                     requests,
