@@ -383,6 +383,8 @@ histogram!(PUBSUB_LATENCY, "pubsub_latency");
 
 histogram!(PUBSUB_PUBLISH_LATENCY, "pubsub_publish_latency");
 
+gauge!(RATELIMIT_CURR, "ratelimit/current");
+
 gauge!(CONNECT_CURR, "client/connections/current");
 counter!(CONNECT_OK, "client/connect/ok");
 counter!(CONNECT_TIMEOUT, "client/connect/timeout");
