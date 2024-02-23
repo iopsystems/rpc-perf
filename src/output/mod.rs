@@ -227,23 +227,18 @@ pub fn metrics(config: Config) {
     let mut next = now + Duration::from_secs(1);
     let end = now + config.general().duration();
 
-    let mut snapshot = MetricsSnapshot::default();
-
     while end > now {
         std::thread::sleep(Duration::from_millis(1));
 
         now = std::time::Instant::now();
 
         if next <= now {
-            snapshot.update();
-            let metriken_snapshot = SnapshotterBuilder::new().build().snapshot();
+            let snapshot = SnapshotterBuilder::new().build().snapshot();
 
             let buf = match format {
-                MetricsFormat::Json => {
-                    serde_json::to_vec(&metriken_snapshot).expect("failed to serialize")
-                }
+                MetricsFormat::Json => serde_json::to_vec(&snapshot).expect("failed to serialize"),
                 MetricsFormat::Messagepack => {
-                    rmp_serde::encode::to_vec(&metriken_snapshot).expect("failed to serialize")
+                    rmp_serde::encode::to_vec(&snapshot).expect("failed to serialize")
                 }
             };
             let _ = writer.write_all(&buf);
