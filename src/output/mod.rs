@@ -1,6 +1,6 @@
 use crate::*;
 use config::MetricsFormat;
-use metriken_exposition::SnapshotterBuilder;
+use metriken_exposition::{Snapshot, SnapshotterBuilder};
 use std::io::{BufWriter, Write};
 
 #[macro_export]
@@ -212,18 +212,17 @@ pub fn metrics(config: Config) {
     if config.general().metrics_output().is_none() {
         return;
     }
+    let output = config.general().metrics_output().unwrap();
 
-    let format = config.general().metrics_format();
-    let file = std::fs::File::create(config.general().metrics_output().unwrap());
-
+    let file =
+        tempfile::NamedTempFile::new_in(std::env::current_dir().expect("error fetching cwd"));
     if file.is_err() {
         return;
     }
-
-    let mut writer = BufWriter::new(file.unwrap());
+    let file = file.unwrap();
+    let mut writer = BufWriter::new(file.as_file());
 
     let mut now = std::time::Instant::now();
-
     let mut next = now + Duration::from_secs(1);
     let end = now + config.general().duration();
 
@@ -235,20 +234,39 @@ pub fn metrics(config: Config) {
         if next <= now {
             let snapshot = SnapshotterBuilder::new().build().snapshot();
 
-            let buf = match format {
-                MetricsFormat::Json => serde_json::to_vec(&snapshot).expect("failed to serialize"),
-                MetricsFormat::Messagepack => {
-                    rmp_serde::encode::to_vec(&snapshot).expect("failed to serialize")
+            let buf = match config.general().metrics_format() {
+                MetricsFormat::Json => Snapshot::to_json(&snapshot).expect("failed to serialize"),
+                MetricsFormat::MsgPack | MetricsFormat::Parquet => {
+                    Snapshot::to_msgpack(&snapshot).expect("failed to serialize")
                 }
             };
             let _ = writer.write_all(&buf);
 
-            // Write newline for ndjson
-            if format == MetricsFormat::Json {
-                let _ = writer.write_all(b"\n");
-            }
-
             next += Duration::from_secs(1);
         }
+    }
+    let _ = writer.flush();
+    drop(writer);
+
+    // Post-process metrics into a parquet file
+    if config.general().metrics_format() == MetricsFormat::Parquet {
+        let summary_percentiles: Vec<f64> = metrics::PERCENTILES.iter().map(|x| x.1).collect();
+
+        // If parquet conversion fails, log the error and fall through to the
+        // regular path which stores the file as a msgpack artifact.
+        if let Err(e) = metriken_exposition::util::msgpack_to_parquet(
+            file.path(),
+            &output,
+            Some(summary_percentiles),
+        ) {
+            eprintln!("error converting output to parquet: {}", e);
+        } else {
+            return;
+        }
+    }
+
+    // Persist the temp file to the desired output artifact
+    if let Err(e) = file.persist(output) {
+        eprintln!("error persisting metrics file, no artifact saved: {}", e);
     }
 }
