@@ -23,7 +23,7 @@ http-body-util = "0.1.0-rc.3"
 humantime = "2.1.0"
 hyper = { version = "1.0.0-rc.4", features = ["http1", "http2", "client"]}
 metriken = "0.5.1"
-metriken-exposition = { version = "0.1.0", features = ["serde"] }
+metriken-exposition = { version = "0.2.0", features = ["serde", "json", "msgpack", "parquet"] }
 mio = "0.8.8"
 momento = "0.32.1"
 pelikan-net = "0.1.0"
@@ -38,9 +38,7 @@ ratelimit = "0.9.0"
 redis = { version = "0.23.3", features = ["tokio-comp"] }
 rdkafka = { version = "0.34.0", features = ["cmake-build"] }
 ringlog = "0.5.0"
-rmp-serde = "1.1.2"
 serde = { version = "1.0.185", features = ["derive"] }
-serde_json = "1.0.107"
 session = { git = "https://github.com/pelikan-io/pelikan" }
 sha2 = "0.10.8"
 slab = "0.4.9"

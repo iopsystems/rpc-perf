@@ -9,7 +9,8 @@ use sha2::{Digest, Sha512};
 pub enum MetricsFormat {
     #[default]
     Json,
-    Messagepack,
+    MsgPack,
+    Parquet,
 }
 
 #[derive(Clone, Deserialize)]
