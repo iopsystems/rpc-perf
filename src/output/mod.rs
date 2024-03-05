@@ -1,8 +1,6 @@
 use crate::*;
 use config::MetricsFormat;
 use metriken_exposition::{Snapshot, SnapshotterBuilder};
-use rand::{distributions::Alphanumeric, Rng};
-use std::fs::File;
 use std::io::{BufWriter, Write};
 
 #[macro_export]
@@ -214,28 +212,15 @@ pub fn metrics(config: Config) {
     if config.general().metrics_output().is_none() {
         return;
     }
-
-    let format = config.general().metrics_format();
     let output = config.general().metrics_output().unwrap();
-    let file = match format {
-        MetricsFormat::Json | MetricsFormat::MsgPack => {
-            File::create(&output).map(|x| (x, output.clone()))
-        }
-        MetricsFormat::Parquet => {
-            let tmpfile: String = rand::thread_rng()
-                .sample_iter(&Alphanumeric)
-                .take(10)
-                .map(char::from)
-                .collect();
-            File::create(&tmpfile).map(|x| (x, tmpfile))
-        }
-    };
 
+    let file =
+        tempfile::NamedTempFile::new_in(std::env::current_dir().expect("error fetching cwd"));
     if file.is_err() {
         return;
     }
     let file = file.unwrap();
-    let mut writer = BufWriter::new(file.0);
+    let mut writer = BufWriter::new(file.as_file());
 
     let mut now = std::time::Instant::now();
     let mut next = now + Duration::from_secs(1);
@@ -249,7 +234,7 @@ pub fn metrics(config: Config) {
         if next <= now {
             let snapshot = SnapshotterBuilder::new().build().snapshot();
 
-            let buf = match format {
+            let buf = match config.general().metrics_format() {
                 MetricsFormat::Json => Snapshot::to_json(&snapshot).expect("failed to serialize"),
                 MetricsFormat::MsgPack | MetricsFormat::Parquet => {
                     Snapshot::to_msgpack(&snapshot).expect("failed to serialize")
@@ -264,23 +249,24 @@ pub fn metrics(config: Config) {
     drop(writer);
 
     // Post-process metrics into a parquet file
-    if format == MetricsFormat::Parquet {
-        let tmpfile = file.1;
+    if config.general().metrics_format() == MetricsFormat::Parquet {
         let summary_percentiles: Vec<f64> = metrics::PERCENTILES.iter().map(|x| x.1).collect();
+
+        // If parquet conversion fails, log the error and fall through to the
+        // regular path which stores the file as a msgpack artifact.
         if let Err(e) = metriken_exposition::util::msgpack_to_parquet(
-            &tmpfile,
+            file.path(),
             &output,
             Some(summary_percentiles),
         ) {
-            // If parquet conversion fails, log the error and store metrics
-            // as a msgpack artifact instead. If that too fails, just log
-            // the error and store no artifact.
             eprintln!("error converting output to parquet: {}", e);
-            if let Err(e) = std::fs::rename(tmpfile, output + ".mpk") {
-                eprintln!("error renaming msgpack file, no artifact saved: {}", e);
-            }
         } else {
-            std::fs::remove_file(tmpfile).expect("failed to remove temp file");
+            return;
         }
+    }
+
+    // Persist the temp file to the desired output artifact
+    if let Err(e) = file.persist(output) {
+        eprintln!("error persisting metrics file, no artifact saved: {}", e);
     }
 }
