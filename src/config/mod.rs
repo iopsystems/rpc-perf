@@ -14,7 +14,7 @@ mod workload;
 
 pub use client::Client;
 pub use debug::Debug;
-pub use general::General;
+pub use general::{General, MetricsFormat};
 pub use protocol::Protocol;
 pub use pubsub::Pubsub;
 pub use target::Target;

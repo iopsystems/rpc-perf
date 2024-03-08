@@ -1,6 +1,6 @@
 use crate::*;
-use ratelimit::Ratelimiter;
-use rpcperf_dataspec::*;
+use config::MetricsFormat;
+use metriken_exposition::{Snapshot, SnapshotterBuilder};
 use std::io::{BufWriter, Write};
 
 #[macro_export]
@@ -208,28 +208,23 @@ fn pubsub_stats(snapshot: &mut MetricsSnapshot) {
     output!("{latencies}");
 }
 
-pub fn json(config: Config, ratelimit: Option<&Ratelimiter>) {
-    if config.general().json_output().is_none() {
+pub fn metrics(config: Config) {
+    if config.general().metrics_output().is_none() {
         return;
     }
+    let output = config.general().metrics_output().unwrap();
 
-    let file = std::fs::File::create(config.general().json_output().unwrap());
-
+    let file =
+        tempfile::NamedTempFile::new_in(std::env::current_dir().expect("error fetching cwd"));
     if file.is_err() {
         return;
     }
-
-    let mut writer = BufWriter::new(file.unwrap());
+    let file = file.unwrap();
+    let mut writer = BufWriter::new(file.as_file());
 
     let mut now = std::time::Instant::now();
-
-    let mut prev = now;
     let mut next = now + Duration::from_secs(1);
     let end = now + config.general().duration();
-
-    let mut window_id = 0;
-
-    let mut snapshot = MetricsSnapshot::default();
 
     while end > now {
         std::thread::sleep(Duration::from_millis(1));
@@ -237,82 +232,41 @@ pub fn json(config: Config, ratelimit: Option<&Ratelimiter>) {
         now = std::time::Instant::now();
 
         if next <= now {
-            snapshot.update();
+            let snapshot = SnapshotterBuilder::new().build().snapshot();
 
-            let elapsed = now.duration_since(prev).as_secs_f64();
-            prev = now;
+            let buf = match config.general().metrics_format() {
+                MetricsFormat::Json => Snapshot::to_json(&snapshot).expect("failed to serialize"),
+                MetricsFormat::MsgPack | MetricsFormat::Parquet => {
+                    Snapshot::to_msgpack(&snapshot).expect("failed to serialize")
+                }
+            };
+            let _ = writer.write_all(&buf);
+
             next += Duration::from_secs(1);
-
-            let connections = Connections {
-                current: CONNECT_CURR.value(),
-                total: snapshot.counter_delta(CONNECT_COUNTER),
-                opened: snapshot.counter_delta(CONNECT_OK_COUNTER),
-                error: snapshot.counter_delta(CONNECT_EX_COUNTER),
-                timeout: snapshot.counter_delta(CONNECT_TIMEOUT_COUNTER),
-            };
-
-            let requests = Requests {
-                total: snapshot.counter_delta(REQUEST_COUNTER),
-                ok: snapshot.counter_delta(REQUEST_OK_COUNTER),
-                reconnect: snapshot.counter_delta(REQUEST_RECONNECT_COUNTER),
-                unsupported: snapshot.counter_delta(REQUEST_UNSUPPORTED_COUNTER),
-            };
-
-            let response_ok = snapshot.counter_delta(RESPONSE_OK_COUNTER);
-            let response_ex = snapshot.counter_delta(RESPONSE_EX_COUNTER);
-            let response_timeout = snapshot.counter_delta(RESPONSE_TIMEOUT_COUNTER);
-
-            let response_total = response_ok + response_ex + response_timeout;
-
-            let responses = Responses {
-                total: response_total,
-                ok: response_ok,
-                error: response_ex,
-                timeout: response_timeout,
-                hit: snapshot.counter_delta(RESPONSE_HIT_COUNTER),
-                miss: snapshot.counter_delta(RESPONSE_MISS_COUNTER),
-            };
-
-            let publish_delta = snapshot.histogram_delta(PUBSUB_PUBLISH_LATENCY_HISTOGRAM);
-            let json = JsonSnapshot {
-                window: window_id,
-                elapsed,
-                target_qps: ratelimit.as_ref().map(|ratelimit| ratelimit.rate()),
-                client: ClientStats {
-                    connections,
-                    requests,
-                    responses,
-                    response_latency: snapshot
-                        .histogram_delta(RESPONSE_LATENCY_HISTOGRAM)
-                        .map_or_else(|| None, |h| Some(histogram::SparseHistogram::from(h))),
-                    response_latency_percentiles: snapshot.percentiles(RESPONSE_LATENCY_HISTOGRAM),
-                },
-                pubsub: PubsubStats {
-                    publishers: Publishers {
-                        current: PUBSUB_PUBLISHER_CURR.value(),
-                    },
-                    subscribers: Subscribers {
-                        current: PUBSUB_SUBSCRIBER_CURR.value(),
-                    },
-                    publish_latency: publish_delta
-                        .map_or_else(|| None, |h| Some(histogram::SparseHistogram::from(h))),
-                    publish_latency_percentiles: snapshot
-                        .percentiles(PUBSUB_PUBLISH_LATENCY_HISTOGRAM),
-                    total_latency: snapshot
-                        .histogram_delta(PUBSUB_LATENCY_HISTOGRAM)
-                        .map_or_else(|| None, |h| Some(histogram::SparseHistogram::from(h))),
-                    total_latency_percentiles: snapshot.percentiles(PUBSUB_LATENCY_HISTOGRAM),
-                },
-            };
-
-            let _ = writer.write_all(
-                serde_json::to_string(&json)
-                    .expect("failed to serialize")
-                    .as_bytes(),
-            );
-            let _ = writer.write_all(b"\n");
-
-            window_id += 1;
         }
+    }
+    let _ = writer.flush();
+    drop(writer);
+
+    // Post-process metrics into a parquet file
+    if config.general().metrics_format() == MetricsFormat::Parquet {
+        let summary_percentiles: Vec<f64> = metrics::PERCENTILES.iter().map(|x| x.1).collect();
+
+        // If parquet conversion fails, log the error and fall through to the
+        // regular path which stores the file as a msgpack artifact.
+        if let Err(e) = metriken_exposition::util::msgpack_to_parquet(
+            file.path(),
+            &output,
+            Some(summary_percentiles),
+        ) {
+            eprintln!("error converting output to parquet: {}", e);
+        } else {
+            return;
+        }
+    }
+
+    // Persist the temp file to the desired output artifact
+    if let Err(e) = file.persist(output) {
+        eprintln!("error persisting metrics file, no artifact saved: {}", e);
     }
 }

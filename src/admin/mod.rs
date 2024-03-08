@@ -227,6 +227,7 @@ pub mod handlers {
     ) -> Result<impl warp::Reply, Infallible> {
         if let Some(r) = ratelimit {
             let amount = (rate as f64 / 1_000_000.0).ceil() as u64;
+            RATELIMIT_CURR.set(rate as i64);
 
             // even though we might not have nanosecond level clock resolution,
             // by using a nanosecond level duration, we achieve more accurate
