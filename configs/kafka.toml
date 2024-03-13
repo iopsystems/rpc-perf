@@ -6,7 +6,7 @@ protocol = "kafka"
 # the interval for stats integration and reporting
 interval = 1
 # the number of intervals to run the test for
-duration = 300
+duration = 30
 # optionally, we can write some detailed stats to a file during the run
 metrics_output = "stats.json"
 # run the admin thread with a HTTP listener at the address provided, this allows
@@ -18,11 +18,11 @@ admin = "127.0.0.1:9090"
 
 [debug]
 # choose from: error, warn, info, debug, trace
-log_level = "trace"
+log_level = "info"
 # optionally, log to the file below instead of standard out
 # log_file = "rpc-perf.log"
 # backup file name for use with log rotation
-log_backup = "rpc-perf.log.old"
+#log_backup = "rpc-perf.log.old"
 # trigger log rotation when the file grows beyond this size (in bytes). Set this
 # option to '0' to disable log rotation.
 log_max_size = 1073741824
@@ -30,7 +30,7 @@ log_max_size = 1073741824
 [target]
 # Kafka broker ip:port
 endpoints = [
-  "127.0.0.1:9092"
+  "localhost:9092"
 ]
 
 [pubsub]
@@ -49,10 +49,10 @@ subscriber_threads = 4
 # kafka-specific client configurations
 kafka_acks = "all"
 kafka_linger_ms = "1"
-kafka_exactly_once = true
+kafka_exactly_once = false
 kafka_batch.size="131072"
 kafka_fetch_message_max_bytes="10485760"
-kafka_compression_type="gzip"
+kafka_compression_type="none"
 #kafka_batch_size
 #kafka_batch_num_messages
 #kafka_fetch_message_max_bytes
@@ -72,21 +72,28 @@ start = 1000
 # the weight relative to other workload components
 weight = 1
 # the total number of Kafka consumer clients for topics in this compoment
-subscriber_poolsize = 1
+subscriber_poolsize = 2
+# whether put the clients in the same consumer group
+# false is default where messages are fanout to all clients
+# if true, messages are not fanout to all clients
+kafka_same_subscriber_group = true
 # the total number of Kafka tasks per Kafka consumer client
 # NOTE: received messages will not fanout to all tasks per client. To compare
-# with other pubsub implementations, set the concurrency to `1` and increase the
+# with other pubsub implementations, set the concurrency to `1`,
+# set the kafka_same_subscriber_group to false, and increase the
 # poolsize instead.
-subscriber_concurrency = 2
+subscriber_concurrency = 4
 # the number of topics
-topics = 2
+topics = 1
 # the length of the topic names, in bytes
-topic_len = 5
+topic_len = 7
 # the topic names, if empty or the length and the number do not match topics and topic_len, generate random names
-topic_names = ["hello", "world"]
+topic_names = ["rpcperf"]
 # the number of partitions in each topic
 partitions = 10
 # the value length, in bytes
-message_len = 512
+message_len = 1024
 # the key length, in bytes
 key_len = 8
+#[tls]
+#  ca_file = CA_FILE_PATH  

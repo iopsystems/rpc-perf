@@ -8,17 +8,30 @@ use rdkafka::types::RDKafkaErrorCode::TopicAlreadyExists;
 use rdkafka::Message;
 use std::sync::Arc;
 
-fn get_kafka_producer(config: &Config) -> FutureProducer {
+fn get_client_config(config: &Config) -> ClientConfig {
     let bootstrap_servers = config.target().endpoints().join(",");
     let pubsub_config = config.pubsub().unwrap();
     let publish_timeout = format!("{}", pubsub_config.publish_timeout().as_millis());
     let connect_timeout = format!("{}", pubsub_config.connect_timeout().as_millis());
-    let pubsub_config = config.pubsub().unwrap();
     let mut client_config = ClientConfig::new();
     client_config
         .set("bootstrap.servers", &bootstrap_servers)
         .set("socket.timeout.ms", connect_timeout)
         .set("message.timeout.ms", publish_timeout);
+    if let Some(tls) = config.tls() {
+        if let Some(ca_file) = tls.ca_file() {
+            client_config
+                .set("security.protocol", "ssl")
+                .set("enable.ssl.certificate.verification", "false")
+                .set("ssl.ca.location", ca_file);
+        }
+    }
+    client_config
+}
+
+fn get_kafka_producer(config: &Config) -> FutureProducer {
+    let pubsub_config = config.pubsub().unwrap();
+    let mut client_config = get_client_config(config);
     if let Some(acks) = pubsub_config.kafka_acks() {
         client_config.set("acks", acks);
     }
@@ -45,36 +58,22 @@ fn get_kafka_producer(config: &Config) -> FutureProducer {
 }
 
 fn get_kafka_consumer(config: &Config, group_id: &str) -> StreamConsumer {
-    let bootstrap_servers = config.target().endpoints().join(",");
     let pubsub_config: &Pubsub = config.pubsub().unwrap();
-    let connect_timeout = format!("{}", pubsub_config.connect_timeout().as_millis());
-    let mut client_config = ClientConfig::new();
+    let mut client_config = get_client_config(config);
     client_config
-        .set("bootstrap.servers", &bootstrap_servers)
         .set("group.id", group_id)
         .set("client.id", "rpcperf_subscriber")
         .set("enable.partition.eof", "false")
         .set("enable.auto.commit", "false")
-        .set("auto.offset.reset", "earliest")
-        .set("socket.timeout.ms", connect_timeout);
+        .set("auto.offset.reset", "latest");
     if let Some(fetch_message_max_bytes) = pubsub_config.kafka_fetch_message_max_bytes() {
         client_config.set("fetch.message.max.bytes", fetch_message_max_bytes);
-    }
-    if let Some(compression_type) = pubsub_config.kafka_compression_type() {
-        client_config.set("compression.type", compression_type);
     }
     client_config.create().unwrap()
 }
 
 fn get_kafka_admin(config: &Config) -> AdminClient<DefaultClientContext> {
-    let bootstrap_servers = config.target().endpoints().join(",");
-    let connect_timeout = format!("{}", config.pubsub().unwrap().connect_timeout().as_millis());
-    ClientConfig::new()
-        .set("bootstrap.servers", &bootstrap_servers)
-        .set("client.id", "rpcperf_admin")
-        .set("socket.timeout.ms", connect_timeout)
-        .create()
-        .unwrap()
+    get_client_config(config).create().unwrap()
 }
 
 fn validate_topic(runtime: &mut Runtime, config: &Config, topic: &str, partitions: usize) {
@@ -155,9 +154,15 @@ pub fn launch_subscribers(
             for id in 0..poolsize {
                 let client = {
                     let _guard = runtime.enter();
+                    let group_id = if topics.kafka_same_subscriber_group() {
+                        0
+                    } else {
+                        id
+                    };
+                    eprintln!("Create Kafka Consumer with group_id {}", group_id);
                     Arc::new(get_kafka_consumer(
                         &config,
-                        &format!("rpcperf_subscriber_{id}"),
+                        &format!("rpcperf_subscriber_{group_id}"),
                     ))
                 };
                 for _ in 0..concurrency {
@@ -184,10 +189,10 @@ async fn subscriber_task(client: Arc<StreamConsumer>, topics: Vec<String>) {
 
         let validator = MessageValidator::new();
 
-        while RUNNING.load(Ordering::Relaxed) {
+        while RUNNING.load(Ordering::Relaxed) {          
             match client.recv().await {
                 Ok(message) => match message.payload_view::<[u8]>() {
-                    Some(Ok(message)) => {
+                    Some(Ok(message)) => {        
                         let _ = validator.validate(&mut message.to_owned());
                     }
                     Some(Err(e)) => {
