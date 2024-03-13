@@ -52,8 +52,25 @@ request_timeout = 1000
 threads = 1
 
 [workload.ratelimit]
-# set a global ratelimit for the workload
+# set a global ratelimit for the workload. If an end is also specified,
+# this is the start point of the ramp.
 start = 10_000
+# the end of the ramp. If this is not specified, the start rate is held
+# constant through the run.
+#end = 100_000
+# the step function to be used during the ramp. optional, but must be
+# provided if the end is specified.
+#step = 5_000
+# time to wait at each step of the ramp. optional, but must be provided if
+# and end is specified.
+#interval = 10
+# type of ramp function. possible values are (linear, shuffled)
+#ramp = "linear"
+# behaviour once the ramp is completed. options are:
+#   - stable: stays at the final value of the ramp until completion
+#   - loop: restarts the ramp from the start value
+#   - mirror: restarts the ramp in the opposite direction, i.e., from the end
+#on_ramp_completion = "stable"
 
 [[workload.keyspace]]
 # sets the relative weight of this keyspace: defaults to 1
