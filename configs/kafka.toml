@@ -68,11 +68,11 @@ start = 1000
 [[workload.topics]]
 # the weight relative to other workload components
 weight = 1
-# the total number of Kafka consumer clients for topics in this compoment
+# the total number of Kafka consumer clients
 subscriber_poolsize = 2
-# whether put the clients in the same consumer group
+# whether the Kafka consumer clients share same consumer group
 # default is false that messages are fanout to all clients
-# if true, there is no fanout that all clients share the messages
+# if true, there is no fanout
 kafka_same_subscriber_group = true
 # the total number of Kafka tasks per Kafka consumer client
 # NOTE: received messages will not fanout to all tasks per client. To compare
@@ -92,5 +92,8 @@ partitions = 10
 message_len = 1024
 # the key length, in bytes
 key_len = 8
+#
+# To enable the TLS support, uncomment the [tls] section, add the CA file path, and
+# point the endpoints in the [target] to the Kafka TLS port.
 #[tls]
-#  ca_file = CA_FILE_PATH  
+#  ca_file = CA_FILE_PATH
