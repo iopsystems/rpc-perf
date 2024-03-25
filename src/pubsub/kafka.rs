@@ -6,7 +6,6 @@ use rdkafka::consumer::{Consumer, StreamConsumer};
 use rdkafka::producer::{FutureProducer, FutureRecord};
 use rdkafka::types::RDKafkaErrorCode::TopicAlreadyExists;
 use rdkafka::Message;
-use std::sync::Arc;
 
 fn get_client_config(config: &Config) -> ClientConfig {
     let bootstrap_servers = config.target().endpoints().join(",");
@@ -154,12 +153,12 @@ pub fn launch_subscribers(
             for id in 0..poolsize {
                 let client = {
                     let _guard = runtime.enter();
+                    // return 0 if using the same subscriber group,
                     let group_id = if topics.kafka_same_subscriber_group() {
                         0
                     } else {
                         id
                     };
-                    eprintln!("Create Kafka Consumer with group_id {}", group_id);
                     Arc::new(get_kafka_consumer(
                         &config,
                         &format!("rpcperf_subscriber_{group_id}"),
@@ -189,10 +188,10 @@ async fn subscriber_task(client: Arc<StreamConsumer>, topics: Vec<String>) {
 
         let validator = MessageValidator::new();
 
-        while RUNNING.load(Ordering::Relaxed) {          
+        while RUNNING.load(Ordering::Relaxed) {
             match client.recv().await {
                 Ok(message) => match message.payload_view::<[u8]>() {
-                    Some(Ok(message)) => {        
+                    Some(Ok(message)) => {
                         let _ = validator.validate(&mut message.to_owned());
                     }
                     Some(Err(e)) => {

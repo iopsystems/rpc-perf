@@ -22,7 +22,7 @@ log_level = "info"
 # optionally, log to the file below instead of standard out
 # log_file = "rpc-perf.log"
 # backup file name for use with log rotation
-#log_backup = "rpc-perf.log.old"
+log_backup = "rpc-perf.log.old"
 # trigger log rotation when the file grows beyond this size (in bytes). Set this
 # option to '0' to disable log rotation.
 log_max_size = 1073741824
@@ -50,12 +50,9 @@ subscriber_threads = 4
 kafka_acks = "all"
 kafka_linger_ms = "1"
 kafka_exactly_once = false
-kafka_batch.size="131072"
+kafka_batch_size="131072"
 kafka_fetch_message_max_bytes="10485760"
 kafka_compression_type="none"
-#kafka_batch_size
-#kafka_batch_num_messages
-#kafka_fetch_message_max_bytes
 #kafka_request_timeout_ms
 
 [workload]
@@ -74,8 +71,8 @@ weight = 1
 # the total number of Kafka consumer clients for topics in this compoment
 subscriber_poolsize = 2
 # whether put the clients in the same consumer group
-# false is default where messages are fanout to all clients
-# if true, messages are not fanout to all clients
+# default is false that messages are fanout to all clients
+# if true, there is no fanout that all clients share the messages
 kafka_same_subscriber_group = true
 # the total number of Kafka tasks per Kafka consumer client
 # NOTE: received messages will not fanout to all tasks per client. To compare

@@ -164,7 +164,7 @@ fn main() {
     // start publisher(s) and subscriber(s)
     let mut pubsub_runtimes = launch_pubsub(&config, pubsub_receiver, &workload_components);
 
-    // begin cli output
+    // begin cli output after the above starting so the first few outputs won't be empty
     {
         let config = config.clone();
         control_runtime.spawn_blocking(move || {
