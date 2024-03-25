@@ -250,15 +250,9 @@ pub fn metrics(config: Config) {
 
     // Post-process metrics into a parquet file
     if config.general().metrics_format() == MetricsFormat::Parquet {
-        let summary_percentiles: Vec<f64> = metrics::PERCENTILES.iter().map(|x| x.1).collect();
-
         // If parquet conversion fails, log the error and fall through to the
         // regular path which stores the file as a msgpack artifact.
-        if let Err(e) = metriken_exposition::util::msgpack_to_parquet(
-            file.path(),
-            &output,
-            Some(summary_percentiles),
-        ) {
+        if let Err(e) = metriken_exposition::util::msgpack_to_parquet(file.path(), &output, None) {
             eprintln!("error converting output to parquet: {}", e);
         } else {
             return;
