@@ -40,18 +40,18 @@ jobs:
     strategy:
       matrix:
         include:
-          - { distro: debian, release: buster }
-          - { distro: debian, release: bullseye }
-          - { distro: debian, release: bookworm }
+          - { distro: debian, release: buster } # LTS until July 2024
+          - { distro: debian, release: bullseye } # LTS until July 2026
+          - { distro: debian, release: bookworm } # LTS until July 2028
 
           # trusty and xenial are too old to properly support cross compiling
           # (or a compiler that supports C++17).
           # - { distro: ubuntu, release: trusty  } # LTS until Apr 2024
           # - { distro: ubuntu, release: xenial  } # LTS until Apr 2026
-          - { distro: ubuntu, release: bionic  } # LTS until Apr 2028
+          # - { distro: ubuntu, release: bionic  } # LTS until Apr 2028
           - { distro: ubuntu, release: focal   } # LTS until Apr 2030
           - { distro: ubuntu, release: jammy   } # LTS until Apr 2032
-          - { distro: ubuntu, release: lunar } # Previous release
+            # - { distro: ubuntu, release: lunar } # Previous release
           - { distro: ubuntu, release: mantic   } # Current release
       fail-fast: false
     env:
@@ -137,10 +137,11 @@ jobs:
         shell: bash
         run: ./debian/gen-changelog.sh > debian/changelog
 
-      - name: install arm64 build dependencies
-        run: apt-get build-dep -y -a arm64 ../rpc-perf*.dsc
-      - name: build arm64 package
-        run: dpkg-buildpackage -b -us -uc --host-arch arm64
+      # Cross-compiling for arm64 fails with boring-ssl errors; disable for now.
+      # - name: install arm64 build dependencies
+      #   run: apt-get build-dep -y -a arm64 ../rpc-perf*.dsc
+      # - name: build arm64 package
+      #   run: dpkg-buildpackage -b -us -uc --host-arch arm64
 
       - name: install x86_64 build dependencies
         run: apt-get build-dep -y -a amd64 ../rpc-perf*.dsc
