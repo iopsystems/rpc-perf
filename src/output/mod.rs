@@ -1,6 +1,6 @@
 use crate::*;
 use config::MetricsFormat;
-use metriken_exposition::{Snapshot, SnapshotterBuilder};
+use metriken_exposition::{MsgpackToParquet, Snapshot, SnapshotterBuilder};
 use std::io::{BufWriter, Write};
 
 #[macro_export]
@@ -214,8 +214,7 @@ pub fn metrics(config: Config) {
     }
     let output = config.general().metrics_output().unwrap();
 
-    let file =
-        tempfile::NamedTempFile::new_in(std::env::current_dir().expect("error fetching cwd"));
+    let file = tempfile::NamedTempFile::new_in("./");
     if file.is_err() {
         return;
     }
@@ -252,7 +251,7 @@ pub fn metrics(config: Config) {
     if config.general().metrics_format() == MetricsFormat::Parquet {
         // If parquet conversion fails, log the error and fall through to the
         // regular path which stores the file as a msgpack artifact.
-        if let Err(e) = metriken_exposition::util::msgpack_to_parquet(file.path(), &output, None) {
+        if let Err(e) = MsgpackToParquet::new().convert_file_path(file.path(), &output) {
             eprintln!("error converting output to parquet: {}", e);
         } else {
             return;
