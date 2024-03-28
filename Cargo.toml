@@ -8,6 +8,9 @@ homepage = "https://github.com/iopsystems/rpc-perf"
 repository = "https://github.com/iopsystems/rpc-perf"
 license = "MIT OR Apache-2.0"
 
+[features]
+tlskafka = ["rdkafka/ssl", "rdkafka/dynamic-linking"]
+
 [dependencies]
 ahash = "0.8.3"
 async-channel = "1.9.0"

@@ -393,6 +393,7 @@ pub struct Topics {
     message_len: usize,
     subscriber_poolsize: usize,
     subscriber_concurrency: usize,
+    kafka_same_subscriber_group: bool,
 }
 
 impl Topics {
@@ -460,6 +461,7 @@ impl Topics {
             message_len,
             subscriber_poolsize,
             subscriber_concurrency,
+            kafka_same_subscriber_group: topics.kafka_same_subscriber_group(),
         }
     }
 
@@ -477,6 +479,10 @@ impl Topics {
 
     pub fn subscriber_concurrency(&self) -> usize {
         self.subscriber_concurrency
+    }
+
+    pub fn kafka_same_subscriber_group(&self) -> bool {
+        self.kafka_same_subscriber_group
     }
 }
 

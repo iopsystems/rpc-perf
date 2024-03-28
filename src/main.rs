@@ -154,17 +154,6 @@ fn main() {
         control_runtime.spawn_blocking(move || output::metrics(config));
     }
 
-    // begin cli output
-    {
-        let config = config.clone();
-        control_runtime.spawn_blocking(move || {
-            // provide output on cli and block until run is over
-            output::log(&config);
-            // signal to other threads to shutdown
-            RUNNING.store(false, Ordering::Relaxed);
-        });
-    }
-
     // start the workload generator(s)
     let workload_runtime =
         launch_workload(workload_generator, &config, client_sender, pubsub_sender);
@@ -174,6 +163,17 @@ fn main() {
 
     // start publisher(s) and subscriber(s)
     let mut pubsub_runtimes = launch_pubsub(&config, pubsub_receiver, &workload_components);
+
+    // begin cli output after the above starting so the first few outputs won't be empty
+    {
+        let config = config.clone();
+        control_runtime.spawn_blocking(move || {
+            // provide output on cli and block until run is over
+            output::log(&config);
+            // signal to other threads to shutdown
+            RUNNING.store(false, Ordering::Relaxed);
+        });
+    }
 
     // start ratelimit controller thread if a dynamic ratelimit is configured
     {

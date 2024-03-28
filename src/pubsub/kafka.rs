@@ -6,19 +6,40 @@ use rdkafka::consumer::{Consumer, StreamConsumer};
 use rdkafka::producer::{FutureProducer, FutureRecord};
 use rdkafka::types::RDKafkaErrorCode::TopicAlreadyExists;
 use rdkafka::Message;
-use std::sync::Arc;
 
-fn get_kafka_producer(config: &Config) -> FutureProducer {
+fn get_client_config(config: &Config) -> ClientConfig {
     let bootstrap_servers = config.target().endpoints().join(",");
     let pubsub_config = config.pubsub().unwrap();
     let publish_timeout = format!("{}", pubsub_config.publish_timeout().as_millis());
     let connect_timeout = format!("{}", pubsub_config.connect_timeout().as_millis());
-    let pubsub_config = config.pubsub().unwrap();
     let mut client_config = ClientConfig::new();
     client_config
         .set("bootstrap.servers", &bootstrap_servers)
         .set("socket.timeout.ms", connect_timeout)
         .set("message.timeout.ms", publish_timeout);
+    if let Some(tls) = config.tls() {
+        client_config
+            .set("security.protocol", "ssl")
+            .set("enable.ssl.certificate.verification", "false");
+        if let Some(ca_file) = tls.ca_file() {
+            client_config.set("ssl.ca.location", ca_file);
+        }
+        if let Some(private_key) = tls.private_key() {
+            client_config.set("ssl.key.location", private_key);
+            if let Some(password) = tls.private_key_password() {
+                client_config.set("ssl.key.password", password);
+            }
+        }
+        if let Some(cert) = tls.certificate() {
+            client_config.set("ssl.certificate.location", cert);
+        }
+    }
+    client_config
+}
+
+fn get_kafka_producer(config: &Config) -> FutureProducer {
+    let pubsub_config = config.pubsub().unwrap();
+    let mut client_config = get_client_config(config);
     if let Some(acks) = pubsub_config.kafka_acks() {
         client_config.set("acks", acks);
     }
@@ -34,37 +55,33 @@ fn get_kafka_producer(config: &Config) -> FutureProducer {
     if let Some(request_timeout_ms) = pubsub_config.kafka_request_timeout_ms() {
         client_config.set("request.timeout.ms", request_timeout_ms);
     }
+    if let Some(compression_type) = pubsub_config.kafka_compression_type() {
+        client_config.set("compression.type", compression_type);
+    }
+    if pubsub_config.kafka_exactly_once() {
+        client_config.set("enable.idempotence", "true");
+        client_config.set("max.in.flight.requests.per.connection", "1");
+    }
     client_config.create().unwrap()
 }
 
 fn get_kafka_consumer(config: &Config, group_id: &str) -> StreamConsumer {
-    let bootstrap_servers = config.target().endpoints().join(",");
     let pubsub_config: &Pubsub = config.pubsub().unwrap();
-    let connect_timeout = format!("{}", pubsub_config.connect_timeout().as_millis());
-    let mut client_config = ClientConfig::new();
+    let mut client_config = get_client_config(config);
     client_config
-        .set("bootstrap.servers", &bootstrap_servers)
         .set("group.id", group_id)
         .set("client.id", "rpcperf_subscriber")
         .set("enable.partition.eof", "false")
         .set("enable.auto.commit", "false")
-        .set("auto.offset.reset", "earliest")
-        .set("socket.timeout.ms", connect_timeout);
+        .set("auto.offset.reset", "latest");
     if let Some(fetch_message_max_bytes) = pubsub_config.kafka_fetch_message_max_bytes() {
-        client_config.set("fetch_message_max_bytes", fetch_message_max_bytes);
+        client_config.set("fetch.message.max.bytes", fetch_message_max_bytes);
     }
     client_config.create().unwrap()
 }
 
 fn get_kafka_admin(config: &Config) -> AdminClient<DefaultClientContext> {
-    let bootstrap_servers = config.target().endpoints().join(",");
-    let connect_timeout = format!("{}", config.pubsub().unwrap().connect_timeout().as_millis());
-    ClientConfig::new()
-        .set("bootstrap.servers", &bootstrap_servers)
-        .set("client.id", "rpcperf_admin")
-        .set("socket.timeout.ms", connect_timeout)
-        .create()
-        .unwrap()
+    get_client_config(config).create().unwrap()
 }
 
 fn validate_topic(runtime: &mut Runtime, config: &Config, topic: &str, partitions: usize) {
@@ -145,9 +162,15 @@ pub fn launch_subscribers(
             for id in 0..poolsize {
                 let client = {
                     let _guard = runtime.enter();
+                    // return 0 if using the same subscriber group,
+                    let group_id = if topics.kafka_same_subscriber_group() {
+                        0
+                    } else {
+                        id
+                    };
                     Arc::new(get_kafka_consumer(
                         &config,
-                        &format!("rpcperf_subscriber_{id}"),
+                        &format!("rpcperf_subscriber_{group_id}"),
                     ))
                 };
                 for _ in 0..concurrency {
