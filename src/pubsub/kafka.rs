@@ -18,11 +18,20 @@ fn get_client_config(config: &Config) -> ClientConfig {
         .set("socket.timeout.ms", connect_timeout)
         .set("message.timeout.ms", publish_timeout);
     if let Some(tls) = config.tls() {
+        client_config
+            .set("security.protocol", "ssl")
+            .set("enable.ssl.certificate.verification", "false");
         if let Some(ca_file) = tls.ca_file() {
-            client_config
-                .set("security.protocol", "ssl")
-                .set("enable.ssl.certificate.verification", "false")
-                .set("ssl.ca.location", ca_file);
+            client_config.set("ssl.ca.location", ca_file);
+        }
+        if let Some(private_key) = tls.private_key() {
+            client_config.set("ssl.key.location", private_key);
+            if let Some(password) = tls.private_key_password() {
+                client_config.set("ssl.key.password", password);
+            }
+        }
+        if let Some(cert) = tls.certificate() {
+            client_config.set("ssl.certificate.location", cert);
         }
     }
     client_config
