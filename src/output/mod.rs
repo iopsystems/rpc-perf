@@ -225,13 +225,18 @@ pub fn metrics(config: Config) {
     let mut next = now + Duration::from_secs(1);
     let end = now + config.general().duration();
 
+    let snapshotter = SnapshotterBuilder::new()
+        .metadata("source".to_string(), env!("CARGO_BIN_NAME").to_string())
+        .metadata("version".to_string(), env!("CARGO_PKG_VERSION").to_string())
+        .build();
+
     while end > now {
         std::thread::sleep(Duration::from_millis(1));
 
         now = std::time::Instant::now();
 
         if next <= now {
-            let snapshot = SnapshotterBuilder::new().build().snapshot();
+            let snapshot = snapshotter.snapshot();
 
             let buf = match config.general().metrics_format() {
                 MetricsFormat::Json => Snapshot::to_json(&snapshot).expect("failed to serialize"),
