@@ -1281,7 +1281,7 @@ dependencies = [
  "httpdate",
  "itoa",
  "pin-project-lite",
- "socket2 0.4.10",
+ "socket2 0.5.5",
  "tokio",
  "tower-service",
  "tracing",
@@ -1697,9 +1697,9 @@ dependencies = [
 
 [[package]]
 name = "metriken-exposition"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e2ec4da2221dfba5b474cdfd2ccab82b74b68b9df3fd4597011e58fe611ad285"
+checksum = "51211be05b38efe9bd8a4af3c2346e8f3c32b4818582a5412bb2c1f930e03892"
 dependencies = [
  "arrow",
  "chrono",
