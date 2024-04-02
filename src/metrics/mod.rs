@@ -97,10 +97,11 @@ impl HistogramsSnapshot {
                 continue;
             };
 
-            if let Some(atomic_histogram) = any.downcast_ref::<metriken::AtomicHistogram>() {
-                if let Some(histogram) = atomic_histogram.load() {
-                    current.insert(metric.name().to_string(), histogram);
-                }
+            if let Some(histogram) = any
+                .downcast_ref::<metriken::AtomicHistogram>()
+                .and_then(|h| h.load())
+            {
+                current.insert(metric.name().to_string(), histogram);
             }
         }
 
@@ -120,17 +121,18 @@ impl HistogramsSnapshot {
                 continue;
             };
 
-            if let Some(atomic_histogram) = any.downcast_ref::<metriken::AtomicHistogram>() {
+            if let Some(histogram) = any
+                .downcast_ref::<metriken::AtomicHistogram>()
+                .and_then(|h| h.load())
+            {
                 let metric = metric.name().to_string();
 
-                if let Some(histogram) = atomic_histogram.load() {
-                    if let Some(previous) = self.previous.get(&metric) {
-                        self.deltas
-                            .insert(metric.clone(), histogram.wrapping_sub(previous).unwrap());
-                    }
-
-                    self.previous.insert(metric, histogram);
+                if let Some(previous) = self.previous.get(&metric) {
+                    self.deltas
+                        .insert(metric.clone(), histogram.wrapping_sub(previous).unwrap());
                 }
+
+                self.previous.insert(metric, histogram);
             }
         }
     }
