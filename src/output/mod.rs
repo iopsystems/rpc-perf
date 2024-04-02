@@ -1,6 +1,6 @@
 use crate::*;
 use config::MetricsFormat;
-use metriken_exposition::{Snapshot, SnapshotterBuilder};
+use metriken_exposition::{MsgpackToParquet, Snapshot, SnapshotterBuilder};
 use std::io::{BufWriter, Write};
 
 #[macro_export]
@@ -214,8 +214,7 @@ pub fn metrics(config: Config) {
     }
     let output = config.general().metrics_output().unwrap();
 
-    let file =
-        tempfile::NamedTempFile::new_in(std::env::current_dir().expect("error fetching cwd"));
+    let file = tempfile::NamedTempFile::new_in("./");
     if file.is_err() {
         return;
     }
@@ -226,13 +225,18 @@ pub fn metrics(config: Config) {
     let mut next = now + Duration::from_secs(1);
     let end = now + config.general().duration();
 
+    let snapshotter = SnapshotterBuilder::new()
+        .metadata("source".to_string(), env!("CARGO_BIN_NAME").to_string())
+        .metadata("version".to_string(), env!("CARGO_PKG_VERSION").to_string())
+        .build();
+
     while end > now {
         std::thread::sleep(Duration::from_millis(1));
 
         now = std::time::Instant::now();
 
         if next <= now {
-            let snapshot = SnapshotterBuilder::new().build().snapshot();
+            let snapshot = snapshotter.snapshot();
 
             let buf = match config.general().metrics_format() {
                 MetricsFormat::Json => Snapshot::to_json(&snapshot).expect("failed to serialize"),
@@ -252,7 +256,7 @@ pub fn metrics(config: Config) {
     if config.general().metrics_format() == MetricsFormat::Parquet {
         // If parquet conversion fails, log the error and fall through to the
         // regular path which stores the file as a msgpack artifact.
-        if let Err(e) = metriken_exposition::util::msgpack_to_parquet(file.path(), &output, None) {
+        if let Err(e) = MsgpackToParquet::new().convert_file_path(file.path(), &output) {
             eprintln!("error converting output to parquet: {}", e);
         } else {
             return;

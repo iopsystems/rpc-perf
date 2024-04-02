@@ -1,5 +1,15 @@
 ## [Unreleased]
 
+## [5.5.0] - 2024-03-27
+
+### Added
+
+- Support for writing metrics to a Parquet file.
+
+### Fixes
+
+- Updates `mio` to address RUSTSEC-2024-0019
+
 ## [5.4.0] - 2024-02-09
 
 ### Added
@@ -77,7 +87,8 @@
 - Support Momento topics.
 - Basic HTTP/1.1 and HTTP/2.0 load generation.
 
-[unreleased]: https://github.com/iopsystems/rpc-perf/compare/v5.4.0...HEAD
+[unreleased]: https://github.com/iopsystems/rpc-perf/compare/v5.5.0...HEAD
+[5.4.0]: https://github.com/iopsystems/rezolus/compare/v5.4.0...v5.5.0
 [5.4.0]: https://github.com/iopsystems/rezolus/compare/v5.3.0...v5.4.0
 [5.3.0]: https://github.com/iopsystems/rezolus/compare/v5.2.0...v5.3.0
 [5.2.0]: https://github.com/iopsystems/rezolus/compare/v5.1.0...v5.2.0
