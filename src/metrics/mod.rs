@@ -76,8 +76,8 @@ impl MetricsSnapshot {
 }
 
 pub struct HistogramsSnapshot {
-    pub previous: HashMap<String, metriken::histogram::Snapshot>,
-    pub deltas: HashMap<String, metriken::histogram::Snapshot>,
+    pub previous: HashMap<String, histogram::Histogram>,
+    pub deltas: HashMap<String, histogram::Histogram>,
 }
 
 impl Default for HistogramsSnapshot {
@@ -97,9 +97,9 @@ impl HistogramsSnapshot {
                 continue;
             };
 
-            if let Some(histogram) = any.downcast_ref::<metriken::AtomicHistogram>() {
-                if let Some(snapshot) = histogram.snapshot() {
-                    current.insert(metric.name().to_string(), snapshot);
+            if let Some(atomic_histogram) = any.downcast_ref::<metriken::AtomicHistogram>() {
+                if let Some(histogram) = atomic_histogram.load() {
+                    current.insert(metric.name().to_string(), histogram);
                 }
             }
         }
@@ -120,16 +120,16 @@ impl HistogramsSnapshot {
                 continue;
             };
 
-            if let Some(histogram) = any.downcast_ref::<metriken::AtomicHistogram>() {
+            if let Some(atomic_histogram) = any.downcast_ref::<metriken::AtomicHistogram>() {
                 let metric = metric.name().to_string();
 
-                if let Some(snapshot) = histogram.snapshot() {
+                if let Some(histogram) = atomic_histogram.load() {
                     if let Some(previous) = self.previous.get(&metric) {
                         self.deltas
-                            .insert(metric.clone(), snapshot.wrapping_sub(previous).unwrap());
+                            .insert(metric.clone(), histogram.wrapping_sub(previous).unwrap());
                     }
 
-                    self.previous.insert(metric, snapshot);
+                    self.previous.insert(metric, histogram);
                 }
             }
         }

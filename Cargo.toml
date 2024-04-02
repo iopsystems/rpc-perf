@@ -20,10 +20,11 @@ clap = "4.4.6"
 foreign-types-shared = "0.3.1"
 futures = "0.3.28"
 http-body-util = "0.1.0-rc.3"
+histogram = "0.10.0"
 humantime = "2.1.0"
 hyper = { version = "1.0.0-rc.4", features = ["http1", "http2", "client"]}
-metriken = "0.5.1"
-metriken-exposition = { version = "0.4.0", features = ["json", "parquet-conversion"] }
+metriken = "0.6.0"
+metriken-exposition = { version = "0.5.0", features = ["json", "parquet-conversion"] }
 mio = "0.8.8"
 momento = "0.32.1"
 pelikan-net = "0.1.0"
