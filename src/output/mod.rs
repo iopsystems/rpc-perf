@@ -1,7 +1,9 @@
 use crate::*;
+use chrono::{Timelike, Utc};
 use config::MetricsFormat;
 use metriken_exposition::{MsgpackToParquet, Snapshot, SnapshotterBuilder};
 use std::io::{BufWriter, Write};
+use tokio::time::Instant;
 
 #[macro_export]
 macro_rules! output {
@@ -15,44 +17,48 @@ macro_rules! output {
     }};
 }
 
-pub fn log(config: &Config) {
-    let mut interval = config.general().interval().as_millis();
-    let mut duration = config.general().duration().as_millis();
+pub async fn log(config: Config) {
+    WAIT.fetch_add(1, Ordering::Relaxed);
 
     let mut window_id = 0;
 
     let mut snapshot = MetricsSnapshot::default();
+    tokio::time::sleep(Duration::from_secs(1)).await;
     snapshot.update();
 
     let client = !config.workload().keyspaces().is_empty();
     let pubsub = !config.workload().topics().is_empty();
 
-    while duration > 0 {
-        std::thread::sleep(Duration::from_millis(1));
+    // get an aligned start time
+    let start = tokio::time::Instant::now() - Duration::from_nanos(Utc::now().nanosecond() as u64) + config.general().interval();
 
-        interval = interval.saturating_sub(1);
-        duration = duration.saturating_sub(1);
+    // get the stop time
+    let stop = start + config.general().duration();
 
-        if interval == 0 {
-            snapshot.update();
+    let mut interval = tokio::time::interval_at(start, config.general().interval());
 
-            output!("-----");
-            output!("Window: {}", window_id);
+    while Instant::now() + config.general().interval() <= stop {
+        interval.tick().await;
+        snapshot.update();
 
-            // output the client stats
-            if client {
-                client_stats(&mut snapshot);
-            }
+        output!("-----");
+        output!("Window: {}", window_id);
 
-            // output the pubsub stats
-            if pubsub {
-                pubsub_stats(&mut snapshot);
-            }
-
-            interval = config.general().interval().as_millis();
-            window_id += 1;
+        // output the client stats
+        if client {
+            client_stats(&mut snapshot);
         }
+
+        // output the pubsub stats
+        if pubsub {
+            pubsub_stats(&mut snapshot);
+        }
+
+        window_id += 1;
     }
+
+    RUNNING.store(false, Ordering::Relaxed);
+    WAIT.fetch_sub(1, Ordering::Relaxed);
 }
 
 /// Outputs client stats
@@ -208,7 +214,7 @@ fn pubsub_stats(snapshot: &mut MetricsSnapshot) {
     output!("{latencies}");
 }
 
-pub fn metrics(config: Config) {
+pub async fn metrics(config: Config) {
     if config.general().metrics_output().is_none() {
         return;
     }
@@ -221,34 +227,35 @@ pub fn metrics(config: Config) {
     let file = file.unwrap();
     let mut writer = BufWriter::new(file.as_file());
 
-    let mut now = std::time::Instant::now();
-    let mut next = now + Duration::from_secs(1);
-    let end = now + config.general().duration();
+    WAIT.fetch_add(1, Ordering::Relaxed);
+
+    // get an aligned start time
+    let start = tokio::time::Instant::now() - Duration::from_nanos(Utc::now().nanosecond() as u64) + Duration::from_secs(1);
+
+    // get the stop time
+    let stop = start + config.general().duration();
+
+    let mut interval = tokio::time::interval_at(start, Duration::from_secs(1));
 
     let snapshotter = SnapshotterBuilder::new()
         .metadata("source".to_string(), env!("CARGO_BIN_NAME").to_string())
         .metadata("version".to_string(), env!("CARGO_PKG_VERSION").to_string())
         .build();
 
-    while end > now {
-        std::thread::sleep(Duration::from_millis(1));
+    while Instant::now() + config.general().interval() <= stop {
+        interval.tick().await;
 
-        now = std::time::Instant::now();
+        let snapshot = snapshotter.snapshot();
 
-        if next <= now {
-            let snapshot = snapshotter.snapshot();
-
-            let buf = match config.general().metrics_format() {
-                MetricsFormat::Json => Snapshot::to_json(&snapshot).expect("failed to serialize"),
-                MetricsFormat::MsgPack | MetricsFormat::Parquet => {
-                    Snapshot::to_msgpack(&snapshot).expect("failed to serialize")
-                }
-            };
-            let _ = writer.write_all(&buf);
-
-            next += Duration::from_secs(1);
-        }
+        let buf = match config.general().metrics_format() {
+            MetricsFormat::Json => Snapshot::to_json(&snapshot).expect("failed to serialize"),
+            MetricsFormat::MsgPack | MetricsFormat::Parquet => {
+                Snapshot::to_msgpack(&snapshot).expect("failed to serialize")
+            }
+        };
+        let _ = writer.write_all(&buf);
     }
+
     let _ = writer.flush();
     drop(writer);
 
@@ -267,4 +274,6 @@ pub fn metrics(config: Config) {
     if let Err(e) = file.persist(output) {
         eprintln!("error persisting metrics file, no artifact saved: {}", e);
     }
+
+    WAIT.fetch_sub(1, Ordering::Relaxed);
 }
