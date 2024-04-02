@@ -30,7 +30,8 @@ pub async fn log(config: Config) {
     let pubsub = !config.workload().topics().is_empty();
 
     // get an aligned start time
-    let start = tokio::time::Instant::now() - Duration::from_nanos(Utc::now().nanosecond() as u64) + config.general().interval();
+    let start = tokio::time::Instant::now() - Duration::from_nanos(Utc::now().nanosecond() as u64)
+        + config.general().interval();
 
     // get the stop time
     let stop = start + config.general().duration();
@@ -230,7 +231,8 @@ pub async fn metrics(config: Config) {
     WAIT.fetch_add(1, Ordering::Relaxed);
 
     // get an aligned start time
-    let start = tokio::time::Instant::now() - Duration::from_nanos(Utc::now().nanosecond() as u64) + Duration::from_secs(1);
+    let start = tokio::time::Instant::now() - Duration::from_nanos(Utc::now().nanosecond() as u64)
+        + Duration::from_secs(1);
 
     // get the stop time
     let stop = start + config.general().duration();
