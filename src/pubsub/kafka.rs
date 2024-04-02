@@ -272,14 +272,24 @@ async fn publisher_task(
                 PUBSUB_PUBLISH.increment();
                 client
                     .send(
-                        FutureRecord {
-                            topic: &topic,
-                            payload: Some(&message),
-                            key: Some(&key),
-                            partition: Some(partition as i32),
-                            timestamp: Some(timestamp as i64),
-                            headers: None,
-                        },
+                    FutureRecord {
+                        topic: &topic,
+                        payload: Some(&message),                     
+                        key: Some(&key),
+                        partition: None,
+                        timestamp: None,
+                        headers: None,
+                    },
+                // client
+                //     .send(
+                //         FutureRecord {
+                //             topic: &topic,
+                //             payload: Some(&message),
+                //             key: Some(&key),
+                //             partition: Some(partition as i32),
+                //             timestamp: Some(timestamp as i64),
+                //             headers: None,
+                //         },
                         Duration::from_secs(0),
                     )
                     .await
