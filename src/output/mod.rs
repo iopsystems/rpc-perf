@@ -267,6 +267,11 @@ pub async fn metrics(config: Config) {
     if config.general().metrics_format() == MetricsFormat::Parquet {
         // If parquet conversion fails, log the error and fall through to the
         // regular path which stores the file as a msgpack artifact.
+        //
+        // NOTE: although this function is blocking, we always launch the
+        // metrics task into a runtime with multiple threads that handles only
+        // the control plane tasks. In the future, we may wish to move this
+        // conversion out onto a thread in the blocking pool instead.
         if let Err(e) = MsgpackToParquet::new().convert_file_path(file.path(), &output) {
             eprintln!("error converting output to parquet: {}", e);
         } else {
