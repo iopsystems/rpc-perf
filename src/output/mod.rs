@@ -270,6 +270,7 @@ pub async fn metrics(config: Config) {
         if let Err(e) = MsgpackToParquet::new().convert_file_path(file.path(), &output) {
             eprintln!("error converting output to parquet: {}", e);
         } else {
+            WAIT.fetch_sub(1, Ordering::Relaxed);
             return;
         }
     }
