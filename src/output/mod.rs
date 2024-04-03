@@ -2,7 +2,9 @@ use crate::*;
 use chrono::{Timelike, Utc};
 use config::MetricsFormat;
 use metriken_exposition::{MsgpackToParquet, Snapshot, SnapshotterBuilder};
-use std::io::{BufWriter, Write};
+use std::os::fd::{AsRawFd, FromRawFd};
+use tokio::fs::File;
+use tokio::io::{AsyncWriteExt, BufWriter};
 use tokio::time::Instant;
 
 #[macro_export]
@@ -226,7 +228,7 @@ pub async fn metrics(config: Config) {
         return;
     }
     let file = file.unwrap();
-    let mut writer = BufWriter::new(file.as_file());
+    let mut writer = BufWriter::new(unsafe { File::from_raw_fd(file.as_raw_fd()) });
 
     WAIT.fetch_add(1, Ordering::Relaxed);
 
@@ -255,10 +257,10 @@ pub async fn metrics(config: Config) {
                 Snapshot::to_msgpack(&snapshot).expect("failed to serialize")
             }
         };
-        let _ = writer.write_all(&buf);
+        let _ = writer.write_all(&buf).await;
     }
 
-    let _ = writer.flush();
+    let _ = writer.flush().await;
     drop(writer);
 
     // Post-process metrics into a parquet file
