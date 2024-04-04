@@ -49,6 +49,7 @@ tokio-boring = "3.1.0"
 toml = "0.8.2"
 warp = "0.3.6"
 zipf = "7.0.1"
+flate2 = "1.0.28"
 
 [profile.release]
 opt-level = 3

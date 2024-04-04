@@ -1,15 +1,16 @@
 use super::*;
 use config::{Command, RampCompletionAction, RampType, ValueKind, Verb};
+use flate2::write::GzEncoder;
+use flate2::Compression;
 use rand::distributions::{Alphanumeric, Uniform};
 use rand::seq::SliceRandom;
-use rand::thread_rng;
-use rand::{Rng, RngCore, SeedableRng};
+use rand::{thread_rng, Rng, RngCore, SeedableRng};
 use rand_distr::Distribution as RandomDistribution;
 use rand_distr::WeightedAliasIndex;
 use rand_xoshiro::{Seed512, Xoshiro512PlusPlus};
 use ratelimit::Ratelimiter;
 use std::collections::{HashMap, HashSet};
-use std::io::Result;
+use std::io::{Result, Write};
 use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
@@ -162,7 +163,7 @@ impl Generator {
         // add a header
         [m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7]] =
             [0x54, 0x45, 0x53, 0x54, 0x49, 0x4E, 0x47, 0x21];
-        rng.fill(&mut m[32..topics.message_len]);
+        rng.fill(&mut m[32..(topics.message_random_bytes + 32)]);
         let mut k = vec![0_u8; topics.key_len];
         rng.fill(&mut k[0..topics.key_len]);
 
@@ -391,12 +392,54 @@ pub struct Topics {
     partition_dist: Distribution,
     key_len: usize,
     message_len: usize,
+    message_random_bytes: usize,
     subscriber_poolsize: usize,
     subscriber_concurrency: usize,
 }
 
 impl Topics {
     pub fn new(config: &Config, topics: &config::Topics) -> Self {
+        let message_random_bytes = if topics.message_compression_ratio() <= 1.0 {
+            // this indicates the message should not be compressible, to achieve
+            // this all bytes will be random
+            topics.message_len()
+        } else {
+            // we need to approximate the number of random bytes to send, we do
+            // this iteratively assuming gzip compression.
+
+            // doesn't matter what seed we use here
+            let mut rng = Xoshiro512PlusPlus::from_seed(config.general().initial_seed());
+
+            // message buffer
+            let mut m = vec![0; topics.message_len()];
+
+            let mut best = 0;
+
+            for idx in 0..m.len() {
+                // zero all bytes
+                for b in &mut m {
+                    *b = 0
+                }
+
+                // fill first N bytes with pseudorandom data
+                rng.fill_bytes(&mut m[0..idx]);
+
+                let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+                let _ = encoder.write_all(&m);
+                let compressed = encoder.finish().unwrap();
+
+                let ratio = m.len() as f64 / compressed.len() as f64;
+
+                if ratio < topics.message_compression_ratio() {
+                    break;
+                }
+
+                best = idx;
+            }
+
+            best
+        };
+
         // ntopics must be >= 1
         let ntopics = std::cmp::max(1, topics.topics());
         // partitions must be >= 1
@@ -458,6 +501,7 @@ impl Topics {
             partition_dist,
             key_len,
             message_len,
+            message_random_bytes,
             subscriber_poolsize,
             subscriber_concurrency,
         }
@@ -490,6 +534,7 @@ pub struct Keyspace {
     inner_key_dist: Distribution,
     vlen: usize,
     vkind: ValueKind,
+    value_random_bytes: usize,
     ttl: Option<Duration>,
 }
 
@@ -510,6 +555,48 @@ impl Distribution {
 
 impl Keyspace {
     pub fn new(config: &Config, keyspace: &config::Keyspace) -> Self {
+        let value_random_bytes =
+            if keyspace.value_compression_ratio() <= 1.0 || keyspace.vlen().is_none() {
+                // this indicates the message should not be compressible, to achieve
+                // this all bytes will be random
+                keyspace.vlen().unwrap_or(0)
+            } else {
+                // we need to approximate the number of random bytes to send, we do
+                // this iteratively assuming gzip compression.
+
+                // doesn't matter what seed we use here
+                let mut rng = Xoshiro512PlusPlus::from_seed(config.general().initial_seed());
+
+                // message buffer
+                let mut m = vec![0; keyspace.vlen().unwrap_or(0)];
+
+                let mut best = 0;
+
+                for idx in 0..m.len() {
+                    // zero all bytes
+                    for b in &mut m {
+                        *b = 0
+                    }
+
+                    // fill first N bytes with pseudorandom data
+                    rng.fill_bytes(&mut m[0..idx]);
+
+                    let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+                    let _ = encoder.write_all(&m);
+                    let compressed = encoder.finish().unwrap();
+
+                    let ratio = m.len() as f64 / compressed.len() as f64;
+
+                    if ratio < keyspace.value_compression_ratio() {
+                        break;
+                    }
+
+                    best = idx;
+                }
+
+                best
+            };
+
         // nkeys must be >= 1
         let nkeys = std::cmp::max(1, keyspace.nkeys());
         let klen = keyspace.klen();
@@ -655,6 +742,7 @@ impl Keyspace {
             inner_key_dist,
             vlen: keyspace.vlen().unwrap_or(0),
             vkind: keyspace.vkind(),
+            value_random_bytes,
             ttl: keyspace.ttl(),
         }
     }
@@ -674,7 +762,7 @@ impl Keyspace {
             ValueKind::I64 => format!("{}", rng.gen::<i64>()).into_bytes(),
             ValueKind::Bytes => {
                 let mut buf = vec![0_u8; self.vlen];
-                rng.fill(&mut buf[0..self.vlen]);
+                rng.fill(&mut buf[0..self.value_random_bytes]);
                 buf
             }
         }

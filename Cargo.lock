@@ -2497,6 +2497,7 @@ dependencies = [
  "bytes",
  "chrono",
  "clap",
+ "flate2",
  "foreign-types-shared",
  "futures",
  "histogram 0.10.0",
