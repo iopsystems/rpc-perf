@@ -59,14 +59,16 @@ impl Config {
                 std::process::exit(1);
             }
         }
-        let toml = toml::from_str(&content);
-        match toml {
-            Ok(toml) => toml,
-            Err(error) => {
-                eprintln!("Failed to parse TOML config: {filename}\n{error}");
+        let config: Config = toml::from_str(&content)
+            .map_err(|e| {
+                eprintln!("Failed to parse TOML config: {filename}\n{e}");
                 std::process::exit(1);
-            }
-        }
+            })
+            .unwrap();
+
+        config.general.validate();
+        config.workload.ratelimit().validate();
+        config
     }
 
     pub fn general(&self) -> &General {
