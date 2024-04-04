@@ -84,5 +84,9 @@ topic_names = ["hello", "world"]
 partitions = 10
 # the value length, in bytes
 message_len = 512
+# approximate compression ratio for the message payload. The config value
+# represents the uncompressed size divided by the compressed size. <= 1.0 means
+# the message is all random bytes. Higher values are more compressible.
+message_compression_ratio = 1.0
 # the key length, in bytes
 key_len = 8
