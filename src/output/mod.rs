@@ -153,8 +153,8 @@ fn pubsub_stats(snapshot: &mut MetricsSnapshot) {
 
     // end-to-end stats
     let pubsub_latency = snapshot.percentiles(PUBSUB_LATENCY_HISTOGRAM);
-
-    output!("Publishers: Current: {}", PUBSUB_PUBLISHER_CURR.value(),);
+    output!("Ratelimit: Current: {}", RATELIMIT_CURR.value());
+    output!("Publishers: Current: {}", PUBSUB_PUBLISHER_CURR.value());
 
     let pubsub_tx_sr = 100.0 * pubsub_tx_ok / pubsub_tx_total;
     let pubsub_tx_to = 100.0 * pubsub_tx_timeout / pubsub_tx_total;
