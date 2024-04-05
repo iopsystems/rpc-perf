@@ -89,8 +89,15 @@ impl General {
     }
 
     pub fn validate(&self) {
-        if let Err(e) = self.metrics_interval.parse::<humantime::Duration>() {
+        let interval = self.metrics_interval.parse::<humantime::Duration>();
+        if let Err(e) = interval {
             eprintln!("metrics_interval is not valid: {e}");
+            std::process::exit(1);
+        }
+
+        let interval = interval.unwrap().as_millis();
+        if interval < Duration::from_millis(10).as_millis() {
+            eprintln!("metrics_interval should be larger than 10ms");
             std::process::exit(1);
         }
     }
