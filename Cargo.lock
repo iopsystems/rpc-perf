@@ -2114,6 +2114,8 @@ dependencies = [
  "libc",
  "metriken 0.3.5",
  "mio",
+ "openssl",
+ "openssl-sys",
 ]
 
 [[package]]
