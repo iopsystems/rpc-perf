@@ -565,9 +565,9 @@ checksum = "514de17de45fdb8dc022b1a7975556c53c86f9f0aa5f534b98977b171857c2c9"
 
 [[package]]
 name = "cc"
-version = "1.0.90"
+version = "1.0.91"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8cd6604a82acf3039f1144f54b8eb34e91ffba622051189e71b781822d5ee1f5"
+checksum = "1fd97381a8cc6493395a5afc4c691c1084b3768db713b73aa215217aa245d153"
 dependencies = [
  "jobserver",
  "libc",
@@ -684,7 +684,7 @@ dependencies = [
 [[package]]
 name = "common"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#f2f936b5017e11856a493255b0fbb3a845e65623"
+source = "git+https://github.com/pelikan-io/pelikan#51042d6764afab0c5cca4b530d59b6ef8c6f022d"
 dependencies = [
  "boring",
  "clocksource",
@@ -706,7 +706,7 @@ dependencies = [
 [[package]]
 name = "config"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#f2f936b5017e11856a493255b0fbb3a845e65623"
+source = "git+https://github.com/pelikan-io/pelikan#51042d6764afab0c5cca4b530d59b6ef8c6f022d"
 dependencies = [
  "common",
  "log",
@@ -1059,9 +1059,9 @@ dependencies = [
 
 [[package]]
 name = "getrandom"
-version = "0.2.12"
+version = "0.2.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "190092ea657667030ac6a35e305e62fc4dd69fd98ac98631e5d3a2b1575a12b5"
+checksum = "a06fddc2749e0528d2813f95e050e87e52c8cbbae56223b9babf73b3e53b0cc6"
 dependencies = [
  "cfg-if",
  "libc",
@@ -1120,9 +1120,9 @@ dependencies = [
 
 [[package]]
 name = "half"
-version = "2.4.0"
+version = "2.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b5eceaaeec696539ddaf7b333340f1af35a5aa87ae3e4f3ead0532f72affab2e"
+checksum = "6dd08c532ae367adf81c312a4580bc67f1d0fe8bc9c460520283f4c0ff277888"
 dependencies = [
  "cfg-if",
  "crunchy",
@@ -1590,7 +1590,7 @@ checksum = "90ed8c1e510134f979dbc4f070f87d4313098b704861a105fe34231c70a3901c"
 [[package]]
 name = "logger"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#f2f936b5017e11856a493255b0fbb3a845e65623"
+source = "git+https://github.com/pelikan-io/pelikan#51042d6764afab0c5cca4b530d59b6ef8c6f022d"
 dependencies = [
  "common",
  "config",
@@ -2055,7 +2055,7 @@ dependencies = [
 [[package]]
 name = "pelikan-net"
 version = "0.1.0"
-source = "git+https://github.com/pelikan-io/pelikan#f2f936b5017e11856a493255b0fbb3a845e65623"
+source = "git+https://github.com/pelikan-io/pelikan#51042d6764afab0c5cca4b530d59b6ef8c6f022d"
 dependencies = [
  "boring",
  "boring-sys",
@@ -2202,9 +2202,9 @@ dependencies = [
 
 [[package]]
 name = "prost"
-version = "0.12.3"
+version = "0.12.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "146c289cda302b98a28d40c8b3b90498d6e526dd24ac2ecea73e4e491685b94a"
+checksum = "d0f5d036824e4761737860779c906171497f6d55681139d8312388f8fe398922"
 dependencies = [
  "bytes",
  "prost-derive",
@@ -2212,9 +2212,9 @@ dependencies = [
 
 [[package]]
 name = "prost-derive"
-version = "0.12.3"
+version = "0.12.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "efb6c9a1dd1def8e2124d17e83a20af56f1570d6c2d2bd9e266ccb768df3840e"
+checksum = "19de2de2a00075bf566bee3bd4db014b11587e84184d3f7a791bc17f1a8e9e48"
 dependencies = [
  "anyhow",
  "itertools",
@@ -2226,7 +2226,7 @@ dependencies = [
 [[package]]
 name = "protocol-common"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#f2f936b5017e11856a493255b0fbb3a845e65623"
+source = "git+https://github.com/pelikan-io/pelikan#51042d6764afab0c5cca4b530d59b6ef8c6f022d"
 dependencies = [
  "bytes",
  "common",
@@ -2238,7 +2238,7 @@ dependencies = [
 [[package]]
 name = "protocol-memcache"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#f2f936b5017e11856a493255b0fbb3a845e65623"
+source = "git+https://github.com/pelikan-io/pelikan#51042d6764afab0c5cca4b530d59b6ef8c6f022d"
 dependencies = [
  "clocksource",
  "common",
@@ -2251,7 +2251,7 @@ dependencies = [
 [[package]]
 name = "protocol-ping"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#f2f936b5017e11856a493255b0fbb3a845e65623"
+source = "git+https://github.com/pelikan-io/pelikan#51042d6764afab0c5cca4b530d59b6ef8c6f022d"
 dependencies = [
  "common",
  "config",
@@ -2610,9 +2610,9 @@ dependencies = [
 
 [[package]]
 name = "rustversion"
-version = "1.0.14"
+version = "1.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ffc183a10b4478d04cbbbfc96d0873219d962dd5accaff2ffbd4ceb7df837f4"
+checksum = "80af6f9131f277a45a3fba6ce8e2258037bb0477a67e610d3c1fe046ab31de47"
 
 [[package]]
 name = "ryu"
@@ -2741,7 +2741,7 @@ dependencies = [
 [[package]]
 name = "session"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#f2f936b5017e11856a493255b0fbb3a845e65623"
+source = "git+https://github.com/pelikan-io/pelikan#51042d6764afab0c5cca4b530d59b6ef8c6f022d"
 dependencies = [
  "bytes",
  "clocksource",
@@ -2875,7 +2875,7 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 [[package]]
 name = "storage-types"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#f2f936b5017e11856a493255b0fbb3a845e65623"
+source = "git+https://github.com/pelikan-io/pelikan#51042d6764afab0c5cca4b530d59b6ef8c6f022d"
 
 [[package]]
 name = "strsim"
@@ -3083,9 +3083,9 @@ dependencies = [
 
 [[package]]
 name = "tokio-tungstenite"
-version = "0.20.1"
+version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "212d5dcb2a1ce06d81107c3d0ffa3121fe974b73f068c8282cb1c32328113b6c"
+checksum = "c83b561d025642014097b66e6c1bb422783339e0909e4429cde4749d1990bc38"
 dependencies = [
  "futures-util",
  "log",
@@ -3267,14 +3267,14 @@ checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
 
 [[package]]
 name = "tungstenite"
-version = "0.20.1"
+version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9e3dac10fd62eaf6617d3a904ae222845979aec67c615d1c842b4002c7666fb9"
+checksum = "9ef1a641ea34f399a848dea702823bbecfb4c486f911735368f1f137cb8257e1"
 dependencies = [
  "byteorder",
  "bytes",
  "data-encoding",
- "http 0.2.12",
+ "http 1.1.0",
  "httparse",
  "log",
  "rand",
@@ -3388,9 +3388,9 @@ dependencies = [
 
 [[package]]
 name = "warp"
-version = "0.3.6"
+version = "0.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c1e92e22e03ff1230c03a1a8ee37d2f89cd489e2e541b7550d6afad96faed169"
+checksum = "4378d202ff965b011c64817db11d5829506d3404edeadb61f190d111da3f231c"
 dependencies = [
  "bytes",
  "futures-channel",
@@ -3404,13 +3404,11 @@ dependencies = [
  "multer",
  "percent-encoding",
  "pin-project",
- "rustls-pemfile",
  "scoped-tls",
  "serde",
  "serde_json",
  "serde_urlencoded",
  "tokio",
- "tokio-stream",
  "tokio-tungstenite",
  "tokio-util",
  "tower-service",
