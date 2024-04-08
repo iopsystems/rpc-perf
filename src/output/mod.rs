@@ -239,7 +239,7 @@ pub async fn metrics(config: Config) {
     // get the stop time
     let stop = start + config.general().duration();
 
-    let mut interval = tokio::time::interval_at(start, Duration::from_secs(1));
+    let mut interval = tokio::time::interval_at(start, config.general().metrics_interval());
 
     let snapshotter = SnapshotterBuilder::new()
         .metadata("source".to_string(), env!("CARGO_BIN_NAME").to_string())

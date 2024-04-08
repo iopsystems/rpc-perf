@@ -13,6 +13,10 @@ pub enum MetricsFormat {
     Parquet,
 }
 
+pub fn metrics_interval() -> String {
+    "100ms".into()
+}
+
 #[derive(Clone, Deserialize)]
 pub struct General {
     /// The protocol to be used for the test.
@@ -29,6 +33,9 @@ pub struct General {
     /// ignored if no metrics output is specified.
     #[serde(default)]
     metrics_format: MetricsFormat,
+    /// The reporting interval. Specify time along with unit; default to 100ms.
+    #[serde(default = "metrics_interval")]
+    metrics_interval: String,
     /// The admin listen address
     admin: String,
     /// The initial seed for initializing the PRNGs. This can be any string and
@@ -57,6 +64,13 @@ impl General {
         self.metrics_format
     }
 
+    pub fn metrics_interval(&self) -> Duration {
+        self.metrics_interval
+            .parse::<humantime::Duration>()
+            .unwrap()
+            .into()
+    }
+
     pub fn admin(&self) -> String {
         self.admin.clone()
     }
@@ -71,6 +85,20 @@ impl General {
             let mut seed = [0_u8; 64];
             rng.fill(&mut seed);
             Seed512(seed)
+        }
+    }
+
+    pub fn validate(&self) {
+        let interval = self.metrics_interval.parse::<humantime::Duration>();
+        if let Err(e) = interval {
+            eprintln!("metrics_interval is not valid: {e}");
+            std::process::exit(1);
+        }
+
+        let interval = interval.unwrap().as_millis();
+        if interval < Duration::from_millis(10).as_millis() {
+            eprintln!("metrics_interval should be larger than 10ms");
+            std::process::exit(1);
         }
     }
 }
