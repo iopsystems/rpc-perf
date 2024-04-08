@@ -23,7 +23,7 @@ impl Default for SslProvider {
         {
             return SslProvider::Boringssl;
         }
-        
+
         #[cfg(feature = "openssl")]
         {
             return SslProvider::Openssl;
@@ -44,13 +44,9 @@ impl Connector {
         } else {
             match SslProvider::default() {
                 #[cfg(feature = "boringssl")]
-                SslProvider::Boringssl => {
-                    Self::boringssl(config)
-                }
+                SslProvider::Boringssl => Self::boringssl(config),
                 #[cfg(feature = "openssl")]
-                SslProvider::Openssl => {
-                    Self::openssl(config)
-                }
+                SslProvider::Openssl => Self::openssl(config),
                 SslProvider::Unknown => {
                     error!("no TLS/SSL provider could be found. Check that rpc-perf was built with either boringssl or openssl support");
                     std::process::exit(1);
@@ -79,7 +75,8 @@ impl Connector {
         let certificate = tls_config.certificate();
         let certificate_chain = tls_config.certificate_chain();
 
-        let mut ssl_connector = boring::ssl::SslConnector::builder(boring::ssl::SslMethod::tls_client())?;
+        let mut ssl_connector =
+            boring::ssl::SslConnector::builder(boring::ssl::SslMethod::tls_client())?;
 
         if let Some(ca_file) = tls_config.ca_file() {
             ssl_connector.set_ca_file(ca_file)?;
@@ -87,7 +84,8 @@ impl Connector {
 
         // mTLS configuration
         if private_key.is_some() && (certificate.is_some() || certificate_chain.is_some()) {
-            ssl_connector.set_private_key_file(private_key.unwrap(), boring::ssl::SslFiletype::PEM)?;
+            ssl_connector
+                .set_private_key_file(private_key.unwrap(), boring::ssl::SslFiletype::PEM)?;
 
             match (certificate, certificate_chain) {
                 (Some(cert), Some(chain)) => {
@@ -138,7 +136,8 @@ impl Connector {
         let certificate = tls_config.certificate();
         let certificate_chain = tls_config.certificate_chain();
 
-        let mut ssl_connector = openssl::ssl::SslConnector::builder(openssl::ssl::SslMethod::tls_client())?;
+        let mut ssl_connector =
+            openssl::ssl::SslConnector::builder(openssl::ssl::SslMethod::tls_client())?;
 
         if let Some(ca_file) = tls_config.ca_file() {
             ssl_connector.set_ca_file(ca_file)?;
@@ -146,7 +145,8 @@ impl Connector {
 
         // mTLS configuration
         if private_key.is_some() && (certificate.is_some() || certificate_chain.is_some()) {
-            ssl_connector.set_private_key_file(private_key.unwrap(), openssl::ssl::SslFiletype::PEM)?;
+            ssl_connector
+                .set_private_key_file(private_key.unwrap(), openssl::ssl::SslFiletype::PEM)?;
 
             match (certificate, certificate_chain) {
                 (Some(cert), Some(chain)) => {
@@ -183,7 +183,6 @@ impl Connector {
         })
     }
 
-
     pub async fn connect(&self, addr: &str) -> Result<Stream> {
         match &self.inner {
             ConnectorImpl::Tcp => {
@@ -213,7 +212,10 @@ impl Connector {
                     }),
                     Err(e) => match e.as_io_error() {
                         Some(e) => Err(std::io::Error::new(e.kind(), e.to_string())),
-                        None => Err(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())),
+                        None => Err(std::io::Error::new(
+                            std::io::ErrorKind::Other,
+                            e.to_string(),
+                        )),
                     },
                 }
             }
@@ -236,7 +238,10 @@ impl Connector {
                     }),
                     Err(e) => match e.io_error() {
                         Some(e) => Err(std::io::Error::new(e.kind(), e.to_string())),
-                        None => Err(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())),
+                        None => Err(std::io::Error::new(
+                            std::io::ErrorKind::Other,
+                            e.to_string(),
+                        )),
                     },
                 }
             }
