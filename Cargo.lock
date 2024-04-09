@@ -684,9 +684,8 @@ dependencies = [
 [[package]]
 name = "common"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#0c05f32292edeaa729b46f65baccdf0a04094e4c"
+source = "git+https://github.com/pelikan-io/pelikan#9f50b746d7c50a25773c685cb47e9eed3551944c"
 dependencies = [
- "boring",
  "clocksource",
  "metriken 0.3.5",
  "pelikan-net 0.2.0 (git+https://github.com/pelikan-io/pelikan)",
@@ -706,7 +705,7 @@ dependencies = [
 [[package]]
 name = "config"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#0c05f32292edeaa729b46f65baccdf0a04094e4c"
+source = "git+https://github.com/pelikan-io/pelikan#9f50b746d7c50a25773c685cb47e9eed3551944c"
 dependencies = [
  "common",
  "log",
@@ -1605,7 +1604,7 @@ checksum = "90ed8c1e510134f979dbc4f070f87d4313098b704861a105fe34231c70a3901c"
 [[package]]
 name = "logger"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#0c05f32292edeaa729b46f65baccdf0a04094e4c"
+source = "git+https://github.com/pelikan-io/pelikan#9f50b746d7c50a25773c685cb47e9eed3551944c"
 dependencies = [
  "common",
  "config",
@@ -2104,8 +2103,7 @@ checksum = "19b17cddbe7ec3f8bc800887bab5e717348c95ea2ca0b1bf0837fb964dc67099"
 [[package]]
 name = "pelikan-net"
 version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4c373eceaca2782371375d31bb2f7cd5ef1b493516253efd32dfea907c21f2b7"
+source = "git+https://github.com/brayniac/pelikan#da4a1410f6c1465d60c511c9f1fee568561dda1a"
 dependencies = [
  "boring",
  "boring-sys",
@@ -2121,10 +2119,8 @@ dependencies = [
 [[package]]
 name = "pelikan-net"
 version = "0.2.0"
-source = "git+https://github.com/pelikan-io/pelikan#0c05f32292edeaa729b46f65baccdf0a04094e4c"
+source = "git+https://github.com/pelikan-io/pelikan#9f50b746d7c50a25773c685cb47e9eed3551944c"
 dependencies = [
- "boring",
- "boring-sys",
  "foreign-types-shared 0.1.1",
  "foreign-types-shared 0.3.1",
  "libc",
@@ -2293,7 +2289,7 @@ dependencies = [
 [[package]]
 name = "protocol-common"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#0c05f32292edeaa729b46f65baccdf0a04094e4c"
+source = "git+https://github.com/pelikan-io/pelikan#9f50b746d7c50a25773c685cb47e9eed3551944c"
 dependencies = [
  "bytes",
  "common",
@@ -2305,7 +2301,7 @@ dependencies = [
 [[package]]
 name = "protocol-memcache"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#0c05f32292edeaa729b46f65baccdf0a04094e4c"
+source = "git+https://github.com/pelikan-io/pelikan#9f50b746d7c50a25773c685cb47e9eed3551944c"
 dependencies = [
  "clocksource",
  "common",
@@ -2318,7 +2314,7 @@ dependencies = [
 [[package]]
 name = "protocol-ping"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#0c05f32292edeaa729b46f65baccdf0a04094e4c"
+source = "git+https://github.com/pelikan-io/pelikan#9f50b746d7c50a25773c685cb47e9eed3551944c"
 dependencies = [
  "common",
  "config",
@@ -2578,7 +2574,7 @@ dependencies = [
  "openssl",
  "openssl-sys",
  "paste",
- "pelikan-net 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pelikan-net 0.2.0 (git+https://github.com/brayniac/pelikan)",
  "protocol-memcache",
  "protocol-ping",
  "rand",
@@ -2811,7 +2807,7 @@ dependencies = [
 [[package]]
 name = "session"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#0c05f32292edeaa729b46f65baccdf0a04094e4c"
+source = "git+https://github.com/pelikan-io/pelikan#9f50b746d7c50a25773c685cb47e9eed3551944c"
 dependencies = [
  "bytes",
  "clocksource",
@@ -2945,7 +2941,7 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 [[package]]
 name = "storage-types"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#0c05f32292edeaa729b46f65baccdf0a04094e4c"
+source = "git+https://github.com/pelikan-io/pelikan#9f50b746d7c50a25773c685cb47e9eed3551944c"
 
 [[package]]
 name = "strsim"
