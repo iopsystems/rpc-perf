@@ -555,47 +555,47 @@ impl Distribution {
 
 impl Keyspace {
     pub fn new(config: &Config, keyspace: &config::Keyspace) -> Self {
-        let value_random_bytes =
-            if keyspace.compression_ratio() <= 1.0 || keyspace.vlen().is_none() {
-                // this indicates the message should not be compressible, to achieve
-                // this all bytes will be random
-                keyspace.vlen().unwrap_or(0)
-            } else {
-                // we need to approximate the number of random bytes to send, we do
-                // this iteratively assuming gzip compression.
+        let value_random_bytes = if keyspace.compression_ratio() <= 1.0 || keyspace.vlen().is_none()
+        {
+            // this indicates the message should not be compressible, to achieve
+            // this all bytes will be random
+            keyspace.vlen().unwrap_or(0)
+        } else {
+            // we need to approximate the number of random bytes to send, we do
+            // this iteratively assuming gzip compression.
 
-                // doesn't matter what seed we use here
-                let mut rng = Xoshiro512PlusPlus::from_seed(config.general().initial_seed());
+            // doesn't matter what seed we use here
+            let mut rng = Xoshiro512PlusPlus::from_seed(config.general().initial_seed());
 
-                // message buffer
-                let mut m = vec![0; keyspace.vlen().unwrap_or(0)];
+            // message buffer
+            let mut m = vec![0; keyspace.vlen().unwrap_or(0)];
 
-                let mut best = 0;
+            let mut best = 0;
 
-                for idx in 0..m.len() {
-                    // zero all bytes
-                    for b in &mut m {
-                        *b = 0
-                    }
-
-                    // fill first N bytes with pseudorandom data
-                    rng.fill_bytes(&mut m[0..idx]);
-
-                    let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
-                    let _ = encoder.write_all(&m);
-                    let compressed = encoder.finish().unwrap();
-
-                    let ratio = m.len() as f64 / compressed.len() as f64;
-
-                    if ratio < keyspace.compression_ratio() {
-                        break;
-                    }
-
-                    best = idx;
+            for idx in 0..m.len() {
+                // zero all bytes
+                for b in &mut m {
+                    *b = 0
                 }
 
-                best
-            };
+                // fill first N bytes with pseudorandom data
+                rng.fill_bytes(&mut m[0..idx]);
+
+                let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+                let _ = encoder.write_all(&m);
+                let compressed = encoder.finish().unwrap();
+
+                let ratio = m.len() as f64 / compressed.len() as f64;
+
+                if ratio < keyspace.compression_ratio() {
+                    break;
+                }
+
+                best = idx;
+            }
+
+            best
+        };
 
         // nkeys must be >= 1
         let nkeys = std::cmp::max(1, keyspace.nkeys());
