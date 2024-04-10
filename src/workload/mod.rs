@@ -829,7 +829,6 @@ pub struct Ratelimit {
 impl Ratelimit {
     pub fn new(config: &Config) -> Option<Self> {
         let ratelimit_config = config.workload().ratelimit();
-        ratelimit_config.validate();
 
         if !ratelimit_config.is_dynamic() {
             return None;
