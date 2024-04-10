@@ -2103,7 +2103,8 @@ checksum = "19b17cddbe7ec3f8bc800887bab5e717348c95ea2ca0b1bf0837fb964dc67099"
 [[package]]
 name = "pelikan-net"
 version = "0.2.0"
-source = "git+https://github.com/brayniac/pelikan#da4a1410f6c1465d60c511c9f1fee568561dda1a"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4c373eceaca2782371375d31bb2f7cd5ef1b493516253efd32dfea907c21f2b7"
 dependencies = [
  "boring",
  "boring-sys",
@@ -2574,7 +2575,7 @@ dependencies = [
  "openssl",
  "openssl-sys",
  "paste",
- "pelikan-net 0.2.0 (git+https://github.com/brayniac/pelikan)",
+ "pelikan-net 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "protocol-memcache",
  "protocol-ping",
  "rand",
