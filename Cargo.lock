@@ -507,7 +507,7 @@ checksum = "7ae1aba472e42d3cf45ac6d0a6c8fc3ddf743871209e1b40229aed9fbdf48ece"
 dependencies = [
  "bitflags 2.5.0",
  "boring-sys",
- "foreign-types",
+ "foreign-types 0.5.0",
  "libc",
  "once_cell",
 ]
@@ -547,9 +547,9 @@ dependencies = [
 
 [[package]]
 name = "bumpalo"
-version = "3.15.4"
+version = "3.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ff69b9dd49fd426c69a0db9fc04dd934cdb6645ff000864d98f7e2af8830eaa"
+checksum = "79296716171880943b8470b5f8d03aa55eb2e645a4874bdbb28adb49162e012c"
 
 [[package]]
 name = "byteorder"
@@ -565,9 +565,9 @@ checksum = "514de17de45fdb8dc022b1a7975556c53c86f9f0aa5f534b98977b171857c2c9"
 
 [[package]]
 name = "cc"
-version = "1.0.91"
+version = "1.0.92"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1fd97381a8cc6493395a5afc4c691c1084b3768db713b73aa215217aa245d153"
+checksum = "2678b2e3449475e95b0aa6f9b506a28e61b3dc8996592b983695e8ebb58a8b41"
 dependencies = [
  "jobserver",
  "libc",
@@ -684,12 +684,11 @@ dependencies = [
 [[package]]
 name = "common"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#51042d6764afab0c5cca4b530d59b6ef8c6f022d"
+source = "git+https://github.com/pelikan-io/pelikan#9f50b746d7c50a25773c685cb47e9eed3551944c"
 dependencies = [
- "boring",
  "clocksource",
  "metriken 0.3.5",
- "pelikan-net 0.1.0 (git+https://github.com/pelikan-io/pelikan)",
+ "pelikan-net 0.2.0 (git+https://github.com/pelikan-io/pelikan)",
  "ringlog",
  "serde",
 ]
@@ -706,7 +705,7 @@ dependencies = [
 [[package]]
 name = "config"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#51042d6764afab0c5cca4b530d59b6ef8c6f022d"
+source = "git+https://github.com/pelikan-io/pelikan#9f50b746d7c50a25773c685cb47e9eed3551944c"
 dependencies = [
  "common",
  "log",
@@ -908,12 +907,21 @@ checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
 
 [[package]]
 name = "foreign-types"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f6f339eb8adc052cd2ca78910fda869aefa38d22d5cb648e6485e4d3fc06f3b1"
+dependencies = [
+ "foreign-types-shared 0.1.1",
+]
+
+[[package]]
+name = "foreign-types"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d737d9aa519fb7b749cbc3b962edcf310a8dd1f4b67c91c4f83975dbdd17d965"
 dependencies = [
  "foreign-types-macros",
- "foreign-types-shared",
+ "foreign-types-shared 0.3.1",
 ]
 
 [[package]]
@@ -926,6 +934,12 @@ dependencies = [
  "quote",
  "syn 2.0.58",
 ]
+
+[[package]]
+name = "foreign-types-shared"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "00b0228411908ca8685dba7fc2cdd70ec9990a6e753e89b6ac91a84c40fbaf4b"
 
 [[package]]
 name = "foreign-types-shared"
@@ -1059,9 +1073,9 @@ dependencies = [
 
 [[package]]
 name = "getrandom"
-version = "0.2.13"
+version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a06fddc2749e0528d2813f95e050e87e52c8cbbae56223b9babf73b3e53b0cc6"
+checksum = "94b22e06ecb0110981051723910cbf0b5f5e09a2062dd7663334ee79a9d1286c"
 dependencies = [
  "cfg-if",
  "libc",
@@ -1390,9 +1404,9 @@ checksum = "8bb03732005da905c88227371639bf1ad885cc712789c011c31c5fb3ab3ccf02"
 
 [[package]]
 name = "itertools"
-version = "0.11.0"
+version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b1c173a5686ce8bfa551b3563d0c2170bf24ca44da99c7ca4bfdab5418c3fe57"
+checksum = "ba291022dbbd398a455acf126c1e341954079855bc60dfdda641363bd6922569"
 dependencies = [
  "either",
 ]
@@ -1590,7 +1604,7 @@ checksum = "90ed8c1e510134f979dbc4f070f87d4313098b704861a105fe34231c70a3901c"
 [[package]]
 name = "logger"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#51042d6764afab0c5cca4b530d59b6ef8c6f022d"
+source = "git+https://github.com/pelikan-io/pelikan#9f50b746d7c50a25773c685cb47e9eed3551944c"
 dependencies = [
  "common",
  "config",
@@ -1957,10 +1971,58 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3fdb12b2476b595f9358c5161aa467c2438859caa136dec86c26fdd2efe17b92"
 
 [[package]]
+name = "openssl"
+version = "0.10.64"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "95a0481286a310808298130d22dd1fef0fa571e05a8f44ec801801e84b216b1f"
+dependencies = [
+ "bitflags 2.5.0",
+ "cfg-if",
+ "foreign-types 0.3.2",
+ "libc",
+ "once_cell",
+ "openssl-macros",
+ "openssl-sys",
+]
+
+[[package]]
+name = "openssl-macros"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a948666b637a0f465e8564c73e89d4dde00d72d4d473cc972f390fc3dcee7d9c"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.58",
+]
+
+[[package]]
 name = "openssl-probe"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ff011a302c396a5197692431fc1948019154afc178baf7d8e37367442a4601cf"
+
+[[package]]
+name = "openssl-src"
+version = "300.2.3+3.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5cff92b6f71555b61bb9315f7c64da3ca43d87531622120fea0195fc761b4843"
+dependencies = [
+ "cc",
+]
+
+[[package]]
+name = "openssl-sys"
+version = "0.9.102"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c597637d56fbc83893a35eb0dd04b2b8e7a50c91e64e9493e398b5df4fb45fa2"
+dependencies = [
+ "cc",
+ "libc",
+ "openssl-src",
+ "pkg-config",
+ "vcpkg",
+]
 
 [[package]]
 name = "ordered-float"
@@ -2040,26 +2102,28 @@ checksum = "19b17cddbe7ec3f8bc800887bab5e717348c95ea2ca0b1bf0837fb964dc67099"
 
 [[package]]
 name = "pelikan-net"
-version = "0.1.0"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b120fd5d897107cb459176e5db0dd409056b11848accd0f4dcfc690b8bdac9b3"
+checksum = "4c373eceaca2782371375d31bb2f7cd5ef1b493516253efd32dfea907c21f2b7"
 dependencies = [
  "boring",
  "boring-sys",
- "foreign-types-shared",
+ "foreign-types-shared 0.1.1",
+ "foreign-types-shared 0.3.1",
  "libc",
  "metriken 0.3.5",
  "mio",
+ "openssl",
+ "openssl-sys",
 ]
 
 [[package]]
 name = "pelikan-net"
-version = "0.1.0"
-source = "git+https://github.com/pelikan-io/pelikan#51042d6764afab0c5cca4b530d59b6ef8c6f022d"
+version = "0.2.0"
+source = "git+https://github.com/pelikan-io/pelikan#9f50b746d7c50a25773c685cb47e9eed3551944c"
 dependencies = [
- "boring",
- "boring-sys",
- "foreign-types-shared",
+ "foreign-types-shared 0.1.1",
+ "foreign-types-shared 0.3.1",
  "libc",
  "metriken 0.3.5",
  "mio",
@@ -2226,7 +2290,7 @@ dependencies = [
 [[package]]
 name = "protocol-common"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#51042d6764afab0c5cca4b530d59b6ef8c6f022d"
+source = "git+https://github.com/pelikan-io/pelikan#9f50b746d7c50a25773c685cb47e9eed3551944c"
 dependencies = [
  "bytes",
  "common",
@@ -2238,7 +2302,7 @@ dependencies = [
 [[package]]
 name = "protocol-memcache"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#51042d6764afab0c5cca4b530d59b6ef8c6f022d"
+source = "git+https://github.com/pelikan-io/pelikan#9f50b746d7c50a25773c685cb47e9eed3551944c"
 dependencies = [
  "clocksource",
  "common",
@@ -2251,7 +2315,7 @@ dependencies = [
 [[package]]
 name = "protocol-ping"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#51042d6764afab0c5cca4b530d59b6ef8c6f022d"
+source = "git+https://github.com/pelikan-io/pelikan#9f50b746d7c50a25773c685cb47e9eed3551944c"
 dependencies = [
  "common",
  "config",
@@ -2497,7 +2561,7 @@ dependencies = [
  "bytes",
  "chrono",
  "clap",
- "foreign-types-shared",
+ "foreign-types-shared 0.3.1",
  "futures",
  "histogram 0.10.0",
  "http-body-util",
@@ -2508,8 +2572,10 @@ dependencies = [
  "mio",
  "momento",
  "once_cell",
+ "openssl",
+ "openssl-sys",
  "paste",
- "pelikan-net 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pelikan-net 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "protocol-memcache",
  "protocol-ping",
  "rand",
@@ -2526,6 +2592,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "tokio-boring",
+ "tokio-openssl",
  "toml",
  "warp",
  "zipf",
@@ -2741,14 +2808,14 @@ dependencies = [
 [[package]]
 name = "session"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#51042d6764afab0c5cca4b530d59b6ef8c6f022d"
+source = "git+https://github.com/pelikan-io/pelikan#9f50b746d7c50a25773c685cb47e9eed3551944c"
 dependencies = [
  "bytes",
  "clocksource",
  "common",
  "log",
  "metriken 0.3.5",
- "pelikan-net 0.1.0 (git+https://github.com/pelikan-io/pelikan)",
+ "pelikan-net 0.2.0 (git+https://github.com/pelikan-io/pelikan)",
  "protocol-common",
 ]
 
@@ -2875,7 +2942,7 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 [[package]]
 name = "storage-types"
 version = "0.3.1"
-source = "git+https://github.com/pelikan-io/pelikan#51042d6764afab0c5cca4b530d59b6ef8c6f022d"
+source = "git+https://github.com/pelikan-io/pelikan#9f50b746d7c50a25773c685cb47e9eed3551944c"
 
 [[package]]
 name = "strsim"
@@ -3058,6 +3125,18 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.58",
+]
+
+[[package]]
+name = "tokio-openssl"
+version = "0.6.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6ffab79df67727f6acf57f1ff743091873c24c579b1e2ce4d8f53e47ded4d63d"
+dependencies = [
+ "futures-util",
+ "openssl",
+ "openssl-sys",
+ "tokio",
 ]
 
 [[package]]
