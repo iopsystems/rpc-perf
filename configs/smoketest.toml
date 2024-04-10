@@ -36,7 +36,7 @@ klen = 32
 nkeys = 1_000_000
 vlen = 128
 vkind = "bytes"
-message_compression_ratio = 10.0
+compression_ratio = 10.0
 commands = [
 	{ verb = "get", weight = 80 },
 	{ verb = "set", weight = 20 },

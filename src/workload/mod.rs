@@ -399,7 +399,7 @@ pub struct Topics {
 
 impl Topics {
     pub fn new(config: &Config, topics: &config::Topics) -> Self {
-        let message_random_bytes = if topics.message_compression_ratio() <= 1.0 {
+        let message_random_bytes = if topics.compression_ratio() <= 1.0 {
             // this indicates the message should not be compressible, to achieve
             // this all bytes will be random
             topics.message_len()
@@ -430,7 +430,7 @@ impl Topics {
 
                 let ratio = m.len() as f64 / compressed.len() as f64;
 
-                if ratio < topics.message_compression_ratio() {
+                if ratio < topics.compression_ratio() {
                     break;
                 }
 
@@ -556,7 +556,7 @@ impl Distribution {
 impl Keyspace {
     pub fn new(config: &Config, keyspace: &config::Keyspace) -> Self {
         let value_random_bytes =
-            if keyspace.value_compression_ratio() <= 1.0 || keyspace.vlen().is_none() {
+            if keyspace.compression_ratio() <= 1.0 || keyspace.vlen().is_none() {
                 // this indicates the message should not be compressible, to achieve
                 // this all bytes will be random
                 keyspace.vlen().unwrap_or(0)
@@ -587,7 +587,7 @@ impl Keyspace {
 
                     let ratio = m.len() as f64 / compressed.len() as f64;
 
-                    if ratio < keyspace.value_compression_ratio() {
+                    if ratio < keyspace.compression_ratio() {
                         break;
                     }
 

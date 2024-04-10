@@ -86,10 +86,8 @@ nkeys = 1_000_000
 vlen = 128
 # use random bytes for the values
 vkind = "bytes"
-# approximate compression ratio for the value. The config value represents the
-# uncompressed size divided by the compressed size. <= 1.0 means the value is
-# all random bytes. Higher values are more compressible.
-message_compression_ratio = 1.0
+# specify an approximate compression ratio for the value payload
+compression_ratio = 1.0
 # controls what commands will be used in this keyspace
 commands = [
 	# get a value

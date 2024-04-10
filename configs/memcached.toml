@@ -63,6 +63,8 @@ nkeys = 1_000_000
 vlen = 128
 # use random bytes for the values
 vkind = "bytes"
+# specify an approximate compression ratio for the value
+compression_ratio = 1.0
 # optionally: specify a TTL for the keys, by default there is no expiration
 # ttl = "15m"
 # controls what commands will be used in this keyspace

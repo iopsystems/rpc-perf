@@ -73,6 +73,8 @@ klen = 32
 nkeys = 1_000_000
 # sets the value length, in bytes
 vlen = 128
+# specify an approximate compression ratio for the value payload
+compression_ratio = 1.0
 # use random bytes for the values
 vkind = "bytes"
 # override the default ttl for this keyspace setting it to 15 minutes

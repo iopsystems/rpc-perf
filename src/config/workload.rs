@@ -49,7 +49,7 @@ pub struct Topics {
     topic_names: Vec<String>,
     message_len: usize,
     #[serde(default)]
-    message_compression_ratio: Option<f64>,
+    compression_ratio: Option<f64>,
     #[serde(default = "one")]
     key_len: usize,
     weight: usize,
@@ -91,8 +91,8 @@ impl Topics {
         self.message_len
     }
 
-    pub fn message_compression_ratio(&self) -> f64 {
-        self.message_compression_ratio.unwrap_or(1.0)
+    pub fn compression_ratio(&self) -> f64 {
+        self.compression_ratio.unwrap_or(1.0)
     }
 
     pub fn subscriber_poolsize(&self) -> usize {
@@ -145,7 +145,7 @@ pub struct Keyspace {
     #[serde(default)]
     vkind: Option<ValueKind>,
     #[serde(default)]
-    value_compression_ratio: Option<f64>,
+    compression_ratio: Option<f64>,
     #[serde(default)]
     // no ttl is treated as no-expires or max ttl for the protocol
     ttl: Option<String>,
@@ -188,8 +188,8 @@ impl Keyspace {
         self.vkind.unwrap_or(ValueKind::Bytes)
     }
 
-    pub fn value_compression_ratio(&self) -> f64 {
-        self.value_compression_ratio.unwrap_or(1.0)
+    pub fn compression_ratio(&self) -> f64 {
+        self.compression_ratio.unwrap_or(1.0)
     }
 
     pub fn ttl(&self) -> Option<Duration> {
