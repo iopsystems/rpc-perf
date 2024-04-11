@@ -73,7 +73,8 @@ klen = 32
 nkeys = 1_000_000
 # sets the value length, in bytes
 vlen = 128
-# specify an approximate compression ratio for the value payload
+# optionally, specify an approximate compression ratio for the value payload.
+# Defaults to 1.0 meaning the message is high-entropy and not compressible.
 compression_ratio = 1.0
 # use random bytes for the values
 vkind = "bytes"

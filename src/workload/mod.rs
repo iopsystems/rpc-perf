@@ -404,40 +404,7 @@ impl Topics {
             // this all bytes will be random
             topics.message_len()
         } else {
-            // we need to approximate the number of random bytes to send, we do
-            // this iteratively assuming gzip compression.
-
-            // doesn't matter what seed we use here
-            let mut rng = Xoshiro512PlusPlus::from_seed(config.general().initial_seed());
-
-            // message buffer
-            let mut m = vec![0; topics.message_len()];
-
-            let mut best = 0;
-
-            for idx in 0..m.len() {
-                // zero all bytes
-                for b in &mut m {
-                    *b = 0
-                }
-
-                // fill first N bytes with pseudorandom data
-                rng.fill_bytes(&mut m[0..idx]);
-
-                let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
-                let _ = encoder.write_all(&m);
-                let compressed = encoder.finish().unwrap();
-
-                let ratio = m.len() as f64 / compressed.len() as f64;
-
-                if ratio < topics.compression_ratio() {
-                    break;
-                }
-
-                best = idx;
-            }
-
-            best
+            estimate_random_bytes_needed(topics.message_len(), topics.compression_ratio())
         };
 
         // ntopics must be >= 1
@@ -555,46 +522,15 @@ impl Distribution {
 
 impl Keyspace {
     pub fn new(config: &Config, keyspace: &config::Keyspace) -> Self {
+        let vlen = keyspace.vlen().unwrap_or(0);
+
         let value_random_bytes = if keyspace.compression_ratio() <= 1.0 || keyspace.vlen().is_none()
         {
             // this indicates the message should not be compressible, to achieve
             // this all bytes will be random
-            keyspace.vlen().unwrap_or(0)
+            vlen
         } else {
-            // we need to approximate the number of random bytes to send, we do
-            // this iteratively assuming gzip compression.
-
-            // doesn't matter what seed we use here
-            let mut rng = Xoshiro512PlusPlus::from_seed(config.general().initial_seed());
-
-            // message buffer
-            let mut m = vec![0; keyspace.vlen().unwrap_or(0)];
-
-            let mut best = 0;
-
-            for idx in 0..m.len() {
-                // zero all bytes
-                for b in &mut m {
-                    *b = 0
-                }
-
-                // fill first N bytes with pseudorandom data
-                rng.fill_bytes(&mut m[0..idx]);
-
-                let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
-                let _ = encoder.write_all(&m);
-                let compressed = encoder.finish().unwrap();
-
-                let ratio = m.len() as f64 / compressed.len() as f64;
-
-                if ratio < keyspace.compression_ratio() {
-                    break;
-                }
-
-                best = idx;
-            }
-
-            best
+            estimate_random_bytes_needed(vlen, keyspace.compression_ratio())
         };
 
         // nkeys must be >= 1
@@ -894,4 +830,41 @@ impl Ratelimit {
 
         limit
     }
+}
+
+fn estimate_random_bytes_needed(length: usize, compression_ratio: f64) -> usize {
+    // we need to approximate the number of random bytes to send, we do
+    // this iteratively assuming gzip compression.
+
+    // doesn't matter what seed we use here
+    let mut rng = Xoshiro512PlusPlus::seed_from_u64(0);
+
+    // message buffer
+    let mut m = vec![0; length];
+
+    let mut best = 0;
+
+    for idx in 0..m.len() {
+        // zero all bytes
+        for b in &mut m {
+            *b = 0
+        }
+
+        // fill first N bytes with pseudorandom data
+        rng.fill_bytes(&mut m[0..idx]);
+
+        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+        let _ = encoder.write_all(&m);
+        let compressed = encoder.finish().unwrap();
+
+        let ratio = m.len() as f64 / compressed.len() as f64;
+
+        if ratio < compression_ratio {
+            break;
+        }
+
+        best = idx;
+    }
+
+    best
 }
