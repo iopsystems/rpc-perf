@@ -399,13 +399,8 @@ pub struct Topics {
 
 impl Topics {
     pub fn new(config: &Config, topics: &config::Topics) -> Self {
-        let message_random_bytes = if topics.compression_ratio() <= 1.0 {
-            // this indicates the message should not be compressible, to achieve
-            // this all bytes will be random
-            topics.message_len()
-        } else {
-            estimate_random_bytes_needed(topics.message_len(), topics.compression_ratio())
-        };
+        let message_random_bytes =
+            estimate_random_bytes_needed(topics.message_len(), topics.compression_ratio());
 
         // ntopics must be >= 1
         let ntopics = std::cmp::max(1, topics.topics());
@@ -522,16 +517,10 @@ impl Distribution {
 
 impl Keyspace {
     pub fn new(config: &Config, keyspace: &config::Keyspace) -> Self {
-        let vlen = keyspace.vlen().unwrap_or(0);
-
-        let value_random_bytes = if keyspace.compression_ratio() <= 1.0 || keyspace.vlen().is_none()
-        {
-            // this indicates the message should not be compressible, to achieve
-            // this all bytes will be random
-            vlen
-        } else {
-            estimate_random_bytes_needed(vlen, keyspace.compression_ratio())
-        };
+        let value_random_bytes = estimate_random_bytes_needed(
+            keyspace.vlen().unwrap_or(0),
+            keyspace.compression_ratio(),
+        );
 
         // nkeys must be >= 1
         let nkeys = std::cmp::max(1, keyspace.nkeys());
@@ -833,6 +822,11 @@ impl Ratelimit {
 }
 
 fn estimate_random_bytes_needed(length: usize, compression_ratio: f64) -> usize {
+    // if compression ratio is low, all bytes should be random
+    if compression_ratio <= 1.0 {
+        return length;
+    }
+
     // we need to approximate the number of random bytes to send, we do
     // this iteratively assuming gzip compression.
 
