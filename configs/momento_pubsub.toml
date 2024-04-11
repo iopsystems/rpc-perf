@@ -67,6 +67,8 @@ topics = 10
 topic_len = 64
 # sets the value length, in bytes
 message_len = 128
+# specify an approximate compression ratio for the message payload
+compression_ratio = 1.0
 
 # An example set of topics using a high number of subscribers per topic.
 [[workload.topics]]
@@ -84,3 +86,7 @@ topics = 1
 topic_len = 32
 # sets the value length, in bytes
 message_len = 128
+# optionally, specify an approximate compression ratio for the message payload.
+# Defaults to 1.0 meaning the message is high-entropy and not compressible.
+compression_ratio = 1.0
+
