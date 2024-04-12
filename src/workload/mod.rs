@@ -160,10 +160,16 @@ impl Generator {
         let partition = topics.partition_dist.sample(rng);
 
         let mut m = vec![0_u8; topics.message_len];
+
         // add a header
         [m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7]] =
             [0x54, 0x45, 0x53, 0x54, 0x49, 0x4E, 0x47, 0x21];
-        rng.fill(&mut m[32..(topics.message_random_bytes + 32)]);
+
+        // determine the range to fill with random bytes and fill that range
+        let limit = std::cmp::min(topics.message_random_bytes + 32, m.len());
+        rng.fill(&mut m[32..limit]);
+
+        // generate the key
         let mut k = vec![0_u8; topics.key_len];
         rng.fill(&mut k[0..topics.key_len]);
 

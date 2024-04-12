@@ -153,8 +153,8 @@ jobs:
           path: install
 
   # Smoke tests are even more expensive, so they run last.
-  smoketest:
-    name: smoketest
+  smoketest-cache:
+    name: smoketest-cache
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -175,7 +175,7 @@ jobs:
         shell: bash
         run: |
           memcached -t 1 -p 11211 -m 256 &
-          target/release/rpc-perf configs/smoketest.toml
+          target/release/rpc-perf configs/smoketest-cache.toml
 
   check-success:
     name: verify all tests pass
@@ -187,7 +187,7 @@ jobs:
       - clippy
       - clippy-upload
       - audit
-      - smoketest
+      - smoketest-cache
 
     steps:
       - name: no-op
