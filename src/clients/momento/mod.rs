@@ -126,6 +126,9 @@ async fn task(
                 ClientRequest::ListPopBack(r) => {
                     list_pop_back(&mut client, &config, cache_name, r).await
                 }
+                ClientRequest::ListRemove(r) => {
+                    list_remove(&mut client, &config, cache_name, r).await
+                }
 
                 /*
                  * SORTED SETS

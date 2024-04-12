@@ -179,6 +179,9 @@ commands = [
 	# with cardinality to use `list_concat_front` and with truncate to trim
 	{ verb = "list_push_front", weight = 10, cardinality = 3, truncate = 10 },
 
+	# removes all elements with given value from a list
+	{ verb = "list_remove", weight = 5 },
+
 	# delete an entire list
 	{ verb = "delete", weight = 1 },
 ]

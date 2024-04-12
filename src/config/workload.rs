@@ -359,6 +359,12 @@ pub enum Verb {
     /// * RESP: `RPOP`
     #[serde(alias = "rpop")]
     ListPopBack,
+    /// Removes all elements with given value from the list
+    /// * Momento: `list_remove`
+    /// * RESP: `LREM`
+    #[serde(alias = "lrem")]
+    ListRemove,
+
 
     /*
      * SETS
@@ -464,6 +470,7 @@ impl Verb {
                 | Self::HashSet
                 | Self::ListPushBack
                 | Self::ListPushFront
+                | Self::ListRemove
                 | Self::SetAdd
                 | Self::SetRemove
                 | Self::SortedSetAdd
