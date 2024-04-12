@@ -163,7 +163,7 @@ impl Generator {
         // add a header
         [m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7]] =
             [0x54, 0x45, 0x53, 0x54, 0x49, 0x4E, 0x47, 0x21];
-        rng.fill(&mut m[32..(topics.message_random_bytes + 32)]);
+        rng.fill(&mut m[32..(topics.message_random_bytes - 32)]);
         let mut k = vec![0_u8; topics.key_len];
         rng.fill(&mut k[0..topics.key_len]);
 
@@ -402,7 +402,7 @@ impl Topics {
     pub fn new(config: &Config, topics: &config::Topics) -> Self {
         let message_random_bytes =
             estimate_random_bytes_needed(topics.message_len(), topics.compression_ratio());
-
+        println!("random bytes: {}", message_random_bytes);
         // ntopics must be >= 1
         let ntopics = std::cmp::max(1, topics.topics());
         // partitions must be >= 1
