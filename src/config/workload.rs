@@ -361,7 +361,7 @@ pub enum Verb {
     ListPopBack,
     /// Removes all elements with given value from the list
     /// * Momento: `list_remove`
-    /// * RESP: `LREM`
+    /// * RESP: `LREM` (Not implemented currently)
     #[serde(alias = "lrem")]
     ListRemove,
 
