@@ -1,0 +1,47 @@
+# A configuration that can be used as a smoketest against a memcached instance.
+
+[general]
+protocol = "kafka"
+interval = 1
+duration = 60
+metrics_output = "rpcperf.parquet"
+metrics_format = "parquet"
+admin = "127.0.0.1:9090"
+
+[debug]
+log_level = "info"
+log_backup = "rpc-perf.log.old"
+log_max_size = 1073741824
+
+[target]
+endpoints = [
+	"127.0.0.1:9092",
+]
+
+[pubsub]
+connect_timeout = 1000
+publish_timeout = 1000
+publisher_threads = 4
+publisher_poolsize = 1
+publisher_concurrency = 20
+subscriber_threads = 4
+kafka_acks = "1"
+kafka_linger_ms = "1"
+
+[workload]
+threads = 1
+
+[workload.ratelimit]
+start = 10_000
+
+[[workload.topics]]
+weight = 1
+subscriber_poolsize = 1
+subscriber_concurrency = 2
+topics = 2
+topic_len = 5
+topic_names = ["hello", "world"]
+partitions = 10
+message_len = 512
+compression_ratio = 1.0
+key_len = 8
