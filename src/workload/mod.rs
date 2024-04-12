@@ -292,6 +292,10 @@ impl Generator {
             Verb::ListPopBack => ClientRequest::ListPopBack(client::ListPopBack {
                 key: keyspace.sample(rng),
             }),
+            Verb::ListRemove => ClientRequest::ListRemove(client::ListRemove {
+                key: keyspace.sample(rng),
+                element: keyspace.sample_inner(rng),
+            }),
             Verb::Ping => ClientRequest::Ping(client::Ping {}),
             Verb::SetAdd => {
                 let mut members = HashSet::new();
