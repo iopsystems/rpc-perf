@@ -153,8 +153,8 @@ jobs:
           path: install
 
   # Smoke tests are even more expensive, so they run last.
-  smoketest:
-    name: smoketest
+  smoketest-cache:
+    name: smoketest-cache
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -175,7 +175,25 @@ jobs:
         shell: bash
         run: |
           memcached -t 1 -p 11211 -m 256 &
-          target/release/rpc-perf configs/smoketest.toml
+          target/release/rpc-perf configs/smoketest-cache.toml
+
+  smoketest-pubsub:
+    name: smoketest-pubsub
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/setup-rust
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: smoketest-ubuntu-latest
+      - name: build
+        shell: bash
+        run: |
+          cargo build --workspace --all-targets --locked --release
+      - name: test
+        shell: bash
+        run: |
+          target/release/rpc-perf configs/smoketest-pubsub.toml
 
   check-success:
     name: verify all tests pass
@@ -187,7 +205,8 @@ jobs:
       - clippy
       - clippy-upload
       - audit
-      - smoketest
+      - smoketest-cache
+      - smoketest-pubsub
 
     steps:
       - name: no-op
