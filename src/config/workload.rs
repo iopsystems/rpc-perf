@@ -365,7 +365,6 @@ pub enum Verb {
     #[serde(alias = "lrem")]
     ListRemove,
 
-
     /*
      * SETS
      */
