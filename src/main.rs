@@ -4,7 +4,7 @@ use crate::workload::{launch_workload, Generator, Ratelimit};
 use async_channel::{bounded, Sender};
 use backtrace::Backtrace;
 use clap::{Arg, Command};
-use core::sync::atomic::{AtomicBool, Ordering};
+use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use metriken::{AtomicHistogram, Counter, Gauge};
 use once_cell::sync::Lazy;
 use ringlog::*;
@@ -28,6 +28,7 @@ use config::*;
 use metrics::*;
 
 static RUNNING: AtomicBool = AtomicBool::new(true);
+static WAIT: AtomicUsize = AtomicUsize::new(0);
 
 static METRICS_SNAPSHOT: Lazy<Arc<RwLock<MetricsSnapshot>>> =
     Lazy::new(|| Arc::new(RwLock::new(Default::default())));
@@ -148,11 +149,11 @@ fn main() {
     // spawn the admin thread
     control_runtime.spawn(admin::http(config.clone(), workload_ratelimit.clone()));
 
-    // launch metrics log output
-    {
-        let config = config.clone();
-        control_runtime.spawn_blocking(move || output::metrics(config));
-    }
+    // launch metrics file output
+    control_runtime.spawn(output::metrics(config.clone()));
+
+    // begin cli output
+    control_runtime.spawn(output::log(config.clone()));
 
     // start the workload generator(s)
     let workload_runtime =
@@ -163,17 +164,6 @@ fn main() {
 
     // start publisher(s) and subscriber(s)
     let mut pubsub_runtimes = launch_pubsub(&config, pubsub_receiver, &workload_components);
-
-    // begin cli output after the above starting so the first few outputs won't be empty
-    {
-        let config = config.clone();
-        control_runtime.spawn_blocking(move || {
-            // provide output on cli and block until run is over
-            output::log(&config);
-            // signal to other threads to shutdown
-            RUNNING.store(false, Ordering::Relaxed);
-        });
-    }
 
     // start ratelimit controller thread if a dynamic ratelimit is configured
     {
@@ -196,6 +186,8 @@ fn main() {
         std::thread::sleep(Duration::from_secs(1));
     }
 
+    // shutdown thread pools
+
     if let Some(client_runtime) = client_runtime {
         client_runtime.shutdown_timeout(std::time::Duration::from_millis(100));
     }
@@ -205,5 +197,10 @@ fn main() {
     workload_runtime.shutdown_timeout(std::time::Duration::from_millis(100));
 
     // delay before exiting
+
+    while WAIT.load(Ordering::Relaxed) > 0 {
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+
     std::thread::sleep(std::time::Duration::from_millis(100));
 }

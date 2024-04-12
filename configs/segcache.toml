@@ -13,6 +13,9 @@ duration = 300
 # optionally, specify the format for the output stats file (default is json)
 # possible values are (json, msgpack, parquet).
 #metrics_format = "parquet"
+# optionally, specify the sampling interval for metrics. Input is a string
+# with the unit attached; for example "100ms" or "1s". Default to 100ms.
+#metrics_interval = "1s"
 # run the admin thread with a HTTP listener at the address provided, this allows
 # stats exposition via HTTP
 admin = "127.0.0.1:9090"
@@ -83,6 +86,9 @@ nkeys = 1_000_000
 vlen = 128
 # use random bytes for the values
 vkind = "bytes"
+# optionally, specify an approximate compression ratio for the value payload.
+# Defaults to 1.0 meaning the message is high-entropy and not compressible.
+compression_ratio = 1.0
 # controls what commands will be used in this keyspace
 commands = [
 	# get a value

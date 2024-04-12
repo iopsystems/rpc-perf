@@ -89,7 +89,14 @@ topic_names = ["rpcperf"]
 # the number of partitions in each topic
 partitions = 10
 # the value length, in bytes
+<<<<<<< HEAD
 message_len = 1024
+=======
+message_len = 512
+# optionally, specify an approximate compression ratio for the message payload.
+# Defaults to 1.0 meaning the message is high-entropy and not compressible.
+compression_ratio = 1.0
+>>>>>>> main
 # the key length, in bytes
 key_len = 8
 #

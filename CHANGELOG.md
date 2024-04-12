@@ -1,5 +1,19 @@
 ## [Unreleased]
 
+## [5.6.0] - 2024-04-03
+
+### Changed
+
+- `metriken-exposition` is updated which results in differences for the
+  file-based metric exposition. (#185 #187)
+- Metrics reporting for both stdout and file output are now roughly aligned to
+  the top of the second. This allows easier correlation with other metric
+  artifacts. (#188)
+
+## Fixed
+
+- `h2` updated to address RUSTSEC-2024-0019
+
 ## [5.5.0] - 2024-03-27
 
 ### Added
