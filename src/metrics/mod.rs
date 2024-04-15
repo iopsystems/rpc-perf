@@ -560,6 +560,8 @@ request!(LIST_PUSH_BACK, "list_push_back");
 
 request!(LIST_PUSH_FRONT, "list_push_front");
 
+request!(LIST_REMOVE, "list_remove");
+
 /*
  * SETS
  */
