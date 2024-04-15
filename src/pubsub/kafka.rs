@@ -16,6 +16,7 @@ fn get_client_config(config: &Config) -> ClientConfig {
     client_config
         .set("bootstrap.servers", &bootstrap_servers)
         .set("socket.timeout.ms", connect_timeout)
+        .set("socket.nagle.disable", "true")
         .set("message.timeout.ms", publish_timeout);
     if let Some(tls) = config.tls() {
         client_config
