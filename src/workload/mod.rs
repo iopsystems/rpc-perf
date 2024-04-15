@@ -136,6 +136,8 @@ impl Generator {
     ) {
         if let Some(ref ratelimiter) = self.ratelimiter {
             loop {
+                RATELIMIT_DROPPED.set(ratelimiter.dropped());
+
                 if ratelimiter.try_wait().is_ok() {
                     break;
                 }
@@ -146,10 +148,20 @@ impl Generator {
 
         match &self.components[self.component_dist.sample(rng)] {
             Component::Keyspace(keyspace) => {
-                let _ = client_sender.send_blocking(self.generate_request(keyspace, rng));
+                if client_sender
+                    .try_send(self.generate_request(keyspace, rng))
+                    .is_err()
+                {
+                    REQUEST_DROPPED.increment();
+                }
             }
             Component::Topics(topics) => {
-                let _ = pubsub_sender.send_blocking(self.generate_pubsub(topics, rng));
+                if pubsub_sender
+                    .try_send(self.generate_pubsub(topics, rng))
+                    .is_err()
+                {
+                    REQUEST_DROPPED.increment();
+                }
             }
         }
     }
