@@ -382,12 +382,18 @@ histogram!(PUBSUB_LATENCY, "pubsub_latency");
 histogram!(PUBSUB_PUBLISH_LATENCY, "pubsub_publish_latency");
 
 gauge!(RATELIMIT_CURR, "ratelimit/current");
+counter!(RATELIMIT_DROPPED, "ratelimit/dropped");
 
 gauge!(CONNECT_CURR, "client/connections/current");
 counter!(CONNECT_OK, "client/connect/ok");
 counter!(CONNECT_TIMEOUT, "client/connect/timeout");
 
 counter!(REQUEST, "client/request/total", "total requests dequeued");
+counter!(
+    REQUEST_DROPPED,
+    "client/request/dropped",
+    "number of requests dropped due to a full work queue"
+);
 counter!(
     REQUEST_OK,
     "client/request/ok",

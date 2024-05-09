@@ -1,5 +1,20 @@
 ## [Unreleased]
 
+## [5.7.0] - 2024-04-23
+
+### Changed
+
+- OpenSSL is now the default SSL/TLS provider. BoringSSL is still available
+  through the use of feature flags. (#194)
+
+### Added
+
+- Support for configuring the interval for file exposition allowing for finer
+  resolution artifacts. (#192)
+- Approximate compression ratio for message and value payloads. (#191)
+- Support the `list_remove` command for Momento. (#198)
+- New metrics for dropped requests. (#201)
+
 ## [5.6.0] - 2024-04-03
 
 ### Changed
@@ -101,8 +116,10 @@
 - Support Momento topics.
 - Basic HTTP/1.1 and HTTP/2.0 load generation.
 
-[unreleased]: https://github.com/iopsystems/rpc-perf/compare/v5.5.0...HEAD
-[5.4.0]: https://github.com/iopsystems/rezolus/compare/v5.4.0...v5.5.0
+[unreleased]: https://github.com/iopsystems/rpc-perf/compare/v5.7.0...HEAD
+[5.7.0]: https://github.com/iopsystems/rezolus/compare/v5.6.0...v5.7.0
+[5.6.0]: https://github.com/iopsystems/rezolus/compare/v5.5.0...v5.6.0
+[5.5.0]: https://github.com/iopsystems/rezolus/compare/v5.4.0...v5.5.0
 [5.4.0]: https://github.com/iopsystems/rezolus/compare/v5.3.0...v5.4.0
 [5.3.0]: https://github.com/iopsystems/rezolus/compare/v5.2.0...v5.3.0
 [5.2.0]: https://github.com/iopsystems/rezolus/compare/v5.1.0...v5.2.0
