@@ -408,7 +408,7 @@ pub enum Component {
 pub struct Topics {
     topics: Vec<Arc<String>>,
     partitions: usize,
-    topic_dist: Distribution,    
+    topic_dist: Distribution,
     key_len: usize,
     message_len: usize,
     message_random_bytes: usize,
@@ -473,7 +473,7 @@ impl Topics {
         Self {
             topics: topic_names,
             partitions,
-            topic_dist,            
+            topic_dist,
             key_len,
             message_len,
             message_random_bytes,
