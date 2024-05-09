@@ -19,8 +19,6 @@ admin = "127.0.0.1:9090"
 [debug]
 # choose from: error, warn, info, debug, trace
 log_level = "info"
-# optionally, log to the file below instead of standard out
-# log_file = "rpc-perf.log"
 # backup file name for use with log rotation
 log_backup = "rpc-perf.log.old"
 # trigger log rotation when the file grows beyond this size (in bytes). Set this
@@ -51,7 +49,9 @@ kafka_acks = "all"
 kafka_linger_ms = "1"
 kafka_exactly_once = false
 kafka_batch_size="131072"
+#kafka_batch_num_messages
 kafka_fetch_message_max_bytes="10485760"
+#kafka_auto_offset_reset
 kafka_compression_type="none"
 #kafka_request_timeout_ms
 
@@ -63,17 +63,14 @@ threads = 1
 # the global ratelimit
 start = 1000
 
-# An example set of
-#topics using a single consumer multiple producer.
 [[workload.topics]]
 # the weight relative to other workload components
 weight = 1
 # the total number of Kafka consumer clients
 subscriber_poolsize = 2
-# whether the Kafka consumer clients share same consumer group
 # default is false that messages are fanout to all clients
-# if true, there is no fanout
-kafka_same_subscriber_group = true
+# if true, all clients share the single subscriber group
+kafka_single_subscriber_group = true
 # the total number of Kafka tasks per Kafka consumer client
 # NOTE: received messages will not fanout to all tasks per client. To compare
 # with other pubsub implementations, set the concurrency to `1`,
@@ -99,4 +96,7 @@ key_len = 8
 # To enable the TLS support, uncomment the [tls] section, add the CA file path, and
 # point the endpoints in the [target] to the Kafka TLS port.
 #[tls]
-#  ca_file = CA_FILE_PATH
+# ca_file = CA_FILE_PATH
+# private_key = CLIENT_KEY_PATH
+# private_key_password = CLIENT_KEY_PASSWORD
+# certificate = CERTIFICATE_PATH

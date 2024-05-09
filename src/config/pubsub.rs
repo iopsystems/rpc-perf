@@ -1,5 +1,15 @@
 use super::*;
 
+pub fn default_kafka_acks() -> String {
+    String::from("1")
+}
+pub fn default_kafka_compression_type() -> String {
+    String::from("none")
+}
+pub fn default_kafka_auto_offset_reset() -> String {
+    String::from("latest")
+}
+
 #[derive(Clone, Deserialize)]
 pub struct Pubsub {
     // connection timeout in ms
@@ -28,15 +38,19 @@ pub struct Pubsub {
     write_buffer_size: usize,
 
     // kafka specific configs
-    #[serde(default = "default_as_false")]
+    #[serde(default)]
     kafka_exactly_once: bool,
-    kafka_acks: Option<String>,
+    #[serde(default = "default_kafka_acks")]
+    kafka_acks: String,
+    #[serde(default = "default_kafka_compression_type")]
+    kafka_compression_type: String,
+    #[serde(default = "default_kafka_auto_offset_reset")]
+    kafka_auto_offset_reset: String,
     kafka_linger_ms: Option<String>,
     kafka_batch_size: Option<String>,
     kafka_batch_num_messages: Option<String>,
     kafka_fetch_message_max_bytes: Option<String>,
     kafka_request_timeout_ms: Option<String>,
-    kafka_compression_type: Option<String>,
 }
 
 impl Pubsub {
@@ -77,8 +91,8 @@ impl Pubsub {
         ((std::cmp::max(1, self.write_buffer_size) + PAGESIZE - 1) / PAGESIZE) * PAGESIZE
     }
 
-    pub fn kafka_acks(&self) -> &Option<String> {
-        &self.kafka_acks
+    pub fn kafka_acks(&self) -> String {
+        self.kafka_acks
     }
 
     pub fn kafka_linger_ms(&self) -> &Option<String> {
@@ -101,8 +115,12 @@ impl Pubsub {
         &self.kafka_request_timeout_ms
     }
 
-    pub fn kafka_compression_type(&self) -> &Option<String> {
-        &self.kafka_compression_type
+    pub fn kafka_compression_type(&self) -> String {
+        self.kafka_compression_type
+    }
+
+    pub fn kafka_auto_offset_reset(&self) -> String {
+        self.kafka_auto_offset_reset
     }
 
     pub fn kafka_exactly_once(&self) -> bool {

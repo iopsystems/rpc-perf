@@ -417,7 +417,7 @@ pub struct Topics {
     message_random_bytes: usize,
     subscriber_poolsize: usize,
     subscriber_concurrency: usize,
-    kafka_same_subscriber_group: bool,
+    kafka_single_subscriber_group: bool,
 }
 
 impl Topics {
@@ -489,7 +489,7 @@ impl Topics {
             message_random_bytes,
             subscriber_poolsize,
             subscriber_concurrency,
-            kafka_same_subscriber_group: topics.kafka_same_subscriber_group(),
+            kafka_single_subscriber_group: topics.kafka_single_subscriber_group(),
         }
     }
 
@@ -509,8 +509,8 @@ impl Topics {
         self.subscriber_concurrency
     }
 
-    pub fn kafka_same_subscriber_group(&self) -> bool {
-        self.kafka_same_subscriber_group
+    pub fn kafka_single_subscriber_group(&self) -> bool {
+        self.kafka_single_subscriber_group
     }
 }
 

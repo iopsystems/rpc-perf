@@ -41,9 +41,9 @@ fn get_client_config(config: &Config) -> ClientConfig {
 fn get_kafka_producer(config: &Config) -> FutureProducer {
     let pubsub_config = config.pubsub().unwrap();
     let mut client_config = get_client_config(config);
-    if let Some(acks) = pubsub_config.kafka_acks() {
-        client_config.set("acks", acks);
-    }
+    client_config
+        .set("acks", pubsub_config.kafka_acks())
+        .set("compression.type", pubsub_config.kafka_compression_type());
     if let Some(linger_ms) = pubsub_config.kafka_linger_ms() {
         client_config.set("linger.ms", linger_ms);
     }
@@ -55,9 +55,6 @@ fn get_kafka_producer(config: &Config) -> FutureProducer {
     }
     if let Some(request_timeout_ms) = pubsub_config.kafka_request_timeout_ms() {
         client_config.set("request.timeout.ms", request_timeout_ms);
-    }
-    if let Some(compression_type) = pubsub_config.kafka_compression_type() {
-        client_config.set("compression.type", compression_type);
     }
     if pubsub_config.kafka_exactly_once() {
         client_config.set("enable.idempotence", "true");
@@ -74,7 +71,7 @@ fn get_kafka_consumer(config: &Config, group_id: &str) -> StreamConsumer {
         .set("client.id", "rpcperf_subscriber")
         .set("enable.partition.eof", "false")
         .set("enable.auto.commit", "false")
-        .set("auto.offset.reset", "latest");
+        .set("auto.offset.reset", pubsub_config.kafka_auto_offset_reset());
     if let Some(fetch_message_max_bytes) = pubsub_config.kafka_fetch_message_max_bytes() {
         client_config.set("fetch.message.max.bytes", fetch_message_max_bytes);
     }
@@ -163,8 +160,8 @@ pub fn launch_subscribers(
             for id in 0..poolsize {
                 let client = {
                     let _guard = runtime.enter();
-                    // return 0 if using the same subscriber group,
-                    let group_id = if topics.kafka_same_subscriber_group() {
+                    // set the group_id to 0 for all subscribers if using the single subscriber group
+                    let group_id = if topics.kafka_single_subscriber_group() {
                         0
                     } else {
                         id
@@ -250,8 +247,6 @@ async fn publisher_task(
 ) -> Result<()> {
     PUBSUB_PUBLISHER_CURR.add(1);
 
-    let validator = MessageValidator::new();
-
     while RUNNING.load(Ordering::Relaxed) {
         let work_item = work_receiver
             .recv()
@@ -265,32 +260,20 @@ async fn publisher_task(
         let result = match work_item {
             WorkItem::Publish {
                 topic,
-                partition,
                 key,
-                mut message,
+                message,
             } => {
-                let timestamp = validator.stamp(&mut message);
                 PUBSUB_PUBLISH.increment();
                 client
                     .send(
-                    FutureRecord {
-                        topic: &topic,
-                        payload: Some(&message),                     
-                        key: Some(&key),
-                        partition: None,
-                        timestamp: None,
-                        headers: None,
-                    },
-                // client
-                //     .send(
-                //         FutureRecord {
-                //             topic: &topic,
-                //             payload: Some(&message),
-                //             key: Some(&key),
-                //             partition: Some(partition as i32),
-                //             timestamp: Some(timestamp as i64),
-                //             headers: None,
-                //         },
+                        FutureRecord {
+                            topic: &topic,
+                            payload: Some(&message),
+                            key: Some(&key),
+                            partition: None,
+                            timestamp: None,
+                            headers: None,
+                        },
                         Duration::from_secs(0),
                     )
                     .await
