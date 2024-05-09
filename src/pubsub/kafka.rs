@@ -42,8 +42,8 @@ fn get_kafka_producer(config: &Config) -> FutureProducer {
     let pubsub_config = config.pubsub().unwrap();
     let mut client_config = get_client_config(config);
     client_config
-        .set("acks", pubsub_config.kafka_acks())
-        .set("compression.type", pubsub_config.kafka_compression_type());
+        .set("acks", pubsub_config.kafka_acks().to_string())
+        .set("compression.type", pubsub_config.kafka_compression_type().to_string());
     if let Some(linger_ms) = pubsub_config.kafka_linger_ms() {
         client_config.set("linger.ms", linger_ms);
     }
@@ -71,7 +71,7 @@ fn get_kafka_consumer(config: &Config, group_id: &str) -> StreamConsumer {
         .set("client.id", "rpcperf_subscriber")
         .set("enable.partition.eof", "false")
         .set("enable.auto.commit", "false")
-        .set("auto.offset.reset", pubsub_config.kafka_auto_offset_reset());
+        .set("auto.offset.reset", pubsub_config.kafka_auto_offset_reset().to_string());
     if let Some(fetch_message_max_bytes) = pubsub_config.kafka_fetch_message_max_bytes() {
         client_config.set("fetch.message.max.bytes", fetch_message_max_bytes);
     }

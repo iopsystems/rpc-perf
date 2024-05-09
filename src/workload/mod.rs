@@ -169,7 +169,6 @@ impl Generator {
     fn generate_pubsub(&self, topics: &Topics, rng: &mut dyn RngCore) -> PublisherWorkItem {
         let topic_index = topics.topic_dist.sample(rng);
         let topic = topics.topics[topic_index].clone();
-        let partition = topics.partition_dist.sample(rng);
 
         let mut m = vec![0_u8; topics.message_len];
 
@@ -187,7 +186,6 @@ impl Generator {
 
         PublisherWorkItem::Publish {
             topic,
-            partition,
             key: k,
             message: m,
         }
@@ -410,8 +408,7 @@ pub enum Component {
 pub struct Topics {
     topics: Vec<Arc<String>>,
     partitions: usize,
-    topic_dist: Distribution,
-    partition_dist: Distribution,
+    topic_dist: Distribution,    
     key_len: usize,
     message_len: usize,
     message_random_bytes: usize,
@@ -439,12 +436,6 @@ impl Topics {
             config::Distribution::Uniform => Distribution::Uniform(Uniform::new(0, ntopics)),
             config::Distribution::Zipf => {
                 Distribution::Zipf(ZipfDistribution::new(ntopics, 1.0).unwrap())
-            }
-        };
-        let partition_dist = match topics.partition_distribution() {
-            config::Distribution::Uniform => Distribution::Uniform(Uniform::new(0, partitions)),
-            config::Distribution::Zipf => {
-                Distribution::Zipf(ZipfDistribution::new(partitions, 1.0).unwrap())
             }
         };
         let topic_names: Vec<Arc<String>>;
@@ -482,8 +473,7 @@ impl Topics {
         Self {
             topics: topic_names,
             partitions,
-            topic_dist,
-            partition_dist,
+            topic_dist,            
             key_len,
             message_len,
             message_random_bytes,

@@ -59,9 +59,7 @@ pub struct Topics {
     #[serde(default)]
     topic_distribution: Distribution,
     #[serde(default)]
-    partition_distribution: Distribution,
-    #[serde(default)]
-    kafka_same_subscriber_group: bool,
+    kafka_single_subscriber_group: bool,
 }
 
 impl Topics {
@@ -109,12 +107,8 @@ impl Topics {
         self.topic_distribution
     }
 
-    pub fn partition_distribution(&self) -> Distribution {
-        self.partition_distribution
-    }
-
-    pub fn kafka_same_subscriber_group(&self) -> bool {
-        self.kafka_same_subscriber_group
+    pub fn kafka_single_subscriber_group(&self) -> bool {
+        self.kafka_single_subscriber_group
     }
 }
 

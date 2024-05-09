@@ -91,8 +91,8 @@ impl Pubsub {
         ((std::cmp::max(1, self.write_buffer_size) + PAGESIZE - 1) / PAGESIZE) * PAGESIZE
     }
 
-    pub fn kafka_acks(&self) -> String {
-        self.kafka_acks
+    pub fn kafka_acks(&self) -> &str {
+        &self.kafka_acks
     }
 
     pub fn kafka_linger_ms(&self) -> &Option<String> {
@@ -115,12 +115,12 @@ impl Pubsub {
         &self.kafka_request_timeout_ms
     }
 
-    pub fn kafka_compression_type(&self) -> String {
-        self.kafka_compression_type
+    pub fn kafka_compression_type(&self) -> &str {
+        &self.kafka_compression_type
     }
 
-    pub fn kafka_auto_offset_reset(&self) -> String {
-        self.kafka_auto_offset_reset
+    pub fn kafka_auto_offset_reset(&self) -> &str {
+        &self.kafka_auto_offset_reset
     }
 
     pub fn kafka_exactly_once(&self) -> bool {
