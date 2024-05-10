@@ -44,6 +44,8 @@ pub struct Topics {
     topics: usize,
     #[serde(default = "one")]
     partitions: usize,
+    #[serde(default = "one")]
+    replications: usize,
     topic_len: usize,
     #[serde(default)]
     topic_names: Vec<String>,
@@ -69,6 +71,10 @@ impl Topics {
 
     pub fn partitions(&self) -> usize {
         self.partitions
+    }
+
+    pub fn replications(&self) -> usize {
+        self.replications
     }
 
     pub fn topics(&self) -> usize {

@@ -6,7 +6,7 @@ protocol = "kafka"
 # the interval for stats integration and reporting
 interval = 1
 # the number of intervals to run the test for
-duration = 30
+duration = 300
 # optionally, we can write some detailed stats to a file during the run
 metrics_output = "stats.json"
 # run the admin thread with a HTTP listener at the address provided, this allows
@@ -19,6 +19,8 @@ admin = "127.0.0.1:9090"
 [debug]
 # choose from: error, warn, info, debug, trace
 log_level = "info"
+# optionally, log to the file below instead of standard out
+# log_file = "rpc-perf.log"
 # backup file name for use with log rotation
 log_backup = "rpc-perf.log.old"
 # trigger log rotation when the file grows beyond this size (in bytes). Set this
@@ -28,7 +30,7 @@ log_max_size = 1073741824
 [target]
 # Kafka broker ip:port
 endpoints = [
-  "localhost:9092"
+  "127.0.0.1:9092"
 ]
 
 [pubsub]
@@ -38,22 +40,39 @@ connect_timeout = 1000
 publish_timeout = 1000
 # the number of threads in the publisher runtime
 publisher_threads = 4
-# the total number of Kafka producer clients
+# the total number of Kafka producer clients (connections)
 publisher_poolsize = 1
 # the total number of Kafka producing tasks per producer client
 publisher_concurrency = 20
 # the number of threads in the subscriber runtime
 subscriber_threads = 4
-# kafka-specific client configurations
+# The Kafka client (librdkafka) configurations
+# all Kafka configurations are optional strings
+# default values can be checked at https://github.com/confluentinc/librdkafka/blob/master/CONFIGURATION.md
+# acks in librdkafka, default "all"
 kafka_acks = "all"
+# request.timeout.ms in librdkafka, default 30000
+kafka_request_timeout_ms = "1000"
+# linger.ms in librdkafka, default 5
 kafka_linger_ms = "1"
-kafka_exactly_once = false
+# batch.size in librdkafka, default 1000000
 kafka_batch_size="131072"
-#kafka_batch_num_messages
+# batch.num.messages in librdkafka, default 10000
+# kafka_batch_num_messages = ""
+# queue.buffering.max.messages in librdkafka, default 100000, 0 disables this limit
+# kafka_queue_buffering_max_messages = ""
+# queue.buffering.max_kbytes in librdkafka, default 1048576
+# kafka_queue_buffering_max_kbytes = ""
+# enable.idempotence in librdkafka, default false
+kafka_enable_idempotence = "false"
+# max.in.flight.requests.per.connection in librdkafka, default 1000000
+# kafka_max_in_flight_requests_per_connection = ""
+# compression.type in librdkafka, none, gzip, snappy, lz4, zstd, default none, 
+# kafka_compression_type = ""
+# auto.offset.reset in librdkafka, default latest
+# kafka_auto_offset_reset = ""
+# fetch.message.max_bytes, default 1048576
 kafka_fetch_message_max_bytes="10485760"
-#kafka_auto_offset_reset
-kafka_compression_type="none"
-#kafka_request_timeout_ms
 
 [workload]
 # the number of threads that will be used to generate requests
@@ -63,11 +82,13 @@ threads = 1
 # the global ratelimit
 start = 1000
 
+# An example set of
+#topics using a single consumer multiple producer.
 [[workload.topics]]
 # the weight relative to other workload components
 weight = 1
-# the total number of Kafka consumer clients
-subscriber_poolsize = 2
+# the total number of Kafka consumer clients for topics in this compoment
+subscriber_poolsize = 1
 # default is false that messages are fanout to all clients
 # if true, all clients share the single subscriber group
 kafka_single_subscriber_group = true
@@ -85,6 +106,8 @@ topic_len = 7
 topic_names = ["rpcperf"]
 # the number of partitions in each topic
 partitions = 10
+# the number of replications
+replications = 1
 # the value length, in bytes
 message_len = 512
 # optionally, specify an approximate compression ratio for the message payload.

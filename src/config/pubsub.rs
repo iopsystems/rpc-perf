@@ -1,15 +1,5 @@
 use super::*;
 
-pub fn default_kafka_acks() -> String {
-    String::from("1")
-}
-pub fn default_kafka_compression_type() -> String {
-    String::from("none")
-}
-pub fn default_kafka_auto_offset_reset() -> String {
-    String::from("latest")
-}
-
 #[derive(Clone, Deserialize)]
 pub struct Pubsub {
     // connection timeout in ms
@@ -37,20 +27,19 @@ pub struct Pubsub {
     #[serde(default = "default_buffer_size")]
     write_buffer_size: usize,
 
-    // kafka specific configs
-    #[serde(default)]
-    kafka_exactly_once: bool,
-    #[serde(default = "default_kafka_acks")]
-    kafka_acks: String,
-    #[serde(default = "default_kafka_compression_type")]
-    kafka_compression_type: String,
-    #[serde(default = "default_kafka_auto_offset_reset")]
-    kafka_auto_offset_reset: String,
+    // kafka client configs
+    kafka_acks: Option<String>,
+    kafka_request_timeout_ms: Option<String>,
     kafka_linger_ms: Option<String>,
     kafka_batch_size: Option<String>,
     kafka_batch_num_messages: Option<String>,
+    kafka_queue_buffering_max_messages: Option<String>,
+    kafka_queue_buffering_max_kbytes: Option<String>,
+    kafka_enable_idempotence: Option<String>,
+    kafka_max_in_flight_requests_per_connection: Option<String>,
+    kafka_compression_type: Option<String>,
+    kafka_auto_offset_reset: Option<String>,
     kafka_fetch_message_max_bytes: Option<String>,
-    kafka_request_timeout_ms: Option<String>,
 }
 
 impl Pubsub {
@@ -91,8 +80,12 @@ impl Pubsub {
         ((std::cmp::max(1, self.write_buffer_size) + PAGESIZE - 1) / PAGESIZE) * PAGESIZE
     }
 
-    pub fn kafka_acks(&self) -> &str {
+    pub fn kafka_acks(&self) -> &Option<String> {
         &self.kafka_acks
+    }
+
+    pub fn kafka_request_timeout_ms(&self) -> &Option<String> {
+        &self.kafka_request_timeout_ms
     }
 
     pub fn kafka_linger_ms(&self) -> &Option<String> {
@@ -107,23 +100,31 @@ impl Pubsub {
         &self.kafka_batch_num_messages
     }
 
-    pub fn kafka_fetch_message_max_bytes(&self) -> &Option<String> {
-        &self.kafka_fetch_message_max_bytes
+    pub fn kafka_queue_buffering_max_messages(&self) -> &Option<String> {
+        &self.kafka_queue_buffering_max_messages
     }
 
-    pub fn kafka_request_timeout_ms(&self) -> &Option<String> {
-        &self.kafka_request_timeout_ms
+    pub fn kafka_queue_buffering_max_kbytes(&self) -> &Option<String> {
+        &self.kafka_queue_buffering_max_kbytes
     }
 
-    pub fn kafka_compression_type(&self) -> &str {
+    pub fn kafka_enable_idempotence(&self) -> &Option<String> {
+        &self.kafka_enable_idempotence
+    }
+
+    pub fn kafka_max_in_flight_requests_per_connection(&self) -> &Option<String> {
+        &self.kafka_max_in_flight_requests_per_connection
+    }
+
+    pub fn kafka_compression_type(&self) -> &Option<String> {
         &self.kafka_compression_type
     }
 
-    pub fn kafka_auto_offset_reset(&self) -> &str {
+    pub fn kafka_auto_offset_reset(&self) -> &Option<String> {
         &self.kafka_auto_offset_reset
     }
 
-    pub fn kafka_exactly_once(&self) -> bool {
-        self.kafka_exactly_once
+    pub fn kafka_fetch_message_max_bytes(&self) -> &Option<String> {
+        &self.kafka_fetch_message_max_bytes
     }
 }
