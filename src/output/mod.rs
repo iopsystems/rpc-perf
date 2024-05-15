@@ -5,7 +5,7 @@ use metriken_exposition::{MsgpackToParquet, Snapshot, SnapshotterBuilder};
 use std::os::fd::{AsRawFd, FromRawFd};
 use tokio::fs::File;
 use tokio::io::{AsyncWriteExt, BufWriter};
-use tokio::time::Instant;
+use tokio::time::{timeout, Instant};
 
 #[macro_export]
 macro_rules! output {
@@ -40,8 +40,15 @@ pub async fn log(config: Config) {
 
     let mut interval = tokio::time::interval_at(start, config.general().interval());
 
-    while Instant::now() + config.general().interval() <= stop {
-        interval.tick().await;
+    while RUNNING.load(Ordering::Relaxed) && Instant::now() + config.general().interval() <= stop {
+        // use a timeout here so we always check RUNNING at least once a second
+        if timeout(Duration::from_secs(1), interval.tick())
+            .await
+            .is_err()
+        {
+            continue;
+        }
+
         snapshot.update();
 
         output!("-----");
