@@ -5,7 +5,7 @@ use std::sync::Arc;
 pub enum PublisherWorkItem {
     Publish {
         topic: Arc<String>,
-        key: Vec<u8>,
+        key: Option<Vec<u8>>,
         message: Vec<u8>,
     },
 }

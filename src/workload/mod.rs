@@ -181,13 +181,20 @@ impl Generator {
         rng.fill(&mut m[32..limit]);
 
         // generate the key
-        let mut k = vec![0_u8; topics.key_len];
-        rng.fill(&mut k[0..topics.key_len]);
-
-        PublisherWorkItem::Publish {
-            topic,
-            key: k,
-            message: m,
+        if topics.key_len == 0 {
+            PublisherWorkItem::Publish {
+                topic,
+                key: None,
+                message: m,
+            }
+        } else {
+            let mut k = vec![0_u8; topics.key_len];
+            rng.fill(&mut k[0..topics.key_len]);
+            PublisherWorkItem::Publish {
+                topic,
+                key: Some(k),
+                message: m,
+            }
         }
     }
 
@@ -428,8 +435,7 @@ impl Topics {
         let replications = std::cmp::max(1, topics.replications());
         let topiclen = topics.topic_len();
         let message_len = topics.message_len();
-        // key_len must be >= 1
-        let key_len = std::cmp::max(1, topics.key_len());
+        let key_len = topics.key_len();
         let subscriber_poolsize = topics.subscriber_poolsize();
         let subscriber_concurrency = topics.subscriber_concurrency();
         let topic_dist = match topics.topic_distribution() {

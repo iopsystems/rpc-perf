@@ -10,14 +10,12 @@ use rdkafka::Message;
 fn get_client_config(config: &Config) -> ClientConfig {
     let bootstrap_servers = config.target().endpoints().join(",");
     let pubsub_config = config.pubsub().unwrap();
-    let publish_timeout = format!("{}", pubsub_config.publish_timeout().as_millis());
     let connect_timeout = format!("{}", pubsub_config.connect_timeout().as_millis());
     let mut client_config = ClientConfig::new();
     client_config
         .set("bootstrap.servers", &bootstrap_servers)
         .set("socket.timeout.ms", connect_timeout)
-        .set("socket.nagle.disable", "true")
-        .set("message.timeout.ms", publish_timeout);
+        .set("socket.nagle.disable", "true");
     if let Some(tls) = config.tls() {
         client_config
             .set("security.protocol", "ssl")
@@ -40,7 +38,9 @@ fn get_client_config(config: &Config) -> ClientConfig {
 
 fn get_kafka_producer(config: &Config) -> FutureProducer {
     let pubsub_config = config.pubsub().unwrap();
+    let publish_timeout = format!("{}", pubsub_config.publish_timeout().as_millis());
     let mut client_config = get_client_config(config);
+    client_config.set("message.timeout.ms", publish_timeout);
     if let Some(acks) = pubsub_config.kafka_acks() {
         client_config.set("acks", acks);
     }
@@ -71,6 +71,7 @@ fn get_kafka_producer(config: &Config) -> FutureProducer {
     if let Some(compression_type) = pubsub_config.kafka_compression_type() {
         client_config.set("compression.type", compression_type);
     }
+    debug!("Kafka producer config: {:?}", client_config);
     client_config.create().unwrap()
 }
 
@@ -87,6 +88,7 @@ fn get_kafka_consumer(config: &Config, group_id: &str) -> StreamConsumer {
     if let Some(fetch_message_max_bytes) = pubsub_config.kafka_fetch_message_max_bytes() {
         client_config.set("fetch.message.max.bytes", fetch_message_max_bytes);
     }
+    debug!("Kafka consumer config: {:?}", client_config);
     client_config.create().unwrap()
 }
 
@@ -283,6 +285,8 @@ async fn publisher_task(
 ) -> Result<()> {
     PUBSUB_PUBLISHER_CURR.add(1);
 
+    let validator = MessageValidator::new();
+
     while RUNNING.load(Ordering::Relaxed) {
         let work_item = work_receiver
             .recv()
@@ -297,15 +301,16 @@ async fn publisher_task(
             WorkItem::Publish {
                 topic,
                 key,
-                message,
+                mut message,
             } => {
+                validator.stamp(&mut message);
                 PUBSUB_PUBLISH.increment();
                 client
                     .send(
                         FutureRecord {
                             topic: &topic,
                             payload: Some(&message),
-                            key: Some(&key),
+                            key: key.as_ref(),
                             partition: None,
                             timestamp: None,
                             headers: None,
