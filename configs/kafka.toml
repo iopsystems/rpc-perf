@@ -18,7 +18,7 @@ admin = "127.0.0.1:9090"
 
 [debug]
 # choose from: error, warn, info, debug, trace
-log_level = "error"
+log_level = "info"
 # optionally, log to the file below instead of standard out
 # log_file = "rpc-perf.log"
 # backup file name for use with log rotation
@@ -40,19 +40,39 @@ connect_timeout = 1000
 publish_timeout = 1000
 # the number of threads in the publisher runtime
 publisher_threads = 4
-# the total number of Kafka producer clients
+# the total number of Kafka producer clients (connections)
 publisher_poolsize = 1
 # the total number of Kafka producing tasks per producer client
 publisher_concurrency = 20
 # the number of threads in the subscriber runtime
 subscriber_threads = 4
-# kafka-specific client configurations
-kafka_acks = "1"
+# The Kafka client (librdkafka) configurations
+# all Kafka configurations are optional strings
+# default values can be checked at https://github.com/confluentinc/librdkafka/blob/master/CONFIGURATION.md
+# acks in librdkafka, default "all"
+kafka_acks = "all"
+# request.timeout.ms in librdkafka, default 30000
+kafka_request_timeout_ms = "1000"
+# linger.ms in librdkafka, default 5
 kafka_linger_ms = "1"
-#kafka_batch_size
-#kafka_batch_num_messages
-#kafka_fetch_message_max_bytes
-#kafka_request_timeout_ms
+# batch.size in librdkafka, default 1000000
+kafka_batch_size="131072"
+# batch.num.messages in librdkafka, default 10000
+# kafka_batch_num_messages = ""
+# queue.buffering.max.messages in librdkafka, default 100000, 0 disables this limit
+# kafka_queue_buffering_max_messages = ""
+# queue.buffering.max_kbytes in librdkafka, default 1048576
+# kafka_queue_buffering_max_kbytes = ""
+# enable.idempotence in librdkafka, default false
+kafka_enable_idempotence = "false"
+# max.in.flight.requests.per.connection in librdkafka, default 1000000
+# kafka_max_in_flight_requests_per_connection = ""
+# compression.type in librdkafka, none, gzip, snappy, lz4, zstd, default none, 
+# kafka_compression_type = ""
+# auto.offset.reset in librdkafka, default latest
+# kafka_auto_offset_reset = ""
+# fetch.message.max_bytes, default 1048576
+kafka_fetch_message_max_bytes="10485760"
 
 [workload]
 # the number of threads that will be used to generate requests
@@ -69,19 +89,25 @@ start = 1000
 weight = 1
 # the total number of Kafka consumer clients for topics in this compoment
 subscriber_poolsize = 1
+# default is false that messages are fanout to all clients
+# if true, all clients share the single subscriber group
+kafka_single_subscriber_group = true
 # the total number of Kafka tasks per Kafka consumer client
 # NOTE: received messages will not fanout to all tasks per client. To compare
-# with other pubsub implementations, set the concurrency to `1` and increase the
+# with other pubsub implementations, set the concurrency to `1`,
+# set the kafka_same_subscriber_group to false, and increase the
 # poolsize instead.
-subscriber_concurrency = 2
+subscriber_concurrency = 4
 # the number of topics
-topics = 2
+topics = 1
 # the length of the topic names, in bytes
-topic_len = 5
+topic_len = 7
 # the topic names, if empty or the length and the number do not match topics and topic_len, generate random names
-topic_names = ["hello", "world"]
+topic_names = ["rpcperf"]
 # the number of partitions in each topic
 partitions = 10
+# the number of replications
+replications = 1
 # the value length, in bytes
 message_len = 512
 # optionally, specify an approximate compression ratio for the message payload.
@@ -89,3 +115,11 @@ message_len = 512
 compression_ratio = 1.0
 # the key length, in bytes
 key_len = 8
+#
+# To enable the TLS support, uncomment the [tls] section, add the CA file path, and
+# point the endpoints in the [target] to the Kafka TLS port.
+#[tls]
+# ca_file = CA_FILE_PATH
+# private_key = CLIENT_KEY_PATH
+# private_key_password = CLIENT_KEY_PASSWORD
+# certificate = CERTIFICATE_PATH

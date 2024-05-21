@@ -169,7 +169,6 @@ impl Generator {
     fn generate_pubsub(&self, topics: &Topics, rng: &mut dyn RngCore) -> PublisherWorkItem {
         let topic_index = topics.topic_dist.sample(rng);
         let topic = topics.topics[topic_index].clone();
-        let partition = topics.partition_dist.sample(rng);
 
         let mut m = vec![0_u8; topics.message_len];
 
@@ -182,14 +181,20 @@ impl Generator {
         rng.fill(&mut m[32..limit]);
 
         // generate the key
-        let mut k = vec![0_u8; topics.key_len];
-        rng.fill(&mut k[0..topics.key_len]);
-
-        PublisherWorkItem::Publish {
-            topic,
-            partition,
-            key: k,
-            message: m,
+        if topics.key_len == 0 {
+            PublisherWorkItem::Publish {
+                topic,
+                key: None,
+                message: m,
+            }
+        } else {
+            let mut k = vec![0_u8; topics.key_len];
+            rng.fill(&mut k[0..topics.key_len]);
+            PublisherWorkItem::Publish {
+                topic,
+                key: Some(k),
+                message: m,
+            }
         }
     }
 
@@ -410,40 +415,33 @@ pub enum Component {
 pub struct Topics {
     topics: Vec<Arc<String>>,
     partitions: usize,
+    replications: usize,
     topic_dist: Distribution,
-    partition_dist: Distribution,
     key_len: usize,
     message_len: usize,
     message_random_bytes: usize,
     subscriber_poolsize: usize,
     subscriber_concurrency: usize,
+    kafka_single_subscriber_group: bool,
 }
 
 impl Topics {
     pub fn new(config: &Config, topics: &config::Topics) -> Self {
         let message_random_bytes =
             estimate_random_bytes_needed(topics.message_len(), topics.compression_ratio());
-
-        // ntopics must be >= 1
+        // ntopics, partitions, and replications must be >= 1
         let ntopics = std::cmp::max(1, topics.topics());
-        // partitions must be >= 1
         let partitions = std::cmp::max(1, topics.partitions());
+        let replications = std::cmp::max(1, topics.replications());
         let topiclen = topics.topic_len();
         let message_len = topics.message_len();
-        // key_len must be >= 1
-        let key_len = std::cmp::max(1, topics.key_len());
+        let key_len = topics.key_len();
         let subscriber_poolsize = topics.subscriber_poolsize();
         let subscriber_concurrency = topics.subscriber_concurrency();
         let topic_dist = match topics.topic_distribution() {
             config::Distribution::Uniform => Distribution::Uniform(Uniform::new(0, ntopics)),
             config::Distribution::Zipf => {
                 Distribution::Zipf(ZipfDistribution::new(ntopics, 1.0).unwrap())
-            }
-        };
-        let partition_dist = match topics.partition_distribution() {
-            config::Distribution::Uniform => Distribution::Uniform(Uniform::new(0, partitions)),
-            config::Distribution::Zipf => {
-                Distribution::Zipf(ZipfDistribution::new(partitions, 1.0).unwrap())
             }
         };
         let topic_names: Vec<Arc<String>>;
@@ -481,13 +479,14 @@ impl Topics {
         Self {
             topics: topic_names,
             partitions,
+            replications,
             topic_dist,
-            partition_dist,
             key_len,
             message_len,
             message_random_bytes,
             subscriber_poolsize,
             subscriber_concurrency,
+            kafka_single_subscriber_group: topics.kafka_single_subscriber_group(),
         }
     }
 
@@ -499,12 +498,20 @@ impl Topics {
         self.partitions
     }
 
+    pub fn replications(&self) -> usize {
+        self.replications
+    }
+
     pub fn subscriber_poolsize(&self) -> usize {
         self.subscriber_poolsize
     }
 
     pub fn subscriber_concurrency(&self) -> usize {
         self.subscriber_concurrency
+    }
+
+    pub fn kafka_single_subscriber_group(&self) -> bool {
+        self.kafka_single_subscriber_group
     }
 }
 

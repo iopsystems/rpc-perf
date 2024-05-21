@@ -44,6 +44,8 @@ pub struct Topics {
     topics: usize,
     #[serde(default = "one")]
     partitions: usize,
+    #[serde(default = "one")]
+    replications: usize,
     topic_len: usize,
     #[serde(default)]
     topic_names: Vec<String>,
@@ -59,7 +61,7 @@ pub struct Topics {
     #[serde(default)]
     topic_distribution: Distribution,
     #[serde(default)]
-    partition_distribution: Distribution,
+    kafka_single_subscriber_group: bool,
 }
 
 impl Topics {
@@ -69,6 +71,10 @@ impl Topics {
 
     pub fn partitions(&self) -> usize {
         self.partitions
+    }
+
+    pub fn replications(&self) -> usize {
+        self.replications
     }
 
     pub fn topics(&self) -> usize {
@@ -107,8 +113,8 @@ impl Topics {
         self.topic_distribution
     }
 
-    pub fn partition_distribution(&self) -> Distribution {
-        self.partition_distribution
+    pub fn kafka_single_subscriber_group(&self) -> bool {
+        self.kafka_single_subscriber_group
     }
 }
 

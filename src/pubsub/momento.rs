@@ -181,7 +181,6 @@ async fn publisher_task(
             WorkItem::Publish {
                 topic,
                 mut message,
-                partition: _,
                 key: _,
             } => {
                 validator.stamp(&mut message);
