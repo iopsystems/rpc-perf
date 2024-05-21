@@ -30,6 +30,7 @@ mod filters {
             .or(human_stats())
             .or(json_stats())
             .or(update_ratelimit(ratelimit))
+            .or(quitquitquit())
     }
 
     /// Serves Prometheus / OpenMetrics text format metrics.
@@ -91,6 +92,16 @@ mod filters {
     ) -> impl Filter<Extract = (Option<Arc<Ratelimiter>>,), Error = std::convert::Infallible> + Clone
     {
         warp::any().map(move || ratelimit.clone())
+    }
+
+    /// An endpoint that allows early termination of the test.
+    ///
+    /// POST /quitquitquit
+    pub fn quitquitquit(
+    ) -> impl Filter<Extract = (impl warp::Reply,), Error = warp::Rejection> + Clone {
+        warp::path!("quitquitquit")
+            .and(warp::post())
+            .and_then(handlers::quitquitquit)
     }
 }
 
@@ -247,6 +258,14 @@ pub mod handlers {
         } else {
             Ok(StatusCode::NOT_FOUND)
         }
+    }
+
+    /// A handler which sets the running state to false and returns an empty
+    /// response.
+    pub async fn quitquitquit() -> Result<impl warp::Reply, Infallible> {
+        RUNNING.store(false, Ordering::Relaxed);
+
+        Ok(StatusCode::OK)
     }
 }
 
