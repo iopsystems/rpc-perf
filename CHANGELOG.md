@@ -1,5 +1,15 @@
 ## [Unreleased]
 
+## [5.8.0] - 2024-05-22
+
+### Changed
+
+- Kafka client improvements including TLS and compression support. (#208)
+
+### Added
+
+- A /quitquitquit handler for graceful early termination. (#212)
+
 ## [5.7.0] - 2024-04-23
 
 ### Changed
@@ -116,7 +126,8 @@
 - Support Momento topics.
 - Basic HTTP/1.1 and HTTP/2.0 load generation.
 
-[unreleased]: https://github.com/iopsystems/rpc-perf/compare/v5.7.0...HEAD
+[unreleased]: https://github.com/iopsystems/rpc-perf/compare/v5.8.0...HEAD
+[5.8.0]: https://github.com/iopsystems/rezolus/compare/v5.7.0...v5.8.0
 [5.7.0]: https://github.com/iopsystems/rezolus/compare/v5.6.0...v5.7.0
 [5.6.0]: https://github.com/iopsystems/rezolus/compare/v5.5.0...v5.6.0
 [5.5.0]: https://github.com/iopsystems/rezolus/compare/v5.4.0...v5.5.0
