@@ -112,8 +112,3 @@ impl Default for Debug {
         }
     }
 }
-
-// trait definitions
-pub trait DebugConfig {
-    fn debug(&self) -> &Debug;
-}
