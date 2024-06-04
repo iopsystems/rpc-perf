@@ -6,6 +6,7 @@ use std::time::Duration;
 mod client;
 mod debug;
 mod general;
+mod metrics;
 mod protocol;
 mod pubsub;
 mod target;
@@ -14,7 +15,8 @@ mod workload;
 
 pub use client::Client;
 pub use debug::Debug;
-pub use general::{General, MetricsFormat};
+pub use general::General;
+pub use metrics::{Format as MetricsFormat, Metrics};
 pub use protocol::Protocol;
 pub use pubsub::Pubsub;
 pub use target::Target;
@@ -40,6 +42,7 @@ pub struct Config {
     target: Target,
     tls: Option<Tls>,
     workload: Workload,
+    metrics: Option<Metrics>,
 }
 
 impl Config {
@@ -59,15 +62,20 @@ impl Config {
                 std::process::exit(1);
             }
         }
-        let config: Config = toml::from_str(&content)
+        let mut config: Config = toml::from_str(&content)
             .map_err(|e| {
                 eprintln!("Failed to parse TOML config: {filename}\n{e}");
                 std::process::exit(1);
             })
             .unwrap();
 
-        config.general.validate();
         config.workload.ratelimit().validate();
+        if config.metrics().is_none() {
+            config.metrics = Metrics::from_general(&config.general);
+        }
+        if let Some(x) = config.metrics.as_ref() {
+            x.validate(&config.general);
+        }
         config
     }
 
@@ -97,5 +105,9 @@ impl Config {
 
     pub fn debug(&self) -> &Debug {
         &self.debug
+    }
+
+    pub fn metrics(&self) -> Option<&Metrics> {
+        self.metrics.as_ref()
     }
 }

@@ -1,7 +1,7 @@
 use crate::*;
 use chrono::{Timelike, Utc};
 use config::MetricsFormat;
-use metriken_exposition::{MsgpackToParquet, Snapshot, SnapshotterBuilder};
+use metriken_exposition::{MsgpackToParquet, ParquetOptions, Snapshot, SnapshotterBuilder};
 use std::os::fd::{AsRawFd, FromRawFd};
 use tokio::fs::File;
 use tokio::io::{AsyncWriteExt, BufWriter};
@@ -225,10 +225,11 @@ fn pubsub_stats(snapshot: &mut MetricsSnapshot) {
 }
 
 pub async fn metrics(config: Config) {
-    if config.general().metrics_output().is_none() {
+    if config.metrics().is_none() {
         return;
     }
-    let output = config.general().metrics_output().unwrap();
+    let metrics_config = config.metrics().unwrap();
+    let output = metrics_config.output();
 
     let file = tempfile::NamedTempFile::new_in("./");
     if file.is_err() {
@@ -246,7 +247,7 @@ pub async fn metrics(config: Config) {
     // get the stop time
     let stop = start + config.general().duration();
 
-    let mut interval = tokio::time::interval_at(start, config.general().metrics_interval());
+    let mut interval = tokio::time::interval_at(start, metrics_config.interval());
 
     let snapshotter = SnapshotterBuilder::new()
         .metadata("source".to_string(), env!("CARGO_BIN_NAME").to_string())
@@ -264,7 +265,7 @@ pub async fn metrics(config: Config) {
 
         let snapshot = snapshotter.snapshot();
 
-        let buf = match config.general().metrics_format() {
+        let buf = match metrics_config.format() {
             MetricsFormat::Json => Snapshot::to_json(&snapshot).expect("failed to serialize"),
             MetricsFormat::MsgPack | MetricsFormat::Parquet => {
                 Snapshot::to_msgpack(&snapshot).expect("failed to serialize")
@@ -277,7 +278,7 @@ pub async fn metrics(config: Config) {
     drop(writer);
 
     // Post-process metrics into a parquet file
-    if config.general().metrics_format() == MetricsFormat::Parquet {
+    if metrics_config.format() == MetricsFormat::Parquet {
         // If parquet conversion fails, log the error and fall through to the
         // regular path which stores the file as a msgpack artifact.
         //
@@ -285,7 +286,12 @@ pub async fn metrics(config: Config) {
         // metrics task into a runtime with multiple threads that handles only
         // the control plane tasks. In the future, we may wish to move this
         // conversion out onto a thread in the blocking pool instead.
-        if let Err(e) = MsgpackToParquet::new().convert_file_path(file.path(), &output) {
+        let mut opts = ParquetOptions::new().histogram_type(metrics_config.histogram().into());
+        if let Some(x) = metrics_config.batch_size() {
+            opts = opts.max_batch_size(x);
+        }
+        if let Err(e) = MsgpackToParquet::with_options(opts).convert_file_path(file.path(), output)
+        {
             eprintln!("error converting output to parquet: {}", e);
         } else {
             WAIT.fetch_sub(1, Ordering::Relaxed);
