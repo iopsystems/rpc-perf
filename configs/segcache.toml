@@ -15,7 +15,7 @@ admin = "127.0.0.1:9090"
 # The default is to intialize from the OS entropy pool.
 #initial_seed = "0"
 
-[metrics]
+#[metrics]
 # output file for detailed stats during the run
 #output = "stats.json"
 # format of the output file (possible values are json, msgpack, parquet)

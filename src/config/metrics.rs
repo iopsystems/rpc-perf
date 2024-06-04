@@ -91,21 +91,25 @@ impl Metrics {
         // differ. Use the values from the metrics section if both are present.
         if let Some(x) = general.metrics_output() {
             if x != self.output {
-                eprintln!("Output file in metrics ({}) and general ({}) section differ; using metrics value", self.output, x);
+                eprintln!(
+                    "Output file in metrics ({}) and general ({}) section differ, exiting...",
+                    self.output, x
+                );
+                std::process::exit(1);
             }
 
             if self.format != general.metrics_format() {
-                eprintln!(
-                    "Output format in metrics and general section differ; using metrics value"
-                );
+                eprintln!("Output format in metrics and general section differ, exiting...");
+                std::process::exit(1);
             }
 
             if self.interval != *general.metrics_interval() {
                 eprintln!(
-                    "Interval in metrics ({}) and general ({}) section differ; using metrics value",
+                    "Interval in metrics ({}) and general ({}) section differ, exiting...",
                     self.interval,
                     general.metrics_interval()
                 );
+                std::process::exit(1);
             }
         }
     }
