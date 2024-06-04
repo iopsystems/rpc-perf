@@ -1,17 +1,8 @@
 use super::*;
 use rand::Rng;
 use rand_xoshiro::Seed512;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use sha2::{Digest, Sha512};
-
-#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Serialize)]
-#[serde(rename_all = "lowercase")]
-pub enum MetricsFormat {
-    #[default]
-    Json,
-    MsgPack,
-    Parquet,
-}
 
 pub fn metrics_interval() -> String {
     "100ms".into()
@@ -64,11 +55,8 @@ impl General {
         self.metrics_format
     }
 
-    pub fn metrics_interval(&self) -> Duration {
-        self.metrics_interval
-            .parse::<humantime::Duration>()
-            .unwrap()
-            .into()
+    pub fn metrics_interval(&self) -> &String {
+        &self.metrics_interval
     }
 
     pub fn admin(&self) -> String {
@@ -85,20 +73,6 @@ impl General {
             let mut seed = [0_u8; 64];
             rng.fill(&mut seed);
             Seed512(seed)
-        }
-    }
-
-    pub fn validate(&self) {
-        let interval = self.metrics_interval.parse::<humantime::Duration>();
-        if let Err(e) = interval {
-            eprintln!("metrics_interval is not valid: {e}");
-            std::process::exit(1);
-        }
-
-        let interval = interval.unwrap().as_millis();
-        if interval < Duration::from_millis(10).as_millis() {
-            eprintln!("metrics_interval should be larger than 10ms");
-            std::process::exit(1);
         }
     }
 }
