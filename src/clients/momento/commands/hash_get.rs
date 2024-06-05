@@ -1,28 +1,37 @@
 use super::*;
 
+use ::momento::cache::DictionaryGetFieldsResponse;
+
 /// Retrieve the value for one or more fields in a hash (dictionary).
 pub async fn hash_get(
-    client: &mut SimpleCacheClient,
+    client: &mut CacheClient,
     config: &Config,
     cache_name: &str,
     request: workload::client::HashGet,
 ) -> std::result::Result<(), ResponseError> {
     HASH_GET.increment();
+
     match timeout(
         config.client().unwrap().request_timeout(),
-        client.dictionary_get(
+        client.dictionary_get_fields(
             cache_name,
             &*request.key,
-            request.fields.iter().map(|f| &**f).collect(),
+            request.fields.iter().map(|f| &**f),
         ),
     )
     .await
     {
         Ok(Ok(r)) => match r {
-            DictionaryGet::Hit { value } => {
+            DictionaryGetFieldsResponse::Hit { .. } => {
                 let mut hit = 0;
                 let mut miss = 0;
-                let dict: HashMap<Vec<u8>, Vec<u8>> = value.collect_into();
+                let dict: HashMap<Vec<u8>, Vec<u8>> = match r.try_into() {
+                    Ok(d) => d,
+                    Err(e) => {
+                        HASH_GET_EX.increment();
+                        return Err(e.into());
+                    }
+                };
                 for field in request.fields {
                     if dict.contains_key(&*field) {
                         hit += 1;
@@ -36,7 +45,7 @@ pub async fn hash_get(
                 HASH_GET_FIELD_MISS.add(miss);
                 Ok(())
             }
-            DictionaryGet::Miss => {
+            DictionaryGetFieldsResponse::Miss => {
                 RESPONSE_MISS.add(request.fields.len() as _);
                 HASH_GET_FIELD_MISS.add(request.fields.len() as _);
                 Ok(())

@@ -1,10 +1,13 @@
 use super::*;
-use ::momento::preview::topics::{SubscriptionItem, TopicClient, ValueKind};
-use ::momento::CredentialProviderBuilder;
+
+use ::momento::topics::configurations::LowLatency;
+use ::momento::topics::{TopicClient, ValueKind};
+use ::momento::CredentialProvider;
 use futures::stream::StreamExt;
+use tokio::time::timeout;
+
 use std::sync::Arc;
 use std::time::Instant;
-use tokio::time::timeout;
 
 /// Launch tasks with one channel per task as gRPC is mux-enabled.
 pub fn launch_subscribers(
@@ -33,22 +36,28 @@ pub fn launch_subscribers(
                     let _guard = runtime.enter();
 
                     // initialize the Momento topic client
-                    if std::env::var("MOMENTO_AUTHENTICATION").is_err() {
-                        eprintln!("environment variable `MOMENTO_AUTHENTICATION` is not set");
+                    if std::env::var("MOMENTO_API_KEY").is_err() {
+                        eprintln!("environment variable `MOMENTO_API_KEY` is not set");
                         std::process::exit(1);
                     }
-                    let auth_token = std::env::var("MOMENTO_AUTHENTICATION")
-                        .expect("MOMENTO_AUTHENTICATION must be set");
-                    let credential_provider = CredentialProviderBuilder::from_string(auth_token)
+
+                    let credential_provider =
+                        match CredentialProvider::from_env_var("MOMENTO_API_KEY".to_string()) {
+                            Ok(v) => v,
+                            Err(e) => {
+                                eprintln!("MOMENTO_API_KEY key should be valid: {e}");
+                                std::process::exit(1);
+                            }
+                        };
+
+                    match TopicClient::builder()
+                        .configuration(LowLatency::v1())
+                        .credential_provider(credential_provider)
                         .build()
-                        .unwrap_or_else(|e| {
-                            eprintln!("failed to initialize credential provider. error: {e}");
-                            std::process::exit(1);
-                        });
-                    match TopicClient::connect(credential_provider, None) {
+                    {
                         Ok(c) => Arc::new(c),
                         Err(e) => {
-                            eprintln!("could not create cache client: {}", e);
+                            eprintln!("could not create topic client: {}", e);
                             std::process::exit(1);
                         }
                     }
@@ -71,7 +80,7 @@ pub fn launch_subscribers(
 async fn subscriber_task(client: Arc<TopicClient>, cache_name: String, topic: String) {
     PUBSUB_SUBSCRIBE.increment();
     if let Ok(mut subscription) = client
-        .subscribe(cache_name.clone(), topic.to_string(), None)
+        .subscribe(cache_name.clone(), topic.to_string())
         .await
     {
         PUBSUB_SUBSCRIBER_CURR.add(1);
@@ -81,7 +90,7 @@ async fn subscriber_task(client: Arc<TopicClient>, cache_name: String, topic: St
 
         while RUNNING.load(Ordering::Relaxed) {
             match subscription.next().await {
-                Some(SubscriptionItem::Value(v)) => {
+                Some(v) => {
                     if let ValueKind::Binary(mut v) = v.kind {
                         let _ = validator.validate(&mut v);
                     } else {
@@ -90,9 +99,6 @@ async fn subscriber_task(client: Arc<TopicClient>, cache_name: String, topic: St
                         PUBSUB_RECEIVE.increment();
                         PUBSUB_RECEIVE_EX.increment();
                     }
-                }
-                Some(SubscriptionItem::Discontinuity(_)) => {
-                    // todo: do something about discontinuities?
                 }
                 None => {
                     PUBSUB_RECEIVE.increment();
@@ -116,22 +122,28 @@ pub fn launch_publishers(runtime: &mut Runtime, config: Config, work_receiver: R
             let _guard = runtime.enter();
 
             // initialize the Momento topic client
-            if std::env::var("MOMENTO_AUTHENTICATION").is_err() {
-                eprintln!("environment variable `MOMENTO_AUTHENTICATION` is not set");
+            if std::env::var("MOMENTO_API_KEY").is_err() {
+                eprintln!("environment variable `MOMENTO_API_KEY` is not set");
                 std::process::exit(1);
             }
-            let auth_token = std::env::var("MOMENTO_AUTHENTICATION")
-                .expect("MOMENTO_AUTHENTICATION must be set");
-            let credential_provider = CredentialProviderBuilder::from_string(auth_token)
+
+            let credential_provider =
+                match CredentialProvider::from_env_var("MOMENTO_API_KEY".to_string()) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        eprintln!("MOMENTO_API_KEY key should be valid: {e}");
+                        std::process::exit(1);
+                    }
+                };
+
+            match TopicClient::builder()
+                .configuration(LowLatency::v1())
+                .credential_provider(credential_provider)
                 .build()
-                .unwrap_or_else(|e| {
-                    eprintln!("failed to initialize credential provider. error: {e}");
-                    std::process::exit(1);
-                });
-            match TopicClient::connect(credential_provider, None) {
+            {
                 Ok(c) => Arc::new(c),
                 Err(e) => {
-                    eprintln!("could not create cache client: {}", e);
+                    eprintln!("could not create topic client: {}", e);
                     std::process::exit(1);
                 }
             }

@@ -1,4 +1,5 @@
 use super::*;
+
 use paste::paste;
 
 mod delete;
@@ -20,7 +21,6 @@ mod set_add;
 mod set_members;
 mod set_remove;
 mod sorted_set_add;
-mod sorted_set_increment;
 mod sorted_set_range;
 mod sorted_set_rank;
 mod sorted_set_remove;
@@ -45,7 +45,6 @@ pub use set_add::*;
 pub use set_members::*;
 pub use set_remove::*;
 pub use sorted_set_add::*;
-pub use sorted_set_increment::*;
 pub use sorted_set_range::*;
 pub use sorted_set_rank::*;
 pub use sorted_set_remove::*;
