@@ -31,7 +31,7 @@ impl From<HistogramType> for ParquetHistogramType {
 }
 
 pub fn interval() -> String {
-    "100ms".into()
+    "1s".into()
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -45,7 +45,7 @@ pub struct Metrics {
     /// Type of histogram stored: sparse or dense
     #[serde(default)]
     histogram: HistogramType,
-    /// The reporting interval. Specify time along with unit; default to 100ms.
+    /// The reporting interval. Specify time along with unit; default to 1s.
     #[serde(default = "interval")]
     interval: String,
 }

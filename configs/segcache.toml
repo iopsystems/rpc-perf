@@ -27,8 +27,8 @@ admin = "127.0.0.1:9090"
 # only valid for parquet output
 #histogram = "sparse"
 # optionally, specify the sampling interval for metrics. Input is a string
-# with the unit attached; for example "100ms" or "1s". Default to 100ms.
-#interval = "1s"
+# with the unit attached; for example "100ms" or "1s". Defaults to 1s.
+#interval = "100ms"
 
 [debug]
 # choose from: error, warn, info, debug, trace
