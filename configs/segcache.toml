@@ -28,7 +28,7 @@ admin = "127.0.0.1:9090"
 #histogram = "sparse"
 # optionally, specify the sampling interval for metrics. Input is a string
 # with the unit attached; for example "100ms" or "1s". Defaults to 1s.
-#interval = "100ms"
+#interval = "1s"
 
 [debug]
 # choose from: error, warn, info, debug, trace
