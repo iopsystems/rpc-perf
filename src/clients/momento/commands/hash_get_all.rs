@@ -1,13 +1,16 @@
 use super::*;
 
+use ::momento::cache::DictionaryFetchResponse;
+
 /// Retrieve all fields for a hash (dictionary).
 pub async fn hash_get_all(
-    client: &mut SimpleCacheClient,
+    client: &mut CacheClient,
     config: &Config,
     cache_name: &str,
     request: workload::client::HashGetAll,
 ) -> std::result::Result<(), ResponseError> {
     HASH_GET_ALL.increment();
+
     match timeout(
         config.client().unwrap().request_timeout(),
         client.dictionary_fetch(cache_name, &*request.key),
@@ -15,12 +18,12 @@ pub async fn hash_get_all(
     .await
     {
         Ok(Ok(r)) => match r {
-            DictionaryFetch::Hit { .. } => {
+            DictionaryFetchResponse::Hit { .. } => {
                 RESPONSE_HIT.increment();
                 HASH_GET_ALL_HIT.increment();
                 Ok(())
             }
-            DictionaryFetch::Miss => {
+            DictionaryFetchResponse::Miss => {
                 RESPONSE_MISS.increment();
                 HASH_GET_ALL_MISS.increment();
                 Ok(())

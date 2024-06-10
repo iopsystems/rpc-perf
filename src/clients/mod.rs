@@ -1,13 +1,15 @@
 use crate::workload::ClientRequest;
 use crate::workload::ClientWorkItem as WorkItem;
 use crate::*;
-use ::momento::MomentoError;
+
+use ::momento::{MomentoError, MomentoErrorCode};
 use async_channel::Receiver;
-use std::io::{Error, ErrorKind, Result};
-use std::time::Instant;
 use tokio::io::*;
 use tokio::runtime::Runtime;
 use tokio::time::{timeout, Duration};
+
+use std::io::{Error, ErrorKind, Result};
+use std::time::Instant;
 
 mod http1;
 mod http2;
@@ -73,9 +75,9 @@ pub enum ResponseError {
 
 impl From<MomentoError> for ResponseError {
     fn from(other: MomentoError) -> Self {
-        match other {
-            MomentoError::LimitExceeded { .. } => ResponseError::Ratelimited,
-            MomentoError::Timeout { .. } => ResponseError::BackendTimeout,
+        match other.error_code {
+            MomentoErrorCode::LimitExceededError { .. } => ResponseError::Ratelimited,
+            MomentoErrorCode::TimeoutError { .. } => ResponseError::BackendTimeout,
             _ => ResponseError::Exception,
         }
     }

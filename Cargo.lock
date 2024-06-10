@@ -755,6 +755,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "convert_case"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6245d59a3e82a7fc217c5828a6692dbc6dfb63a0c8c90495621f7b9d79704a0e"
+
+[[package]]
 name = "core-foundation"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -844,6 +850,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b42b6fa04a440b495c8b04d0e71b707c585f83cb9cb28cf8cd0d976c315e31b4"
 dependencies = [
  "powerfmt",
+]
+
+[[package]]
+name = "derive_more"
+version = "0.99.17"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4fb810d30a7c1953f91334de7244731fc3f3c10d7fe163338a35b9f640960321"
+dependencies = [
+ "convert_case",
+ "proc-macro2",
+ "quote",
+ "rustc_version",
+ "syn 1.0.109",
 ]
 
 [[package]]
@@ -1805,11 +1824,12 @@ dependencies = [
 
 [[package]]
 name = "momento"
-version = "0.32.1"
+version = "0.39.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "28ff818ee9c88dd6488b888f3f7fa16fdc63f980f564e8083c5a21ce5cfc1cb3"
+checksum = "9a6621792e6cad5e96cbbc2280c613dd90404efbafc701768c028dc748ae0509"
 dependencies = [
  "base64 0.21.7",
+ "derive_more",
  "futures",
  "h2 0.3.26",
  "hyper 0.14.28",
@@ -1826,9 +1846,9 @@ dependencies = [
 
 [[package]]
 name = "momento-protos"
-version = "0.84.2"
+version = "0.110.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "45a32a52eedb4cb8ab09d6a46c0bd6091fcee90896068129c0b61083a8f00abd"
+checksum = "146ca03e9125b9635bab14efec8b352930a2a06fe9de5c16138cb89bc71dcad7"
 dependencies = [
  "prost",
  "tonic",

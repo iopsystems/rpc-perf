@@ -1,25 +1,26 @@
 use super::*;
 
+use ::momento::cache::{CollectionTtl, DictionaryIncrementRequest};
+
 /// Increment the value for a field in a dictionary.
 ///
 /// NOTE: if a TTL is specified, this command will not refresh the TTL for the
 /// collection.
 pub async fn hash_increment(
-    client: &mut SimpleCacheClient,
+    client: &mut CacheClient,
     config: &Config,
     cache_name: &str,
     request: workload::client::HashIncrement,
 ) -> std::result::Result<(), ResponseError> {
     HASH_INCR.increment();
+
+    let r =
+        DictionaryIncrementRequest::new(cache_name, &*request.key, &*request.field, request.amount)
+            .ttl(CollectionTtl::new(request.ttl, false));
+
     match timeout(
         config.client().unwrap().request_timeout(),
-        client.dictionary_increment(
-            cache_name,
-            &*request.key,
-            &*request.field,
-            request.amount,
-            CollectionTtl::new(request.ttl, false),
-        ),
+        client.send_request(r),
     )
     .await
     {

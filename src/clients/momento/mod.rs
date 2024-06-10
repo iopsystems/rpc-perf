@@ -1,8 +1,7 @@
 use super::*;
-use ::momento::response::*;
+
+use ::momento::cache::configurations::LowLatency;
 use ::momento::*;
-use std::borrow::Borrow;
-use std::collections::HashMap;
 
 mod commands;
 
@@ -17,23 +16,27 @@ pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiv
             let _guard = runtime.enter();
 
             // initialize the Momento cache client
-            if std::env::var("MOMENTO_AUTHENTICATION").is_err() {
-                eprintln!("environment variable `MOMENTO_AUTHENTICATION` is not set");
+            if std::env::var("MOMENTO_API_KEY").is_err() {
+                eprintln!("environment variable `MOMENTO_API_KEY` is not set");
                 std::process::exit(1);
             }
-            let auth_token = std::env::var("MOMENTO_AUTHENTICATION")
-                .expect("MOMENTO_AUTHENTICATION must be set");
-            let credential_provider = CredentialProviderBuilder::from_string(auth_token)
+
+            let credential_provider =
+                match CredentialProvider::from_env_var("MOMENTO_API_KEY".to_string()) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        eprintln!("MOMENTO_API_KEY key should be valid: {e}");
+                        std::process::exit(1);
+                    }
+                };
+
+            match CacheClient::builder()
+                .default_ttl(Duration::from_secs(900))
+                .configuration(LowLatency::v1())
+                .credential_provider(credential_provider)
                 .build()
-                .unwrap_or_else(|e| {
-                    eprintln!("failed to initialize credential provider. error: {e}");
-                    std::process::exit(1);
-                });
-            match SimpleCacheClientBuilder::new(
-                credential_provider,
-                std::time::Duration::from_secs(900),
-            ) {
-                Ok(c) => c.build(),
+            {
+                Ok(c) => c,
                 Err(e) => {
                     eprintln!("could not create cache client: {}", e);
                     std::process::exit(1);
@@ -54,7 +57,7 @@ pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiv
 async fn task(
     config: Config,
     // cache_name: String,
-    mut client: SimpleCacheClient,
+    mut client: CacheClient,
     work_receiver: Receiver<WorkItem>,
 ) -> Result<()> {
     let cache_name = config.target().cache_name().unwrap_or_else(|| {
@@ -138,9 +141,6 @@ async fn task(
                 }
                 ClientRequest::SortedSetRange(r) => {
                     sorted_set_range(&mut client, &config, cache_name, r).await
-                }
-                ClientRequest::SortedSetIncrement(r) => {
-                    sorted_set_increment(&mut client, &config, cache_name, r).await
                 }
                 ClientRequest::SortedSetRank(r) => {
                     sorted_set_rank(&mut client, &config, cache_name, r).await
