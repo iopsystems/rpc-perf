@@ -4,9 +4,11 @@
 protocol = "memcache"
 interval = 1
 duration = 60
-metrics_output = "rpcperf.parquet"
-metrics_format = "parquet"
 admin = "127.0.0.1:9090"
+
+[metrics]
+output = "rpcperf.parquet"
+format = "parquet"
 
 [debug]
 log_level = "info"

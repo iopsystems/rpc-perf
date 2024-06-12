@@ -16,6 +16,21 @@ admin = "127.0.0.1:9090"
 # The default is to intialize from the OS entropy pool.
 #initial_seed = "0"
 
+#[metrics]
+# output file for detailed stats during the run
+#output = "stats.json"
+# format of the output file (possible values are json, msgpack, parquet)
+#format = "json"
+# optionally specify batch size for parquet row groups
+# only valid for parquet output
+#batch_size = 100_000
+# optionally specify histogram type (can be standard (default) or sparse)
+# only valid for parquet output
+#histogram = "sparse"
+# optionally, specify the sampling interval for metrics. Input is a string
+# with the unit attached; for example "100ms" or "1s". Defaults to 1s.
+#interval = "1s"
+
 [debug]
 # choose from: error, warn, info, debug, trace
 log_level = "info"
