@@ -146,7 +146,7 @@ impl HistogramsSnapshot {
             .collect();
 
         if let Some(snapshot) = self.deltas.get(metric) {
-            if let Ok(percentiles) = snapshot.percentiles(&percentiles) {
+            if let Ok(Some(percentiles)) = snapshot.percentiles(&percentiles) {
                 for ((label, _), (percentile, bucket)) in PERCENTILES.iter().zip(percentiles.iter())
                 {
                     result.push((label.to_string(), *percentile, bucket.end()));
