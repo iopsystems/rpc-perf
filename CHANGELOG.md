@@ -1,5 +1,13 @@
 ## [Unreleased]
 
+## [5.9.0] - 2024-06-12
+
+### Changed
+
+- Moved metrics file exposition settings to separate config section. (#221)
+- Default metrics interval is now one second. (#222)
+- Updated Momento SDK to version 0.39.7. (#223)
+
 ## [5.8.0] - 2024-05-22
 
 ### Changed
@@ -126,7 +134,8 @@
 - Support Momento topics.
 - Basic HTTP/1.1 and HTTP/2.0 load generation.
 
-[unreleased]: https://github.com/iopsystems/rpc-perf/compare/v5.8.0...HEAD
+[unreleased]: https://github.com/iopsystems/rpc-perf/compare/v5.9.0...HEAD
+[5.9.0]: https://github.com/iopsystems/rezolus/compare/v5.8.0...v5.9.0
 [5.8.0]: https://github.com/iopsystems/rezolus/compare/v5.7.0...v5.8.0
 [5.7.0]: https://github.com/iopsystems/rezolus/compare/v5.6.0...v5.7.0
 [5.6.0]: https://github.com/iopsystems/rezolus/compare/v5.5.0...v5.6.0
