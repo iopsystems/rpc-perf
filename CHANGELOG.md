@@ -1,5 +1,13 @@
 ## [Unreleased]
 
+## [5.9.1] - 2024-06-13
+
+### Fixed
+
+- Fixes a bug that results in some metrics not appearing on the HTTP endpoints.
+  (#231)
+- Updates metriken and histogram dependencies. (#230)
+
 ## [5.9.0] - 2024-06-12
 
 ### Changed
@@ -134,7 +142,8 @@
 - Support Momento topics.
 - Basic HTTP/1.1 and HTTP/2.0 load generation.
 
-[unreleased]: https://github.com/iopsystems/rpc-perf/compare/v5.9.0...HEAD
+[unreleased]: https://github.com/iopsystems/rpc-perf/compare/v5.9.1...HEAD/
+[5.9.1]: https://github.com/iopsystems/rezolus/compare/v5.9.0...v5.9.1
 [5.9.0]: https://github.com/iopsystems/rezolus/compare/v5.8.0...v5.9.0
 [5.8.0]: https://github.com/iopsystems/rezolus/compare/v5.7.0...v5.8.0
 [5.7.0]: https://github.com/iopsystems/rezolus/compare/v5.6.0...v5.7.0
