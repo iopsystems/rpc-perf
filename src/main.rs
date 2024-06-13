@@ -5,7 +5,6 @@ use async_channel::{bounded, Sender};
 use backtrace::Backtrace;
 use clap::{Arg, Command};
 use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use metriken::{AtomicHistogram, Counter, Gauge};
 use once_cell::sync::Lazy;
 use ringlog::*;
 use std::collections::HashMap;

@@ -1,8 +1,8 @@
 use crate::*;
+use metriken::Value;
 use ratelimit::Ratelimiter;
 use std::net::ToSocketAddrs;
 use std::sync::Arc;
-use metriken::Value;
 
 /// The HTTP admin server.
 pub async fn http(config: Config, ratelimit: Option<Arc<Ratelimiter>>) {
