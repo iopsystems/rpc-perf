@@ -2,6 +2,7 @@ use crate::*;
 use ratelimit::Ratelimiter;
 use std::net::ToSocketAddrs;
 use std::sync::Arc;
+use metriken::Value;
 
 /// The HTTP admin server.
 pub async fn http(config: Config, ratelimit: Option<Arc<Ratelimiter>>) {
@@ -144,50 +145,45 @@ pub mod handlers {
                 continue;
             }
 
-            let any = match metric.as_any() {
-                Some(any) => any,
-                None => {
-                    continue;
-                }
-            };
-
             let name = metric.name();
 
-            if let Some(counter) = any.downcast_ref::<Counter>() {
-                let value = counter.value();
-                if let Some(description) = metric.description() {
-                    data.push(format!(
-                        "# TYPE {name} counter\n# HELP {name} {description}\n{name} {value}"
-                    ));
-                } else {
-                    data.push(format!("# TYPE {name} counter\n{name} {value}"));
-                }
-            } else if let Some(gauge) = any.downcast_ref::<Gauge>() {
-                let value = gauge.value();
-
-                if let Some(description) = metric.description() {
-                    data.push(format!(
-                        "# TYPE {name} gauge\n# HELP {name} {description}\n{name} {value}"
-                    ));
-                } else {
-                    data.push(format!("# TYPE {name} gauge\n{name} {value}"));
-                }
-            } else if any.downcast_ref::<AtomicHistogram>().is_some() {
-                let percentiles = metrics_snapshot.percentiles(metric.name());
-
-                for (_label, percentile, value) in percentiles {
+            match metric.value() {
+                Some(Value::Counter(value)) => {
                     if let Some(description) = metric.description() {
                         data.push(format!(
-                            "# TYPE {name} gauge\n# HELP {name} {description}\n{name}{{percentile=\"{:02}\"}} {value} {timestamp}",
-                            percentile,
+                            "# TYPE {name} counter\n# HELP {name} {description}\n{name} {value}"
                         ));
                     } else {
-                        data.push(format!(
-                            "# TYPE {name} gauge\n{name}{{percentile=\"{:02}\"}} {value} {timestamp}",
-                            percentile,
-                        ));
+                        data.push(format!("# TYPE {name} counter\n{name} {value}"));
                     }
                 }
+                Some(Value::Gauge(value)) => {
+                    if let Some(description) = metric.description() {
+                        data.push(format!(
+                            "# TYPE {name} gauge\n# HELP {name} {description}\n{name} {value}"
+                        ));
+                    } else {
+                        data.push(format!("# TYPE {name} gauge\n{name} {value}"));
+                    }
+                }
+                Some(Value::Other(_)) => {
+                    let percentiles = metrics_snapshot.percentiles(metric.name());
+
+                    for (_label, percentile, value) in percentiles {
+                        if let Some(description) = metric.description() {
+                            data.push(format!(
+                                "# TYPE {name} gauge\n# HELP {name} {description}\n{name}{{percentile=\"{:02}\"}} {value} {timestamp}",
+                                percentile,
+                            ));
+                        } else {
+                            data.push(format!(
+                                "# TYPE {name} gauge\n{name}{{percentile=\"{:02}\"}} {value} {timestamp}",
+                                percentile,
+                            ));
+                        }
+                    }
+                }
+                _ => continue,
             }
         }
 
@@ -280,29 +276,23 @@ pub async fn human_formatted_stats() -> Vec<String> {
             continue;
         }
 
-        let any = match metric.as_any() {
-            Some(any) => any,
-            None => {
-                continue;
-            }
-        };
-
         let name = metric.name();
 
-        if let Some(counter) = any.downcast_ref::<Counter>() {
-            let value = counter.value();
-
-            data.push(format!("\"{name}\": {value}"));
-        } else if let Some(gauge) = any.downcast_ref::<Gauge>() {
-            let value = gauge.value();
-
-            data.push(format!("\"{name}\": {value}"));
-        } else if any.downcast_ref::<AtomicHistogram>().is_some() {
-            let percentiles = metrics_snapshot.percentiles(metric.name());
-
-            for (label, _percentile, value) in percentiles {
-                data.push(format!("\"{name}/{label}\": {value}",));
+        match metric.value() {
+            Some(Value::Counter(value)) => {
+                data.push(format!("\"{name}\": {value}"));
             }
+            Some(Value::Gauge(value)) => {
+                data.push(format!("\"{name}\": {value}"));
+            }
+            Some(Value::Other(_)) => {
+                let percentiles = metrics_snapshot.percentiles(metric.name());
+
+                for (label, _percentile, value) in percentiles {
+                    data.push(format!("\"{name}/{label}\": {value}",));
+                }
+            }
+            _ => continue,
         }
     }
 
