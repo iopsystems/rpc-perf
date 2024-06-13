@@ -1,5 +1,6 @@
 // for now, we use some of the metrics defined in the protocol crates
 
+use metriken::{AtomicHistogram, RwLockHistogram, Value};
 pub use protocol_memcache::*;
 
 use ahash::HashMap;
@@ -90,18 +91,23 @@ impl HistogramsSnapshot {
     pub fn new() -> Self {
         let mut current = HashMap::new();
 
-        for metric in metriken::metrics().iter() {
-            let any = if let Some(any) = metric.as_any() {
-                any
-            } else {
-                continue;
-            };
+        for metric in &metriken::metrics() {
+            match metric.value() {
+                Some(Value::Other(other)) => {
+                    let histogram = if let Some(histogram) = other.downcast_ref::<AtomicHistogram>()
+                    {
+                        histogram.load()
+                    } else if let Some(histogram) = other.downcast_ref::<RwLockHistogram>() {
+                        histogram.load()
+                    } else {
+                        None
+                    };
 
-            if let Some(histogram) = any
-                .downcast_ref::<metriken::AtomicHistogram>()
-                .and_then(|h| h.load())
-            {
-                current.insert(metric.name().to_string(), histogram);
+                    if let Some(histogram) = histogram {
+                        current.insert(metric.name().to_string(), histogram);
+                    }
+                }
+                _ => continue,
             }
         }
 
@@ -114,25 +120,30 @@ impl HistogramsSnapshot {
     }
 
     pub fn update(&mut self) {
-        for metric in metriken::metrics().iter() {
-            let any = if let Some(any) = metric.as_any() {
-                any
-            } else {
-                continue;
-            };
+        for metric in &metriken::metrics() {
+            match metric.value() {
+                Some(Value::Other(other)) => {
+                    let histogram = if let Some(histogram) = other.downcast_ref::<AtomicHistogram>()
+                    {
+                        histogram.load()
+                    } else if let Some(histogram) = other.downcast_ref::<RwLockHistogram>() {
+                        histogram.load()
+                    } else {
+                        None
+                    };
 
-            if let Some(histogram) = any
-                .downcast_ref::<metriken::AtomicHistogram>()
-                .and_then(|h| h.load())
-            {
-                let metric = metric.name().to_string();
+                    if let Some(histogram) = histogram {
+                        let name = metric.name().to_string();
 
-                if let Some(previous) = self.previous.get(&metric) {
-                    self.deltas
-                        .insert(metric.clone(), histogram.wrapping_sub(previous).unwrap());
+                        if let Some(previous) = self.previous.get(&name) {
+                            self.deltas
+                                .insert(name.clone(), histogram.wrapping_sub(previous).unwrap());
+                        }
+
+                        self.previous.insert(name, histogram);
+                    }
                 }
-
-                self.previous.insert(metric, histogram);
+                _ => continue,
             }
         }
     }
