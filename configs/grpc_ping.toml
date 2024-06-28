@@ -50,8 +50,10 @@ endpoints = [
 [client]
 # number of threads used to drive client requests
 threads = 4
-# the total number of connections to each endpoint
-poolsize = 20
+# number of gRPC clients to initialize, each maintains at one TCP stream
+poolsize = 4
+# an upper limit on the number of concurrent requests per gRPC client
+concurrency = 25
 # the connect timeout in milliseconds
 connect_timeout = 10000
 # set the timeout in milliseconds
