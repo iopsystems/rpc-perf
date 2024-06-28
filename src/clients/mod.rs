@@ -15,6 +15,7 @@ mod http1;
 mod http2;
 mod memcache;
 mod momento;
+mod grpc_ping;
 mod ping;
 mod redis;
 
@@ -31,6 +32,9 @@ pub fn launch_clients(config: &Config, work_receiver: Receiver<WorkItem>) -> Opt
         .expect("failed to initialize tokio runtime");
 
     match config.general().protocol() {
+        Protocol::GrpcPing => {
+            clients::grpc_ping::launch_tasks(&mut client_rt, config.clone(), work_receiver)
+        }
         Protocol::Http1 => {
             clients::http1::launch_tasks(&mut client_rt, config.clone(), work_receiver)
         }
