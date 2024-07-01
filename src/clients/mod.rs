@@ -11,11 +11,11 @@ use tokio::time::{timeout, Duration};
 use std::io::{Error, ErrorKind, Result};
 use std::time::Instant;
 
+mod grpc_ping;
 mod http1;
 mod http2;
 mod memcache;
 mod momento;
-mod grpc_ping;
 mod ping;
 mod redis;
 

@@ -1,5 +1,5 @@
-use tonic::transport::Channel;
 use super::*;
+use tonic::transport::Channel;
 
 use pingpong::ping_client::PingClient;
 use pingpong::PingRequest;
@@ -19,7 +19,9 @@ pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiv
 
             let endpoint = endpoint.clone();
 
-            let client = runtime.block_on(async { PingClient::connect(endpoint).await }).unwrap();
+            let client = runtime
+                .block_on(async { PingClient::connect(endpoint).await })
+                .unwrap();
 
             // create one task per channel
             for _ in 0..config.client().unwrap().concurrency() {
@@ -45,17 +47,18 @@ async fn task(
         #[allow(clippy::single_match)]
         let result = match work_item {
             WorkItem::Request { request, .. } => match request {
-                ClientRequest::Ping(_) => {
-                    client.ping(tonic::Request::new(PingRequest { })).await.map(|_| ())
-                }
+                ClientRequest::Ping(_) => client
+                    .ping(tonic::Request::new(PingRequest {}))
+                    .await
+                    .map(|_| ()),
                 _ => {
                     REQUEST_UNSUPPORTED.increment();
                     continue;
                 }
-            }
+            },
             _ => {
                 continue;
-            },
+            }
         };
 
         REQUEST_OK.increment();
@@ -72,19 +75,18 @@ async fn task(
             }
             Err(_) => {
                 todo!()
-            }
-            // Err(ResponseError::Exception) => {
-            //     RESPONSE_EX.increment();
-            // }
-            // Err(ResponseError::Timeout) => {
-            //     RESPONSE_TIMEOUT.increment();
-            // }
-            // Err(ResponseError::Ratelimited) => {
-            //     RESPONSE_RATELIMITED.increment();
-            // }
-            // Err(ResponseError::BackendTimeout) => {
-            //     RESPONSE_BACKEND_TIMEOUT.increment();
-            // }
+            } // Err(ResponseError::Exception) => {
+              //     RESPONSE_EX.increment();
+              // }
+              // Err(ResponseError::Timeout) => {
+              //     RESPONSE_TIMEOUT.increment();
+              // }
+              // Err(ResponseError::Ratelimited) => {
+              //     RESPONSE_RATELIMITED.increment();
+              // }
+              // Err(ResponseError::BackendTimeout) => {
+              //     RESPONSE_BACKEND_TIMEOUT.increment();
+              // }
         }
     }
 
