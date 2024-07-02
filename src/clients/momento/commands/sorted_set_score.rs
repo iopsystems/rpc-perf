@@ -24,7 +24,11 @@ pub async fn sorted_set_score(
     } else {
         let result = timeout(
             config.client().unwrap().request_timeout(),
-            client.sorted_set_get_scores(cache_name, &*request.key, request.members.iter().map(|f| &**f)),
+            client.sorted_set_get_scores(
+                cache_name,
+                &*request.key,
+                request.members.iter().map(|f| &**f),
+            ),
         )
         .await;
 

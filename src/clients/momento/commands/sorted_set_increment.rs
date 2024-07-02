@@ -14,14 +14,19 @@ pub async fn sorted_set_increment(
 ) -> std::result::Result<(), ResponseError> {
     SORTED_SET_INCR.increment();
 
-    let r = SortedSetIncrementScoreRequest::new(cache_name, &*request.key, &*request.member, request.amount)
-        .ttl(CollectionTtl::new(request.ttl, false));
+    let r = SortedSetIncrementScoreRequest::new(
+        cache_name,
+        &*request.key,
+        &*request.member,
+        request.amount,
+    )
+    .ttl(CollectionTtl::new(request.ttl, false));
 
     let result = timeout(
         config.client().unwrap().request_timeout(),
         client.send_request(r),
     )
     .await;
-    
+
     record_result!(result, SORTED_SET_INCR)
 }
