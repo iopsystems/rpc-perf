@@ -139,6 +139,9 @@ async fn task(
                 ClientRequest::SortedSetAdd(r) => {
                     sorted_set_add(&mut client, &config, cache_name, r).await
                 }
+                ClientRequest::SortedSetIncrement(r) => {
+                    sorted_set_increment(&mut client, &config, cache_name, r).await
+                }
                 ClientRequest::SortedSetRange(r) => {
                     sorted_set_range(&mut client, &config, cache_name, r).await
                 }

@@ -1565,7 +1565,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e310b3a6b5907f99202fcdb4960ff45b93735d7c7d96b760fcff8db2dc0e103d"
 dependencies = [
  "cfg-if",
- "windows-targets 0.48.5",
+ "windows-targets 0.52.5",
 ]
 
 [[package]]
@@ -1756,9 +1756,9 @@ dependencies = [
 
 [[package]]
 name = "momento"
-version = "0.39.7"
+version = "0.40.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9a6621792e6cad5e96cbbc2280c613dd90404efbafc701768c028dc748ae0509"
+checksum = "dcee54e75b9c1f7c9124ebd55628daf646fc97d90adfbe1d3c5628dd807268c7"
 dependencies = [
  "base64 0.21.7",
  "derive_more",
