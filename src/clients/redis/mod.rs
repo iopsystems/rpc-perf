@@ -9,7 +9,11 @@ mod commands;
 use commands::*;
 
 /// Launch tasks with one conncetion per task as RESP protocol is not mux-enabled.
-pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiver<WorkItem>) {
+pub fn launch_tasks(
+    runtime: &mut Runtime,
+    config: Config,
+    work_receiver: Receiver<ClientWorkItemKind<ClientRequest>>,
+) {
     debug!("launching resp protocol tasks");
 
     // create one task per "connection"
@@ -27,7 +31,11 @@ pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiv
 
 #[allow(dead_code)]
 #[allow(clippy::slow_vector_initialization)]
-async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Config) -> Result<()> {
+async fn task(
+    work_receiver: Receiver<ClientWorkItemKind<ClientRequest>>,
+    endpoint: String,
+    config: Config,
+) -> Result<()> {
     trace!("launching resp task for endpoint: {endpoint}");
     let connector = Connector::new(&config)?;
 
@@ -83,7 +91,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
         REQUEST.increment();
         let start = Instant::now();
         let result = match work_item {
-            WorkItem::Request { request, .. } => match request {
+            ClientWorkItemKind::Request { request, .. } => match request {
                 /*
                  * PING
                  */
@@ -149,7 +157,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                     continue;
                 }
             },
-            WorkItem::Reconnect => {
+            ClientWorkItemKind::Reconnect => {
                 CONNECT_CURR.sub(1);
                 continue;
             }

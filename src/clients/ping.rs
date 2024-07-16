@@ -5,7 +5,11 @@ use session::{Buf, BufMut, Buffer};
 use std::borrow::{Borrow, BorrowMut};
 
 /// Launch tasks with one conncetion per task as ping protocol is not mux-enabled.
-pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiver<WorkItem>) {
+pub fn launch_tasks(
+    runtime: &mut Runtime,
+    config: Config,
+    work_receiver: Receiver<ClientWorkItemKind<ClientRequest>>,
+) {
     debug!("launching ping protocol tasks");
 
     // create one task per "connection"
@@ -23,7 +27,11 @@ pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiv
 
 // a task for ping servers (eg: Pelikan Pingserver)
 #[allow(clippy::slow_vector_initialization)]
-async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Config) -> Result<()> {
+async fn task(
+    work_receiver: Receiver<ClientWorkItemKind<ClientRequest>>,
+    endpoint: String,
+    config: Config,
+) -> Result<()> {
     let connector = Connector::new(&config)?;
 
     // this unwrap will succeed because we wouldn't be creating these tasks if
@@ -73,7 +81,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
 
         // compose request into buffer
         match &work_item {
-            WorkItem::Request { request, .. } => match request {
+            ClientWorkItemKind::Request { request, .. } => match request {
                 ClientRequest::Ping(_) => {
                     Request::Ping.compose(&mut write_buffer);
                 }
@@ -83,7 +91,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                     continue;
                 }
             },
-            WorkItem::Reconnect => {
+            ClientWorkItemKind::Reconnect => {
                 REQUEST_RECONNECT.increment();
                 continue;
             }
@@ -147,7 +155,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
             Ok(response) => {
                 // validate response
                 match work_item {
-                    WorkItem::Request { request, .. } => match request {
+                    ClientWorkItemKind::Request { request, .. } => match request {
                         ClientRequest::Ping(_) => match response {
                             Response::Pong => {
                                 PING_OK.increment();
@@ -176,7 +184,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
             Err(ResponseError::Exception) => {
                 // record execption
                 match work_item {
-                    WorkItem::Request { request, .. } => match request {
+                    ClientWorkItemKind::Request { request, .. } => match request {
                         ClientRequest::Ping(_) => {
                             PING_EX.increment();
                         }

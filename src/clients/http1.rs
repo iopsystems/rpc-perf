@@ -6,7 +6,11 @@ use hyper::header::{HeaderName, HeaderValue};
 use hyper::{Request, Uri};
 
 /// Launch tasks with one conncetion per task as http/1.1 is not mux'd
-pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiver<WorkItem>) {
+pub fn launch_tasks(
+    runtime: &mut Runtime,
+    config: Config,
+    work_receiver: Receiver<ClientWorkItemKind<ClientRequest>>,
+) {
     debug!("launching http1 protocol tasks");
 
     if config.client().unwrap().concurrency() > 1 {
@@ -26,7 +30,11 @@ pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiv
 
 // a task for http/1.1
 #[allow(clippy::slow_vector_initialization)]
-async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Config) -> Result<()> {
+async fn task(
+    work_receiver: Receiver<ClientWorkItemKind<ClientRequest>>,
+    endpoint: String,
+    config: Config,
+) -> Result<()> {
     let connector = Connector::new(&config)?;
     let mut session = None;
     let mut session_requests = 0;
@@ -96,7 +104,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
 
         // compose request into buffer
         let request = match &work_item {
-            WorkItem::Request { request, sequence } => match request {
+            ClientWorkItemKind::Request { request, sequence } => match request {
                 ClientRequest::Get(r) => {
                     let key = unsafe { std::str::from_utf8_unchecked(&r.key) };
                     let url: Uri = if config.tls().is_none() {
@@ -124,7 +132,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
                     continue;
                 }
             },
-            WorkItem::Reconnect => {
+            ClientWorkItemKind::Reconnect => {
                 // we want to reconnect, update stats and implicitly drop the
                 // session
                 SESSION_CLOSED_CLIENT.increment();
@@ -149,7 +157,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
             Ok(Ok(response)) => {
                 // validate response
                 match &work_item {
-                    WorkItem::Request { request, .. } => match request {
+                    ClientWorkItemKind::Request { request, .. } => match request {
                         ClientRequest::Get { .. } => {
                             GET_OK.increment();
                         }
@@ -198,7 +206,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
 
                 // record execption
                 match work_item {
-                    WorkItem::Request { request, .. } => match request {
+                    ClientWorkItemKind::Request { request, .. } => match request {
                         ClientRequest::Get { .. } => {
                             GET_EX.increment();
                         }

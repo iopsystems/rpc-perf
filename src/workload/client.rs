@@ -3,15 +3,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 #[derive(Debug, PartialEq)]
-pub enum ClientWorkItem {
-    Reconnect,
-    Request {
-        request: ClientRequest,
-        sequence: u64,
-    },
-}
-
-#[derive(Debug, PartialEq)]
 pub struct Ping {}
 
 #[derive(Debug, PartialEq)]

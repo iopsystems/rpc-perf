@@ -12,7 +12,11 @@ struct RequestWithValidator {
 }
 
 /// Launch tasks with one conncetion per task as memcache protocol is not mux-enabled.
-pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiver<WorkItem>) {
+pub fn launch_tasks(
+    runtime: &mut Runtime,
+    config: Config,
+    work_receiver: Receiver<ClientWorkItemKind<ClientRequest>>,
+) {
     debug!("launching memcache protocol tasks");
 
     // create one task per connection
@@ -28,7 +32,11 @@ pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiv
 }
 
 #[allow(clippy::slow_vector_initialization)]
-async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Config) -> Result<()> {
+async fn task(
+    work_receiver: Receiver<ClientWorkItemKind<ClientRequest>>,
+    endpoint: String,
+    config: Config,
+) -> Result<()> {
     let connector = Connector::new(&config)?;
 
     // we would not be creating a memcache client task if we didn't have a
@@ -77,7 +85,7 @@ async fn task(work_receiver: Receiver<WorkItem>, endpoint: String, config: Confi
         REQUEST.increment();
 
         // check if we should reconnect
-        if work_item == WorkItem::Reconnect {
+        if work_item == ClientWorkItemKind::Reconnect {
             CONNECT_CURR.decrement();
             continue;
         }
@@ -200,11 +208,13 @@ impl From<&workload::client::Delete> for Request {
     }
 }
 
-impl TryFrom<&WorkItem> for RequestWithValidator {
+impl TryFrom<&ClientWorkItemKind<ClientRequest>> for RequestWithValidator {
     type Error = ();
-    fn try_from(other: &WorkItem) -> std::result::Result<RequestWithValidator, ()> {
+    fn try_from(
+        other: &ClientWorkItemKind<ClientRequest>,
+    ) -> std::result::Result<RequestWithValidator, ()> {
         match other {
-            WorkItem::Request { request, .. } => match request {
+            ClientWorkItemKind::Request { request, .. } => match request {
                 ClientRequest::Add(r) => Ok(Self::from(r)),
                 ClientRequest::Get(r) => Ok(Self::from(r)),
                 ClientRequest::Delete(r) => Ok(Self::from(r)),

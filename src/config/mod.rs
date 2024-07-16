@@ -9,6 +9,7 @@ mod general;
 mod metrics;
 mod protocol;
 mod pubsub;
+mod storage;
 mod target;
 mod tls;
 mod workload;
@@ -19,11 +20,12 @@ pub use general::General;
 pub use metrics::{Format as MetricsFormat, Metrics};
 pub use protocol::Protocol;
 pub use pubsub::Pubsub;
+pub use storage::Storage;
 pub use target::Target;
 pub use tls::Tls;
 pub use workload::{
-    Command, Distribution, Keyspace, RampCompletionAction, RampType, Topics, ValueKind, Verb,
-    Workload,
+    Command, Distribution, Keyspace, RampCompletionAction, RampType, Store, StoreCommand,
+    StoreVerb, Topics, ValueKind, Verb, Workload,
 };
 
 pub const PAGESIZE: usize = 4096;
@@ -43,6 +45,7 @@ pub struct Config {
     tls: Option<Tls>,
     workload: Workload,
     metrics: Option<Metrics>,
+    storage: Option<Storage>,
 }
 
 impl Config {
@@ -109,5 +112,9 @@ impl Config {
 
     pub fn metrics(&self) -> Option<&Metrics> {
         self.metrics.as_ref()
+    }
+
+    pub fn storage(&self) -> Option<&Storage> {
+        self.storage.as_ref()
     }
 }

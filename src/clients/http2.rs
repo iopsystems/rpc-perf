@@ -32,7 +32,11 @@ impl<T> Queue<T> {
 
 // launch a pool manager and worker tasks since HTTP/2.0 is mux'ed we prepare
 // senders in the pool manager and pass them over a queue to our worker tasks
-pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiver<WorkItem>) {
+pub fn launch_tasks(
+    runtime: &mut Runtime,
+    config: Config,
+    work_receiver: Receiver<ClientWorkItemKind<ClientRequest>>,
+) {
     debug!("launching http2 protocol tasks");
 
     for _ in 0..config.client().unwrap().poolsize() {
@@ -138,7 +142,7 @@ async fn pool_manager(endpoint: String, config: Config, queue: Queue<SendRequest
 // a task for http/2.0
 #[allow(clippy::slow_vector_initialization)]
 async fn task(
-    work_receiver: Receiver<WorkItem>,
+    work_receiver: Receiver<ClientWorkItemKind<ClientRequest>>,
     endpoint: String,
     config: Config,
     queue: Queue<SendRequest<Empty<Bytes>>>,
@@ -166,7 +170,7 @@ async fn task(
 
         // compose request into buffer
         let request = match &work_item {
-            WorkItem::Request { request, sequence } => match request {
+            ClientWorkItemKind::Request { request, sequence } => match request {
                 ClientRequest::Get(r) => {
                     let key = unsafe { std::str::from_utf8_unchecked(&r.key) };
                     let url: Uri = if config.tls().is_none() {
@@ -192,7 +196,7 @@ async fn task(
                     continue;
                 }
             },
-            WorkItem::Reconnect => {
+            ClientWorkItemKind::Reconnect => {
                 SESSION_CLOSED_CLIENT.increment();
                 REQUEST_RECONNECT.increment();
                 continue;
@@ -214,7 +218,7 @@ async fn task(
             Ok(Ok(response)) => {
                 // validate response
                 match work_item {
-                    WorkItem::Request { request, .. } => match request {
+                    ClientWorkItemKind::Request { request, .. } => match request {
                         ClientRequest::Get { .. } => {
                             GET_OK.increment();
                         }
@@ -247,7 +251,7 @@ async fn task(
             Ok(Err(_e)) => {
                 // record execption
                 match work_item {
-                    WorkItem::Request { request, .. } => match request {
+                    ClientWorkItemKind::Request { request, .. } => match request {
                         ClientRequest::Get { .. } => {
                             GET_EX.increment();
                         }
