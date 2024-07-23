@@ -74,7 +74,11 @@ where
     }
 }
 
-pub async fn pool_manager(endpoint: String, config: Config, queue: Queue<SendRequest<Empty<Bytes>>>) {
+pub async fn pool_manager(
+    endpoint: String,
+    config: Config,
+    queue: Queue<SendRequest<Empty<Bytes>>>,
+) {
     let connector = Connector::new(&config).expect("failed to init connector");
     let mut sender = None;
 
@@ -181,7 +185,10 @@ async fn task(
                         .header(hyper::header::HOST, authority.as_str())
                         .header(
                             hyper::header::USER_AGENT,
-                            &format!("rpc-perf/{} (request; seq:{sequence})", env!("CARGO_PKG_VERSION")),
+                            &format!(
+                                "rpc-perf/{} (request; seq:{sequence})",
+                                env!("CARGO_PKG_VERSION")
+                            ),
                         )
                         .body(Empty::<Bytes>::new())
                         .expect("failed to build request")

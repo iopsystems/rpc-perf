@@ -1,33 +1,33 @@
-use http::Version;
-use chrono::DateTime;
-use chrono::Utc;
-use bytes::BytesMut;
-use http::Method;
-use http::uri::Authority;
-use tokio::net::TcpStream;
-use std::time::Instant;
-use crate::workload::ClientRequest;
-use std::io::ErrorKind;
-use async_channel::Receiver;
+use crate::clients::http2::Queue;
+use crate::clients::http2::TokioExecutor;
 use crate::clients::timeout;
 use crate::clients::WorkItem;
-use tokio::runtime::Runtime;
-use crate::*;
 use crate::net::Connector;
-use crate::clients::http2::TokioExecutor;
-use http::HeaderValue;
-use http::HeaderName;
-use http::Uri;
-use h2::client::SendRequest;
-use crate::clients::http2::Queue;
-use std::borrow::Borrow;
-use bytes::BufMut;
+use crate::workload::ClientRequest;
+use crate::*;
+use async_channel::Receiver;
 use bytes::Buf;
-use std::io::Write;
-use std::borrow::BorrowMut;
-use session::Buffer;
+use bytes::BufMut;
 use bytes::Bytes;
+use bytes::BytesMut;
+use chrono::DateTime;
+use chrono::Utc;
+use h2::client::SendRequest;
+use http::uri::Authority;
+use http::HeaderName;
+use http::HeaderValue;
+use http::Method;
+use http::Uri;
+use http::Version;
+use session::Buffer;
+use std::borrow::Borrow;
+use std::borrow::BorrowMut;
 use std::io::Error;
+use std::io::ErrorKind;
+use std::io::Write;
+use std::time::Instant;
+use tokio::net::TcpStream;
+use tokio::runtime::Runtime;
 
 // launch a pool manager and worker tasks since HTTP/2.0 is mux'ed we prepare
 // senders in the pool manager and pass them over a queue to our worker tasks
@@ -92,6 +92,10 @@ pub async fn pool_manager(endpoint: String, config: Config, queue: Queue<SendReq
 
             if let Ok((addr, _auth)) = resolve(&endpoint).await {
                 if let Ok(tcp) = TcpStream::connect(addr).await {
+                    if tcp.set_nodelay(true).is_err() {
+                        continue;
+                    }
+
                     if let Ok((h2, connection)) = ::h2::client::handshake(tcp).await {
                         tokio::spawn(async move {
                             connection.await.unwrap();
@@ -148,14 +152,12 @@ async fn task(
             .await
             .map_err(|_| Error::new(ErrorKind::Other, "channel closed"))?;
 
-        
-
         REQUEST.increment();
 
         // compose request into buffer
         match &work_item {
             WorkItem::Request { request, .. } => match request {
-                ClientRequest::Ping(_) => { }
+                ClientRequest::Ping(_) => {}
                 _ => {
                     REQUEST_UNSUPPORTED.increment();
                     continue;
@@ -183,7 +185,10 @@ async fn task(
         let start = Instant::now();
 
         if let Ok((response, mut stream)) = sender.send_request(request, false) {
-            if stream.send_data(Bytes::from(vec![0, 0, 0, 0, 0]), true).is_err() {
+            if stream
+                .send_data(Bytes::from(vec![0, 0, 0, 0, 0]), true)
+                .is_err()
+            {
                 // REQUEST_EX.increment();
                 continue;
             } else {
