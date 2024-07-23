@@ -9,7 +9,7 @@ use hyper::{Request, Uri};
 use std::future::Future;
 
 #[derive(Clone)]
-struct Queue<T> {
+pub struct Queue<T> {
     tx: async_channel::Sender<T>,
     rx: async_channel::Receiver<T>,
 }
@@ -62,7 +62,7 @@ pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiv
 }
 
 #[derive(Clone)]
-struct TokioExecutor;
+pub struct TokioExecutor;
 
 impl<F> Executor<F> for TokioExecutor
 where
@@ -74,7 +74,7 @@ where
     }
 }
 
-async fn pool_manager(endpoint: String, config: Config, queue: Queue<SendRequest<Empty<Bytes>>>) {
+pub async fn pool_manager(endpoint: String, config: Config, queue: Queue<SendRequest<Empty<Bytes>>>) {
     let connector = Connector::new(&config).expect("failed to init connector");
     let mut sender = None;
 
@@ -181,7 +181,7 @@ async fn task(
                         .header(hyper::header::HOST, authority.as_str())
                         .header(
                             hyper::header::USER_AGENT,
-                            &format!("rpc-perf/5.0.0-alpha (request; seq:{sequence})"),
+                            &format!("rpc-perf/{} (request; seq:{sequence})", env!("CARGO_PKG_VERSION")),
                         )
                         .body(Empty::<Bytes>::new())
                         .expect("failed to build request")

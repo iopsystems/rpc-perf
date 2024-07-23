@@ -55,6 +55,9 @@ tonic = "0.11"
 warp = "0.3.6"
 zipf = "7.0.1"
 flate2 = "1.0.28"
+pin-project = "1.1.5"
+h2 = "0.4.5"
+http = "1.1.0"
 
 [build-dependencies]
 tonic-build = "0.11"
@@ -70,7 +73,7 @@ debug = true
 rpath = false
 lto = true
 debug-assertions = false
-codegen-units = 1
+codegen-units = 16
 
 [profile.bench]
 opt-level = 3

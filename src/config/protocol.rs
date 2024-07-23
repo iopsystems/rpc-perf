@@ -7,6 +7,7 @@ pub enum Protocol {
     GrpcPing,
     Http1,
     Http2,
+    Http2Ping,
     Memcache,
     Momento,
     Ping,

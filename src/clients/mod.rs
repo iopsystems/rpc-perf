@@ -11,7 +11,6 @@ use tokio::time::{timeout, Duration};
 use std::io::{Error, ErrorKind, Result};
 use std::time::Instant;
 
-mod grpc_ping;
 mod http1;
 mod http2;
 mod memcache;
@@ -33,13 +32,16 @@ pub fn launch_clients(config: &Config, work_receiver: Receiver<WorkItem>) -> Opt
 
     match config.general().protocol() {
         Protocol::GrpcPing => {
-            clients::grpc_ping::launch_tasks(&mut client_rt, config.clone(), work_receiver)
+            clients::ping::grpc::launch_tasks(&mut client_rt, config.clone(), work_receiver)
         }
         Protocol::Http1 => {
             clients::http1::launch_tasks(&mut client_rt, config.clone(), work_receiver)
         }
         Protocol::Http2 => {
             clients::http2::launch_tasks(&mut client_rt, config.clone(), work_receiver)
+        }
+        Protocol::Http2Ping => {
+            clients::ping::http2::launch_tasks(&mut client_rt, config.clone(), work_receiver)
         }
         Protocol::Memcache => {
             clients::memcache::launch_tasks(&mut client_rt, config.clone(), work_receiver)
@@ -48,7 +50,7 @@ pub fn launch_clients(config: &Config, work_receiver: Receiver<WorkItem>) -> Opt
             clients::momento::launch_tasks(&mut client_rt, config.clone(), work_receiver)
         }
         Protocol::Ping => {
-            clients::ping::launch_tasks(&mut client_rt, config.clone(), work_receiver)
+            clients::ping::ascii::launch_tasks(&mut client_rt, config.clone(), work_receiver)
         }
         Protocol::Resp => {
             clients::redis::launch_tasks(&mut client_rt, config.clone(), work_receiver)

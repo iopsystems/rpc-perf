@@ -3,7 +3,7 @@
 
 [general]
 # specify the protocol to be used
-protocol = "grpc_ping"
+protocol = "http2_ping"
 # the interval for stats integration and reporting
 interval = 60
 # the number of intervals to run the test for
@@ -44,7 +44,7 @@ log_max_size = 1073741824
 [target]
 # specify one or more endpoints as IP:PORT pairs
 endpoints = [
-	"http://127.0.0.1:12321",
+	"http://cache00:12321",
 ]
 
 [client]

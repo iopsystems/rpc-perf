@@ -1,4 +1,4 @@
-use super::*;
+use crate::clients::*;
 use crate::net::Connector;
 use protocol_ping::{Compose, Parse, Request, Response};
 use session::{Buf, BufMut, Buffer};

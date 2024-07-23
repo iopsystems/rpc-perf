@@ -1,4 +1,4 @@
-use super::*;
+use crate::clients::*;
 use tonic::transport::Channel;
 
 use pingpong::ping_client::PingClient;
