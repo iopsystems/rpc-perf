@@ -227,7 +227,7 @@ impl Generator {
     ) -> ClientWorkItemKind<StoreClientRequest> {
         let command = &store.commands[store.command_dist.sample(rng)];
         let request = match command.verb() {
-            StoreVerb::Set => StoreClientRequest::Put(store::Put {
+            StoreVerb::Put => StoreClientRequest::Put(store::Put {
                 key: store.sample_string(rng),
                 value: store.gen_value(rng),
             }),
@@ -841,7 +841,7 @@ impl Store {
             // commands that set generated values need a `vlen`
             if store.vlen().is_none()
                 && store.vkind() == ValueKind::Bytes
-                && matches!(command.verb(), StoreVerb::Set)
+                && matches!(command.verb(), StoreVerb::Put)
             {
                 eprintln!(
                     "verb: {:?} requires that the keyspace has a `vlen` set when `vkind` is `bytes`",

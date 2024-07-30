@@ -50,8 +50,8 @@ pub fn launch_tasks(
             }
         };
 
-        CONNECT.increment();
-        CONNECT_CURR.increment();
+        STORE_CONNECT.increment();
+        STORE_CONNECT_CURR.increment();
 
         // create one task per channel
         for _ in 0..config.storage().unwrap().concurrency() {
@@ -80,7 +80,7 @@ async fn task(
             .await
             .map_err(|_| Error::new(ErrorKind::Other, "channel closed"))?;
 
-        REQUEST.increment();
+        STORE_REQUEST.increment();
         let start = Instant::now();
         let result = match work_item {
             ClientWorkItemKind::Request { request, .. } => match request {
@@ -93,7 +93,7 @@ async fn task(
                     store_delete(&mut client, &config, store_name, r).await
                 }
                 _ => {
-                    REQUEST_UNSUPPORTED.increment();
+                    STORE_REQUEST_UNSUPPORTED.increment();
                     continue;
                 }
             },
@@ -102,29 +102,29 @@ async fn task(
             }
         };
 
-        REQUEST_OK.increment();
+        STORE_REQUEST_OK.increment();
 
         let stop = Instant::now();
 
         match result {
             Ok(_) => {
-                RESPONSE_OK.increment();
+                STORE_RESPONSE_OK.increment();
 
                 let latency = stop.duration_since(start).as_nanos() as u64;
 
-                let _ = RESPONSE_LATENCY.increment(latency);
+                let _ = STORE_RESPONSE_LATENCY.increment(latency);
             }
             Err(ResponseError::Exception) => {
-                RESPONSE_EX.increment();
+                STORE_RESPONSE_EX.increment();
             }
             Err(ResponseError::Timeout) => {
-                RESPONSE_TIMEOUT.increment();
+                STORE_RESPONSE_TIMEOUT.increment();
             }
             Err(ResponseError::Ratelimited) => {
-                RESPONSE_RATELIMITED.increment();
+                STORE_RESPONSE_RATELIMITED.increment();
             }
             Err(ResponseError::BackendTimeout) => {
-                RESPONSE_BACKEND_TIMEOUT.increment();
+                STORE_RESPONSE_BACKEND_TIMEOUT.increment();
             }
         }
     }
@@ -139,7 +139,7 @@ pub async fn put(
     store_name: &str,
     request: workload::store::Put,
 ) -> std::result::Result<(), ResponseError> {
-    SET.increment();
+    STORE_PUT.increment();
 
     let r = PutRequest::new(store_name, &*request.key, &*request.value);
     let result = timeout(
@@ -148,7 +148,7 @@ pub async fn put(
     )
     .await;
 
-    record_result!(result, SET, SET_STORED)
+    record_result!(result, STORE_PUT, STORE_PUT_STORED)
 }
 
 /// Retrieve a key-value pair from the store.
@@ -158,7 +158,7 @@ pub async fn store_get(
     store_name: &str,
     request: workload::store::Get,
 ) -> std::result::Result<(), ResponseError> {
-    GET.increment();
+    STORE_GET.increment();
 
     match timeout(
         config.storage().unwrap().request_timeout(),
@@ -168,24 +168,24 @@ pub async fn store_get(
     {
         Ok(Ok(r)) => match r {
             GetResponse::Found { .. } => {
-                GET_OK.increment();
-                RESPONSE_HIT.increment();
-                GET_KEY_HIT.increment();
+                STORE_GET_OK.increment();
+                STORE_RESPONSE_FOUND.increment();
+                STORE_GET_KEY_FOUND.increment();
                 Ok(())
             }
             GetResponse::NotFound => {
-                GET_OK.increment();
-                RESPONSE_MISS.increment();
-                GET_KEY_MISS.increment();
+                STORE_GET_OK.increment();
+                STORE_RESPONSE_NOT_FOUND.increment();
+                STORE_GET_KEY_NOT_FOUND.increment();
                 Ok(())
             }
         },
         Ok(Err(e)) => {
-            GET_EX.increment();
+            STORE_GET_EX.increment();
             Err(e.into())
         }
         Err(_) => {
-            GET_TIMEOUT.increment();
+            STORE_GET_TIMEOUT.increment();
             Err(ResponseError::Timeout)
         }
     }
@@ -198,7 +198,7 @@ pub async fn store_delete(
     store_name: &str,
     request: workload::store::Delete,
 ) -> std::result::Result<(), ResponseError> {
-    DELETE.increment();
+    STORE_DELETE.increment();
 
     let result = timeout(
         config.storage().unwrap().request_timeout(),
@@ -206,5 +206,5 @@ pub async fn store_delete(
     )
     .await;
 
-    record_result!(result, DELETE)
+    record_result!(result, STORE_DELETE)
 }

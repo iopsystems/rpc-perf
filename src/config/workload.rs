@@ -673,9 +673,9 @@ pub enum StoreVerb {
     /// Read the value for one a key.
     /// * Momento: `get`
     Get,
-    /// Set the value for a key.
-    /// * Momento: `set`
-    Set,
+    /// Put the value for a key.
+    /// * Momento: `put`
+    Put,
     /// Remove a key.
     /// * Momento: `delete`
     #[serde(alias = "del")]
