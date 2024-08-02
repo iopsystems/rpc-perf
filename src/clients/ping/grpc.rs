@@ -73,20 +73,9 @@ async fn task(
 
                 let _ = RESPONSE_LATENCY.increment(latency);
             }
-            Err(_) => {
-                todo!()
-            } // Err(ResponseError::Exception) => {
-              //     RESPONSE_EX.increment();
-              // }
-              // Err(ResponseError::Timeout) => {
-              //     RESPONSE_TIMEOUT.increment();
-              // }
-              // Err(ResponseError::Ratelimited) => {
-              //     RESPONSE_RATELIMITED.increment();
-              // }
-              // Err(ResponseError::BackendTimeout) => {
-              //     RESPONSE_BACKEND_TIMEOUT.increment();
-              // }
+            Err(e) => {
+                println!("error: {e}");
+            }
         }
     }
 
