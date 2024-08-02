@@ -1,30 +1,17 @@
 use crate::clients::http2::Queue;
-use crate::clients::http2::TokioExecutor;
-use crate::clients::timeout;
 use crate::clients::WorkItem;
-use crate::net::Connector;
 use crate::workload::ClientRequest;
 use crate::*;
 use async_channel::Receiver;
-use bytes::Buf;
-use bytes::BufMut;
 use bytes::Bytes;
-use bytes::BytesMut;
 use chrono::DateTime;
 use chrono::Utc;
 use h2::client::SendRequest;
 use http::uri::Authority;
-use http::HeaderName;
-use http::HeaderValue;
 use http::Method;
-use http::Uri;
 use http::Version;
-use session::Buffer;
-use std::borrow::Borrow;
-use std::borrow::BorrowMut;
 use std::io::Error;
 use std::io::ErrorKind;
-use std::io::Write;
 use std::time::Instant;
 use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
@@ -170,11 +157,10 @@ async fn task(
         };
 
         let now: DateTime<Utc> = Utc::now();
-
         let request = http::request::Builder::new()
             .version(Version::HTTP_2)
             .method(Method::POST)
-            .uri(&format!("http://192.168.1.205:12321/pingpong.Ping/Ping"))
+            .uri(&format!("http://{auth}/pingpong.Ping/Ping"))
             .header("content-type", "application/grpc")
             .header("date", now.to_rfc2822())
             .header("user-agent", "unknown/0.0.0")
