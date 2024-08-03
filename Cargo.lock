@@ -1167,9 +1167,9 @@ dependencies = [
 [[package]]
 name = "h2"
 version = "0.4.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fa82e28a107a8cc405f0839610bdc9b15f1e25ec7d696aa5cf173edbcb1486ab"
+source = "git+https://github.com/brayniac/h2?branch=performance-mode#fad9477e47e79a5939dce235659ee062fdff86e4"
 dependencies = [
+ "ahash",
  "atomic-waker",
  "bytes",
  "fnv",
