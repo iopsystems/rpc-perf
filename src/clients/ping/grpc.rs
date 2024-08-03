@@ -73,8 +73,8 @@ async fn task(
 
                 let _ = RESPONSE_LATENCY.increment(latency);
             }
-            Err(e) => {
-                println!("error: {e}");
+            Err(_) => {
+                RESPONSE_EX.increment();
             }
         }
     }
