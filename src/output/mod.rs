@@ -337,6 +337,10 @@ pub async fn metrics(config: Config) {
     let snapshotter = SnapshotterBuilder::new()
         .metadata("source".to_string(), env!("CARGO_BIN_NAME").to_string())
         .metadata("version".to_string(), env!("CARGO_PKG_VERSION").to_string())
+        .metadata(
+            "sampling_interval_ms".to_string(),
+            metrics_config.interval().as_millis().to_string(),
+        )
         .build();
 
     while RUNNING.load(Ordering::Relaxed) && Instant::now() + config.general().interval() <= stop {
