@@ -1,5 +1,17 @@
 ## [Unreleased]
 
+## [5.10.0] - 2024-08-05
+
+### Fixed
+
+- Updated OpenSSL to address RUSTSEC-2024-0357 (#242)
+
+### Added
+
+- `zincr` and `zmscore` re-added for Momento Cache (#237)
+- Metrics sampling interval added to parquet metadata (#245)
+- Momento Store API is now supported (#240)
+
 ## [5.9.1] - 2024-06-13
 
 ### Fixed
@@ -142,7 +154,8 @@
 - Support Momento topics.
 - Basic HTTP/1.1 and HTTP/2.0 load generation.
 
-[unreleased]: https://github.com/iopsystems/rpc-perf/compare/v5.9.1...HEAD/
+[unreleased]: https://github.com/iopsystems/rpc-perf/compare/v5.10.0...HEAD/
+[5.10.0]: https://github.com/iopsystems/rezolus/compare/v5.9.1...v5.10.0
 [5.9.1]: https://github.com/iopsystems/rezolus/compare/v5.9.0...v5.9.1
 [5.9.0]: https://github.com/iopsystems/rezolus/compare/v5.8.0...v5.9.0
 [5.8.0]: https://github.com/iopsystems/rezolus/compare/v5.7.0...v5.8.0

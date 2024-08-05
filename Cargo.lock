@@ -2486,7 +2486,7 @@ dependencies = [
 
 [[package]]
 name = "rpc-perf"
-version = "5.9.1"
+version = "5.10.0"
 dependencies = [
  "ahash",
  "async-channel",
