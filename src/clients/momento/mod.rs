@@ -8,7 +8,11 @@ mod commands;
 use commands::*;
 
 /// Launch tasks with one channel per task as gRPC is mux-enabled.
-pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiver<WorkItem>) {
+pub fn launch_tasks(
+    runtime: &mut Runtime,
+    config: Config,
+    work_receiver: Receiver<ClientWorkItemKind<ClientRequest>>,
+) {
     debug!("launching momento protocol tasks");
 
     for _ in 0..config.client().unwrap().poolsize() {
@@ -29,7 +33,6 @@ pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiv
                         std::process::exit(1);
                     }
                 };
-
             match CacheClient::builder()
                 .default_ttl(Duration::from_secs(900))
                 .configuration(LowLatency::v1())
@@ -58,7 +61,7 @@ async fn task(
     config: Config,
     // cache_name: String,
     mut client: CacheClient,
-    work_receiver: Receiver<WorkItem>,
+    work_receiver: Receiver<ClientWorkItemKind<ClientRequest>>,
 ) -> Result<()> {
     let cache_name = config.target().cache_name().unwrap_or_else(|| {
         eprintln!("cache name is not specified in the `target` section");
@@ -74,7 +77,7 @@ async fn task(
         REQUEST.increment();
         let start = Instant::now();
         let result = match work_item {
-            WorkItem::Request { request, .. } => match request {
+            ClientWorkItemKind::Request { request, .. } => match request {
                 /*
                  * KEY-VALUE
                  */
@@ -163,7 +166,7 @@ async fn task(
                     continue;
                 }
             },
-            WorkItem::Reconnect => {
+            ClientWorkItemKind::Reconnect => {
                 continue;
             }
         };

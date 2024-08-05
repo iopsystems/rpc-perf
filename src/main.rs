@@ -10,6 +10,7 @@ use ringlog::*;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
+use store::launch_store_clients;
 use tokio::runtime::Builder;
 use tokio::sync::RwLock;
 use tokio::time::sleep;
@@ -21,6 +22,7 @@ mod metrics;
 mod net;
 mod output;
 mod pubsub;
+mod store;
 mod workload;
 
 use config::*;
@@ -135,6 +137,7 @@ fn main() {
     // TODO: figure out what a reasonable size is here
     let (client_sender, client_receiver) = bounded(128);
     let (pubsub_sender, pubsub_receiver) = bounded(128);
+    let (store_sender, store_receiver) = bounded(128);
 
     output!("Protocol: {:?}", config.general().protocol());
 
@@ -155,11 +158,19 @@ fn main() {
     control_runtime.spawn(output::log(config.clone()));
 
     // start the workload generator(s)
-    let workload_runtime =
-        launch_workload(workload_generator, &config, client_sender, pubsub_sender);
+    let workload_runtime = launch_workload(
+        workload_generator,
+        &config,
+        client_sender,
+        pubsub_sender,
+        store_sender,
+    );
 
     // start client(s)
     let client_runtime = launch_clients(&config, client_receiver);
+
+    // start store client(s)
+    let store_runtime = launch_store_clients(&config, store_receiver);
 
     // start publisher(s) and subscriber(s)
     let mut pubsub_runtimes = launch_pubsub(&config, pubsub_receiver, &workload_components);
@@ -189,6 +200,10 @@ fn main() {
 
     if let Some(client_runtime) = client_runtime {
         client_runtime.shutdown_timeout(std::time::Duration::from_millis(100));
+    }
+
+    if let Some(store_runtime) = store_runtime {
+        store_runtime.shutdown_timeout(std::time::Duration::from_millis(100));
     }
 
     pubsub_runtimes.shutdown_timeout(std::time::Duration::from_millis(100));

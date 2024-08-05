@@ -10,6 +10,7 @@ use rand_distr::WeightedAliasIndex;
 use rand_xoshiro::{Seed512, Xoshiro512PlusPlus};
 use ratelimit::Ratelimiter;
 use std::collections::{HashMap, HashSet};
+use std::fmt::Debug;
 use std::io::{Result, Write};
 use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
@@ -19,16 +20,20 @@ use zipf::ZipfDistribution;
 pub mod client;
 mod publisher;
 
-pub use client::{ClientRequest, ClientWorkItem};
+pub use client::ClientRequest;
 pub use publisher::PublisherWorkItem;
+
+pub mod store;
+pub use store::StoreClientRequest;
 
 static SEQUENCE_NUMBER: AtomicU64 = AtomicU64::new(0);
 
 pub fn launch_workload(
     generator: Generator,
     config: &Config,
-    client_sender: Sender<ClientWorkItem>,
+    client_sender: Sender<ClientWorkItemKind<ClientRequest>>,
     pubsub_sender: Sender<PublisherWorkItem>,
+    store_sender: Sender<ClientWorkItemKind<StoreClientRequest>>,
 ) -> Runtime {
     debug!("Launching workload...");
 
@@ -47,6 +52,7 @@ pub fn launch_workload(
     for _ in 0..config.workload().threads() {
         let client_sender = client_sender.clone();
         let pubsub_sender = pubsub_sender.clone();
+        let store_sender = store_sender.clone();
         let generator = generator.clone();
 
         // generate the seed for this workload thread
@@ -59,13 +65,15 @@ pub fn launch_workload(
             let mut rng = Xoshiro512PlusPlus::from_seed(Seed512(seed));
 
             while RUNNING.load(Ordering::Relaxed) {
-                generator.generate(&client_sender, &pubsub_sender, &mut rng);
+                generator.generate(&client_sender, &pubsub_sender, &store_sender, &mut rng);
             }
         });
     }
 
     let c = config.clone();
+    let store_c = config.clone();
     workload_rt.spawn_blocking(move || reconnect(client_sender, c));
+    workload_rt.spawn_blocking(move || reconnect(store_sender, store_c));
 
     workload_rt
 }
@@ -112,6 +120,11 @@ impl Generator {
             component_weights.push(topics.weight());
         }
 
+        for store in config.workload().stores() {
+            components.push(Component::Store(Store::new(config, store)));
+            component_weights.push(store.weight());
+        }
+
         if components.is_empty() {
             eprintln!("no workload components were specified in the config");
             std::process::exit(1);
@@ -130,8 +143,9 @@ impl Generator {
 
     pub fn generate(
         &self,
-        client_sender: &Sender<ClientWorkItem>,
+        client_sender: &Sender<ClientWorkItemKind<ClientRequest>>,
         pubsub_sender: &Sender<PublisherWorkItem>,
+        store_sender: &Sender<ClientWorkItemKind<StoreClientRequest>>,
         rng: &mut dyn RngCore,
     ) {
         if let Some(ref ratelimiter) = self.ratelimiter {
@@ -158,6 +172,14 @@ impl Generator {
             Component::Topics(topics) => {
                 if pubsub_sender
                     .try_send(self.generate_pubsub(topics, rng))
+                    .is_err()
+                {
+                    REQUEST_DROPPED.increment();
+                }
+            }
+            Component::Store(store) => {
+                if store_sender
+                    .try_send(self.generate_store_request(store, rng))
                     .is_err()
                 {
                     REQUEST_DROPPED.increment();
@@ -198,7 +220,36 @@ impl Generator {
         }
     }
 
-    fn generate_request(&self, keyspace: &Keyspace, rng: &mut dyn RngCore) -> ClientWorkItem {
+    fn generate_store_request(
+        &self,
+        store: &Store,
+        rng: &mut dyn RngCore,
+    ) -> ClientWorkItemKind<StoreClientRequest> {
+        let command = &store.commands[store.command_dist.sample(rng)];
+        let request = match command.verb() {
+            StoreVerb::Put => StoreClientRequest::Put(store::Put {
+                key: store.sample_string(rng),
+                value: store.gen_value(rng),
+            }),
+            StoreVerb::Get => StoreClientRequest::Get(store::Get {
+                key: store.sample_string(rng),
+            }),
+            StoreVerb::Delete => StoreClientRequest::Delete(store::Delete {
+                key: store.sample_string(rng),
+            }),
+            StoreVerb::Ping => StoreClientRequest::Ping(store::Ping {}),
+        };
+        ClientWorkItemKind::Request {
+            request,
+            sequence: SEQUENCE_NUMBER.fetch_add(1, Ordering::Relaxed),
+        }
+    }
+
+    fn generate_request(
+        &self,
+        keyspace: &Keyspace,
+        rng: &mut dyn RngCore,
+    ) -> ClientWorkItemKind<ClientRequest> {
         let command = &keyspace.commands[keyspace.command_dist.sample(rng)];
 
         let request = match command.verb() {
@@ -394,7 +445,7 @@ impl Generator {
             }),
         };
 
-        ClientWorkItem::Request {
+        ClientWorkItemKind::Request {
             request,
             sequence: SEQUENCE_NUMBER.fetch_add(1, Ordering::Relaxed),
         }
@@ -409,6 +460,7 @@ impl Generator {
 pub enum Component {
     Keyspace(Keyspace),
     Topics(Topics),
+    Store(Store),
 }
 
 #[derive(Clone)]
@@ -686,7 +738,6 @@ impl Keyspace {
         }
 
         let command_dist = WeightedAliasIndex::new(command_weights).unwrap();
-
         Self {
             keys,
             key_dist,
@@ -727,7 +778,123 @@ impl Keyspace {
     }
 }
 
-pub async fn reconnect(work_sender: Sender<ClientWorkItem>, config: Config) -> Result<()> {
+#[derive(Clone)]
+pub struct Store {
+    keys: Vec<Arc<[u8]>>,
+    key_dist: Distribution,
+    commands: Vec<StoreCommand>,
+    command_dist: WeightedAliasIndex<usize>,
+    vlen: usize,
+    vkind: ValueKind,
+    value_random_bytes: usize,
+}
+
+impl Store {
+    pub fn new(config: &Config, store: &config::Store) -> Self {
+        let value_random_bytes =
+            estimate_random_bytes_needed(store.vlen().unwrap_or(0), store.compression_ratio());
+
+        // nkeys must be >= 1
+        let nkeys = std::cmp::max(1, store.nkeys());
+        let klen = store.klen();
+
+        // initialize a PRNG with the default initial seed
+        let mut rng = Xoshiro512PlusPlus::from_seed(config.general().initial_seed());
+
+        // generate the seed for key PRNG
+        let mut raw_seed = [0_u8; 64];
+        rng.fill_bytes(&mut raw_seed);
+        let key_seed = Seed512(raw_seed);
+
+        // generate the seed for inner key PRNG
+        let mut raw_seed = [0_u8; 64];
+        rng.fill_bytes(&mut raw_seed);
+
+        // we use a predictable seed to generate the keys in the store
+        let mut rng = Xoshiro512PlusPlus::from_seed(key_seed);
+        let mut keys = HashSet::with_capacity(nkeys);
+        while keys.len() < nkeys {
+            let key = (&mut rng)
+                .sample_iter(&Alphanumeric)
+                .take(klen)
+                .collect::<Vec<u8>>();
+            let _ = keys.insert(key);
+        }
+        let keys = keys.drain().map(|k| k.into()).collect();
+        let key_dist = match store.key_distribution() {
+            config::Distribution::Uniform => Distribution::Uniform(Uniform::new(0, nkeys)),
+            config::Distribution::Zipf => {
+                Distribution::Zipf(ZipfDistribution::new(nkeys, 1.0).unwrap())
+            }
+        };
+
+        let mut commands = Vec::new();
+        let mut command_weights = Vec::new();
+
+        for command in store.commands() {
+            commands.push(*command);
+            command_weights.push(command.weight());
+
+            // validate that the store is adaquately specified for the given
+            // verb
+
+            // commands that set generated values need a `vlen`
+            if store.vlen().is_none()
+                && store.vkind() == ValueKind::Bytes
+                && matches!(command.verb(), StoreVerb::Put)
+            {
+                eprintln!(
+                    "verb: {:?} requires that the keyspace has a `vlen` set when `vkind` is `bytes`",
+                    command.verb()
+                );
+                std::process::exit(2);
+            }
+        }
+
+        let command_dist = WeightedAliasIndex::new(command_weights).unwrap();
+        Self {
+            keys,
+            key_dist,
+            commands,
+            command_dist,
+            vlen: store.vlen().unwrap_or(0),
+            vkind: store.vkind(),
+            value_random_bytes,
+        }
+    }
+
+    pub fn sample(&self, rng: &mut dyn RngCore) -> Arc<[u8]> {
+        let index = self.key_dist.sample(rng);
+        self.keys[index].clone()
+    }
+
+    pub fn sample_string(&self, rng: &mut dyn RngCore) -> Arc<String> {
+        let keys = self.sample(rng);
+        Arc::new(String::from_utf8_lossy(&keys).into_owned())
+    }
+
+    pub fn gen_value(&self, rng: &mut dyn RngCore) -> Vec<u8> {
+        match self.vkind {
+            ValueKind::I64 => format!("{}", rng.gen::<i64>()).into_bytes(),
+            ValueKind::Bytes => {
+                let mut buf = vec![0_u8; self.vlen];
+                rng.fill(&mut buf[0..self.value_random_bytes]);
+                buf
+            }
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub enum ClientWorkItemKind<T> {
+    Reconnect,
+    Request { request: T, sequence: u64 },
+}
+
+pub async fn reconnect<TRequestKind>(
+    work_sender: Sender<ClientWorkItemKind<TRequestKind>>,
+    config: Config,
+) -> Result<()> {
     if config.client().is_none() {
         return Ok(());
     }
@@ -761,7 +928,7 @@ pub async fn reconnect(work_sender: Sender<ClientWorkItem>, config: Config) -> R
     while RUNNING.load(Ordering::Relaxed) {
         match ratelimiter.try_wait() {
             Ok(_) => {
-                let _ = work_sender.send(ClientWorkItem::Reconnect).await;
+                let _ = work_sender.send(ClientWorkItemKind::Reconnect).await;
             }
             Err(d) => {
                 std::thread::sleep(d);
