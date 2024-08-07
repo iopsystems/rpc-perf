@@ -1167,9 +1167,8 @@ dependencies = [
 [[package]]
 name = "h2"
 version = "0.4.5"
-source = "git+https://github.com/brayniac/h2?branch=performance-mode#fad9477e47e79a5939dce235659ee062fdff86e4"
+source = "git+https://github.com/brayniac/h2?branch=perf-optimized#27ba1573abcd60c27c458f8fb51128316ccba9cb"
 dependencies = [
- "ahash",
  "atomic-waker",
  "bytes",
  "fnv",
