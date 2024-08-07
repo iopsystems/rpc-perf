@@ -10,7 +10,7 @@ pub mod pingpong {
 
 // launch a pool manager and worker tasks since HTTP/2.0 is mux'ed we prepare
 // senders in the pool manager and pass them over a queue to our worker tasks
-pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiver<WorkItem>) {
+pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiver<ClientWorkItemKind<ClientRequest>>) {
     debug!("launching http2 protocol tasks");
 
     for endpoint in config.target().endpoints() {
@@ -34,7 +34,7 @@ pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiv
 async fn task(
     _config: Config,
     mut client: PingClient<Channel>,
-    work_receiver: Receiver<WorkItem>,
+    work_receiver: Receiver<ClientWorkItemKind<ClientRequest>>,
 ) -> Result<()> {
     while RUNNING.load(Ordering::Relaxed) {
         let work_item = work_receiver
@@ -46,7 +46,7 @@ async fn task(
         let start = Instant::now();
         #[allow(clippy::single_match)]
         let result = match work_item {
-            WorkItem::Request { request, .. } => match request {
+            ClientWorkItemKind::Request { request, .. } => match request {
                 ClientRequest::Ping(_) => client
                     .ping(tonic::Request::new(PingRequest {}))
                     .await

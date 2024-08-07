@@ -1,5 +1,4 @@
 use crate::workload::ClientRequest;
-use crate::workload::ClientWorkItem as WorkItem;
 use crate::*;
 
 use ::momento::{MomentoError, MomentoErrorCode};
@@ -7,6 +6,7 @@ use async_channel::Receiver;
 use tokio::io::*;
 use tokio::runtime::Runtime;
 use tokio::time::{timeout, Duration};
+use workload::ClientWorkItemKind;
 
 use std::io::{Error, ErrorKind, Result};
 use std::time::Instant;
@@ -18,7 +18,10 @@ mod momento;
 mod ping;
 mod redis;
 
-pub fn launch_clients(config: &Config, work_receiver: Receiver<WorkItem>) -> Option<Runtime> {
+pub fn launch_clients(
+    config: &Config,
+    work_receiver: Receiver<ClientWorkItemKind<ClientRequest>>,
+) -> Option<Runtime> {
     debug!("Launching clients...");
 
     config.client()?;

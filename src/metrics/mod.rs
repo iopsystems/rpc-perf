@@ -405,16 +405,19 @@ counter!(
     "client/request/dropped",
     "number of requests dropped due to a full work queue"
 );
+
 counter!(
     REQUEST_OK,
     "client/request/ok",
     "requests that were successfully generated and sent"
 );
+
 counter!(
     REQUEST_RECONNECT,
     "client/connect/reconnect",
     "requests to reconnect"
 );
+
 counter!(
     REQUEST_UNSUPPORTED,
     "client/request/unsupported",
@@ -455,26 +458,31 @@ counter!(
     "client/response/exception",
     "responses which encountered some exception while processing"
 );
+
 counter!(
     RESPONSE_RATELIMITED,
     "client/response/ratelimited",
     "backend indicated that we were ratelimited"
 );
+
 counter!(
     RESPONSE_BACKEND_TIMEOUT,
     "client/response/backend_timeout",
     "responses indicating the backend timedout"
 );
+
 counter!(
     RESPONSE_OK,
     "client/response/ok",
     "responses which were successful"
 );
+
 counter!(
     RESPONSE_TIMEOUT,
     "client/response/timeout",
     "responses not received due to timeout"
 );
+
 counter!(
     RESPONSE_INVALID,
     "client/response/invalid",
@@ -625,3 +633,99 @@ counter!(PUBSUB_RECEIVE_CLOSED, "subscriber/receive/closed");
 counter!(PUBSUB_RECEIVE_CORRUPT, "subscriber/receive/corrupt");
 counter!(PUBSUB_RECEIVE_INVALID, "subscriber/receive/invalid");
 counter!(PUBSUB_RECEIVE_OK, "subscriber/receive/ok");
+
+/*
+ * STORE CLIENT
+ *
+ * This is distinct from regular client metrics, as one may want to test
+ * regular cache clients side-by-side with a distinctly configured store client.
+ */
+histogram!(
+    STORE_RESPONSE_LATENCY,
+    "store_response_latency",
+    "distribution of response latencies in nanoseconds."
+);
+
+counter!(STORE_CONNECT, "store_client/connect/total");
+counter!(STORE_CONNECT_OK, "store_client/connect/ok");
+counter!(STORE_CONNECT_EX, "store_client/connect/exception");
+counter!(STORE_CONNECT_TIMEOUT, "store_client/connect/timeout");
+gauge!(STORE_CONNECT_CURR, "store_client/connections/current");
+counter!(
+    STORE_REQUEST,
+    "store_client/request/total",
+    "total requests dequeued"
+);
+counter!(
+    STORE_REQUEST_DROPPED,
+    "store_client/request/dropped",
+    "number of requests dropped due to a full work queue"
+);
+counter!(
+    STORE_REQUEST_OK,
+    "store_client/request/ok",
+    "requests that were successfully generated and sent"
+);
+
+counter!(
+    STORE_REQUEST_RECONNECT,
+    "store_client/connect/reconnect",
+    "requests to reconnect"
+);
+
+counter!(
+    STORE_REQUEST_UNSUPPORTED,
+    "store_client/request/unsupported",
+    "skipped requests due to protocol incompatibility"
+);
+
+counter!(
+    STORE_RESPONSE_EX,
+    "store_client/response/exception",
+    "responses which encountered some exception while processing"
+);
+
+counter!(
+    STORE_RESPONSE_RATELIMITED,
+    "store_client/response/ratelimited",
+    "backend indicated that we were ratelimited"
+);
+
+counter!(
+    STORE_RESPONSE_BACKEND_TIMEOUT,
+    "store_client/response/backend_timeout",
+    "responses indicating the backend timedout"
+);
+
+counter!(
+    STORE_RESPONSE_OK,
+    "store_client/response/ok",
+    "responses which were successful"
+);
+
+counter!(
+    STORE_RESPONSE_TIMEOUT,
+    "store_client/response/timeout",
+    "responses not received due to timeout"
+);
+
+counter!(
+    STORE_RESPONSE_INVALID,
+    "store_client/response/invalid",
+    "responses that were invalid for the protocol"
+);
+
+counter!(STORE_RESPONSE_FOUND, "store_client/response/found");
+counter!(STORE_RESPONSE_NOT_FOUND, "store_client/response/not_found");
+
+/*
+ * STORE
+ */
+request!(STORE_GET, "store_get");
+counter!(STORE_GET_KEY_FOUND, "store_get/found");
+counter!(STORE_GET_KEY_NOT_FOUND, "store_get/not_found");
+
+request!(STORE_PUT, "store_put");
+counter!(STORE_PUT_STORED, "store_put/stored");
+
+request!(STORE_DELETE, "store_delete");

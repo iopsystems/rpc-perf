@@ -1,5 +1,5 @@
+use crate::workload::ClientWorkItemKind;
 use crate::clients::http2::Queue;
-use crate::clients::WorkItem;
 use crate::workload::ClientRequest;
 use crate::*;
 use async_channel::Receiver;
@@ -18,7 +18,7 @@ use tokio::runtime::Runtime;
 
 // launch a pool manager and worker tasks since HTTP/2.0 is mux'ed we prepare
 // senders in the pool manager and pass them over a queue to our worker tasks
-pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiver<WorkItem>) {
+pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiver<ClientWorkItemKind<ClientRequest>>) {
     debug!("launching http2 protocol tasks");
 
     for _ in 0..config.client().unwrap().poolsize() {
@@ -67,7 +67,7 @@ async fn resolve(uri: &str) -> Result<(std::net::SocketAddr, Authority), std::io
     Ok((addr, auth))
 }
 
-pub async fn pool_manager(endpoint: String, config: Config, queue: Queue<SendRequest<Bytes>>) {
+pub async fn pool_manager(endpoint: String, _config: Config, queue: Queue<SendRequest<Bytes>>) {
     let mut client = None;
 
     // let connector = Connector::new(&config).expect("failed to init connector");
@@ -105,9 +105,9 @@ pub async fn pool_manager(endpoint: String, config: Config, queue: Queue<SendReq
 // a task for http/2.0
 #[allow(clippy::slow_vector_initialization)]
 async fn task(
-    work_receiver: Receiver<WorkItem>,
+    work_receiver: Receiver<ClientWorkItemKind<ClientRequest>>,
     endpoint: String,
-    config: Config,
+    _config: Config,
     queue: Queue<SendRequest<Bytes>>,
 ) -> Result<(), std::io::Error> {
     // let mut buffer = Buffer::new(16384);
@@ -123,7 +123,7 @@ async fn task(
         .ok_or(Error::new(ErrorKind::Other, "uri has no authority"))?
         .clone();
 
-    let port = auth.port_u16().unwrap_or(443);
+    let _port = auth.port_u16().unwrap_or(443);
 
     while RUNNING.load(Ordering::Relaxed) {
         let sender = queue.recv().await;
@@ -143,14 +143,14 @@ async fn task(
 
         // compose request into buffer
         match &work_item {
-            WorkItem::Request { request, .. } => match request {
+            ClientWorkItemKind::Request { request, .. } => match request {
                 ClientRequest::Ping(_) => {}
                 _ => {
                     REQUEST_UNSUPPORTED.increment();
                     continue;
                 }
             },
-            WorkItem::Reconnect => {
+            ClientWorkItemKind::Reconnect => {
                 REQUEST_UNSUPPORTED.increment();
                 continue;
             }
