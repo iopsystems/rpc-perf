@@ -1,10 +1,10 @@
+use http::HeaderValue;
 use crate::workload::ClientWorkItemKind;
 use crate::clients::http2::Queue;
 use crate::workload::ClientRequest;
 use crate::*;
 use async_channel::Receiver;
 use bytes::Bytes;
-use chrono::DateTime;
 use chrono::Utc;
 use h2::client::SendRequest;
 use http::uri::Authority;
@@ -156,13 +156,15 @@ async fn task(
             }
         };
 
-        let now: DateTime<Utc> = Utc::now();
+        let mut date = HeaderValue::from_str(&Utc::now().to_rfc2822()).unwrap();
+        date.set_sensitive(true);
+        
         let request = http::request::Builder::new()
             .version(Version::HTTP_2)
             .method(Method::POST)
             .uri(&format!("http://{auth}/pingpong.Ping/Ping"))
             .header("content-type", "application/grpc")
-            .header("date", now.to_rfc2822())
+            .header("date", date)
             .header("user-agent", "unknown/0.0.0")
             .header("te", "trailers")
             .body(())
