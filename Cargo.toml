@@ -32,7 +32,7 @@ once_cell = "1.18.0"
 openssl = { version = "0.10.66", optional = true }
 openssl-sys = { version = "0.9.103", optional = true }
 paste = "1.0.14"
-prost = "0.12"
+prost = "0.13"
 protocol-memcache = { git = "https://github.com/pelikan-io/pelikan" }
 protocol-ping = { git = "https://github.com/pelikan-io/pelikan" }
 rand = "0.8.5"
@@ -51,7 +51,7 @@ tokio = { version = "1.33.0", features = ["full"] }
 tokio-boring = { version = "3.1.0", optional = true }
 tokio-openssl = { version = "0.6.4", optional = true }
 toml = "0.8.2"
-tonic = "0.11"
+tonic = "0.12"
 warp = "0.3.6"
 zipf = "7.0.1"
 flate2 = "1.0.28"
@@ -60,7 +60,7 @@ h2 = "0.4.5"
 http = "1.1.0"
 
 [build-dependencies]
-tonic-build = "0.11"
+tonic-build = "0.12"
 
 [features]
 default = ["openssl"]
