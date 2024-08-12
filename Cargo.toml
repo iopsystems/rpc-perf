@@ -58,6 +58,8 @@ flate2 = "1.0.28"
 pin-project = "1.1.5"
 h2 = "0.4.5"
 http = "1.1.0"
+h3 = "0.0.6"
+quinn = "0.11.3"
 
 [build-dependencies]
 tonic-build = "0.12"
