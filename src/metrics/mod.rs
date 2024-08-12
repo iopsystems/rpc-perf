@@ -1,6 +1,6 @@
 // for now, we use some of the metrics defined in the protocol crates
 
-use metriken::{AtomicHistogram, RwLockHistogram, Value};
+use metriken::{metric, AtomicHistogram, RwLockHistogram, Value};
 pub use protocol_memcache::*;
 
 use ahash::HashMap;
@@ -281,39 +281,6 @@ macro_rules! gauge {
 
 #[macro_export]
 #[rustfmt::skip]
-macro_rules! histogram {
-    ($ident:ident, $name:tt) => {
-        #[metriken::metric(
-            name = $name,
-            crate = metriken
-        )]
-        pub static $ident: metriken::AtomicHistogram = metriken::AtomicHistogram::new(
-            7,
-            64,
-        );
-        paste! {
-            pub static [<$ident _HISTOGRAM>]: &'static str = $name;
-        }
-    };
-    ($ident:ident, $name:tt, $description:tt) => {
-        #[metriken::metric(
-            name = $name,
-            description = $description,
-            crate = metriken
-        )]
-        pub static $ident: metriken::AtomicHistogram = metriken::AtomicHistogram::new(
-            7,
-            64,
-        );
-        paste! {
-            #[allow(dead_code)]
-            pub static [<$ident _HISTOGRAM>]: &'static str = $name;
-        }
-    };
-}
-
-#[macro_export]
-#[rustfmt::skip]
 macro_rules! request {
     ($ident:ident, $name:tt) => {
         #[metriken::metric(
@@ -376,21 +343,37 @@ macro_rules! request {
     }
 }
 
-histogram!(
-    RESPONSE_LATENCY,
-    "response_latency",
-    "distribution of response latencies in nanoseconds."
-);
+#[metric(
+    name = RESPONSE_LATENCY_HISTOGRAM,
+    description = "Distribution of response latencies",
+    metadata = { unit = "nanoseconds" }
+)]
+pub static RESPONSE_LATENCY: AtomicHistogram = AtomicHistogram::new(7, 64);
+pub static RESPONSE_LATENCY_HISTOGRAM: &str = "response_latency";
 
-histogram!(
-    SESSION_LIFECYCLE_REQUESTS,
-    "session_lifecycle_requests",
-    "distribution of requests per session lifecycle. incremented at time of session close."
-);
+#[metric(
+    name = SESSION_LIFECYCLE_REQUESTS_HISTOGRAM,
+    description = "Distribution of requests per session lifecycle. Incremented at time of session close.",
+    metadata = { unit = "requests" }
+)]
+pub static SESSION_LIFECYCLE_REQUESTS: AtomicHistogram = AtomicHistogram::new(7, 64);
+pub static SESSION_LIFECYCLE_REQUESTS_HISTOGRAM: &str = "session_lifecycle_requests";
 
-histogram!(PUBSUB_LATENCY, "pubsub_latency");
+#[metric(
+    name = PUBSUB_LATENCY_HISTOGRAM,
+    description = "Distribution of end-to-end publish to receive latencies.",
+    metadata = { unit = "nanoseconds" }
+)]
+pub static PUBSUB_LATENCY: AtomicHistogram = AtomicHistogram::new(7, 64);
+pub static PUBSUB_LATENCY_HISTOGRAM: &str = "pubsub_latency";
 
-histogram!(PUBSUB_PUBLISH_LATENCY, "pubsub_publish_latency");
+#[metric(
+    name = PUBSUB_PUBLISH_LATENCY_HISTOGRAM,
+    description = "Distribution of publish latencies.",
+    metadata = { unit = "nanoseconds" }
+)]
+pub static PUBSUB_PUBLISH_LATENCY: AtomicHistogram = AtomicHistogram::new(7, 64);
+pub static PUBSUB_PUBLISH_LATENCY_HISTOGRAM: &str = "pubsub_publish_latency";
 
 gauge!(RATELIMIT_CURR, "ratelimit/current");
 counter!(RATELIMIT_DROPPED, "ratelimit/dropped");
@@ -640,11 +623,13 @@ counter!(PUBSUB_RECEIVE_OK, "subscriber/receive/ok");
  * This is distinct from regular client metrics, as one may want to test
  * regular cache clients side-by-side with a distinctly configured store client.
  */
-histogram!(
-    STORE_RESPONSE_LATENCY,
-    "store_response_latency",
-    "distribution of response latencies in nanoseconds."
-);
+#[metric(
+    name = STORE_RESPONSE_LATENCY_HISTOGRAM,
+    description = "Distribution of storage client response latencies",
+    metadata = { unit = "nanoseconds" }
+)]
+pub static STORE_RESPONSE_LATENCY: AtomicHistogram = AtomicHistogram::new(7, 64);
+pub static STORE_RESPONSE_LATENCY_HISTOGRAM: &str = "store_response_latency";
 
 counter!(STORE_CONNECT, "store_client/connect/total");
 counter!(STORE_CONNECT_OK, "store_client/connect/ok");
