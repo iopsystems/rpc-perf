@@ -1212,7 +1212,8 @@ dependencies = [
 [[package]]
 name = "h2"
 version = "0.4.5"
-source = "git+https://github.com/brayniac/h2?branch=perf-optimized#7eca136e57d68e0361d34ca89bef369eb7543c88"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fa82e28a107a8cc405f0839610bdc9b15f1e25ec7d696aa5cf173edbcb1486ab"
 dependencies = [
  "atomic-waker",
  "bytes",

@@ -97,4 +97,4 @@ debug = true
 opt-level = 0
 
 [patch.crates-io]
-h2 = { git = 'https://github.com/brayniac/h2', branch = "perf-optimized" }
+#h2 = { git = 'https://github.com/brayniac/h2', branch = "perf-optimized" }
