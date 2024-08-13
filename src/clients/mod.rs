@@ -46,6 +46,9 @@ pub fn launch_clients(
         Protocol::Http2Ping => {
             clients::ping::http2::launch_tasks(&mut client_rt, config.clone(), work_receiver)
         }
+        Protocol::Http3Ping => {
+            clients::ping::http3::launch_tasks(&mut client_rt, config.clone(), work_receiver)
+        }
         Protocol::Memcache => {
             clients::memcache::launch_tasks(&mut client_rt, config.clone(), work_receiver)
         }

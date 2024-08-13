@@ -8,6 +8,7 @@ pub enum Protocol {
     Http1,
     Http2,
     Http2Ping,
+    Http3Ping,
     Memcache,
     Momento,
     Ping,
