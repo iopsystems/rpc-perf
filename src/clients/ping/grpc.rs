@@ -10,7 +10,11 @@ pub mod pingpong {
 
 // launch a pool manager and worker tasks since HTTP/2.0 is mux'ed we prepare
 // senders in the pool manager and pass them over a queue to our worker tasks
-pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiver<ClientWorkItemKind<ClientRequest>>) {
+pub fn launch_tasks(
+    runtime: &mut Runtime,
+    config: Config,
+    work_receiver: Receiver<ClientWorkItemKind<ClientRequest>>,
+) {
     debug!("launching http2 protocol tasks");
 
     for endpoint in config.target().endpoints() {

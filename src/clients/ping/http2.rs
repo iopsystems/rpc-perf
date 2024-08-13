@@ -1,13 +1,13 @@
-use http::HeaderValue;
-use crate::workload::ClientWorkItemKind;
 use crate::clients::http2::Queue;
 use crate::workload::ClientRequest;
+use crate::workload::ClientWorkItemKind;
 use crate::*;
 use async_channel::Receiver;
 use bytes::Bytes;
 use chrono::Utc;
 use h2::client::SendRequest;
 use http::uri::Authority;
+use http::HeaderValue;
 use http::Method;
 use http::Version;
 use std::io::Error;
@@ -18,7 +18,11 @@ use tokio::runtime::Runtime;
 
 // launch a pool manager and worker tasks since HTTP/2.0 is mux'ed we prepare
 // senders in the pool manager and pass them over a queue to our worker tasks
-pub fn launch_tasks(runtime: &mut Runtime, config: Config, work_receiver: Receiver<ClientWorkItemKind<ClientRequest>>) {
+pub fn launch_tasks(
+    runtime: &mut Runtime,
+    config: Config,
+    work_receiver: Receiver<ClientWorkItemKind<ClientRequest>>,
+) {
     debug!("launching http2 protocol tasks");
 
     for _ in 0..config.client().unwrap().poolsize() {
@@ -158,7 +162,7 @@ async fn task(
 
         let mut date = HeaderValue::from_str(&Utc::now().to_rfc2822()).unwrap();
         date.set_sensitive(true);
-        
+
         let request = http::request::Builder::new()
             .version(Version::HTTP_2)
             .method(Method::POST)
