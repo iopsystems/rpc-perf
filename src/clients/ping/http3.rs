@@ -92,6 +92,8 @@ fn root_cert_store(config: &Config) -> rustls::RootCertStore {
     if let Some(Some(ca_file)) = config.tls().map(|c| c.ca_file()) {
         if let Err(e) = roots.add(CertificateDer::from(std::fs::read(ca_file).unwrap())) {
             eprintln!("failed to parse trust anchor: {}", e);
+        } else {
+            eprintln!("added cert from file: {ca_file}");
         }
     }
 
