@@ -85,9 +85,9 @@ fn root_cert_store() -> rustls::RootCertStore {
         }
     };
 
-    if let Err(e) = roots.add(CertificateDer::from(std::fs::read("ca.cert").unwrap())) {
-        eprintln!("failed to parse trust anchor: {}", e);
-    }
+    // if let Err(e) = roots.add(CertificateDer::from(std::fs::read("ca.cert").unwrap())) {
+    //     eprintln!("failed to parse trust anchor: {}", e);
+    // }
 
     roots
 }
