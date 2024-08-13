@@ -121,7 +121,6 @@ pub async fn pool_manager(
 
     while RUNNING.load(Ordering::Relaxed) {
         if client.is_none() {
-            println!("connecting");
             CONNECT.increment();
 
             if let Ok((addr, auth)) = resolve(&endpoint).await {
@@ -189,8 +188,6 @@ async fn task(
     while RUNNING.load(Ordering::Relaxed) {
         let sender = queue.recv().await;
 
-        eprintln!("got sender");
-
         if sender.is_err() {
             continue;
         }
@@ -236,14 +233,18 @@ async fn task(
         let start = Instant::now();
 
         if let Ok(mut stream) = sender.send_request(request).await {
-            eprintln!("sent headers");
             if stream
                 .send_data(Bytes::from(vec![0, 0, 0, 0, 0]))
                 .await
                 .is_ok()
             {
-                eprintln!("sent body");
                 REQUEST_OK.increment();
+
+                if stream.finish().await.is_err() {
+                    continue;
+                } else {
+                    REQUEST_OK.increment();
+                }
 
                 if let Ok(_response) = stream.recv_response().await {
                     let stop = Instant::now();
