@@ -128,7 +128,9 @@ pub async fn pool_manager(endpoint: String, _config: Config, queue: Queue<SendRe
 
                     client_endpoint.set_default_client_config(client_config);
 
-                    if let Ok(quic_conn) = client_endpoint.connect(addr, auth.host()).unwrap().await {
+                    if let Ok(quic_conn) = client_endpoint.connect(addr, auth.host()).unwrap().await.map_err(|e| {
+                        eprintln!("failed to create http3 client: {e}");
+                    }) {
                         let quinn_conn = h3_quinn::Connection::new(quic_conn);
 
                         if let Ok((mut driver, send_request)) = ::h3::client::new(quinn_conn).await {
