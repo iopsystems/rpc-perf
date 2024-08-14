@@ -238,8 +238,6 @@ async fn task(
                 .await
                 .is_ok()
             {
-                REQUEST_OK.increment();
-
                 if stream.finish().await.is_err() {
                     continue;
                 } else {
