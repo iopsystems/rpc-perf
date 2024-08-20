@@ -360,11 +360,18 @@ pub async fn metrics(config: Config) {
                 Snapshot::to_msgpack(&snapshot).expect("failed to serialize")
             }
         };
-        let _ = writer.write_all(&buf).await;
+        if let Err(e) = writer.write_all(&buf).await {
+            eprintln!("error writing metrics output: {}", e);
+            std::process::exit(1);
+        }
     }
 
-    let _ = writer.flush().await;
-    drop(writer);
+    if let Err(e) = writer.flush().await {
+        eprintln!("error writing metrics output: {}", e);
+        std::process::exit(1);
+    }
+
+    std::mem::forget(writer.into_inner());
 
     // Post-process metrics into a parquet file
     if metrics_config.format() == MetricsFormat::Parquet {
