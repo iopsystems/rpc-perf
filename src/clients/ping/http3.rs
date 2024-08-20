@@ -30,7 +30,7 @@ pub fn launch_tasks(
     for _ in 0..config.client().unwrap().poolsize() {
         for endpoint in config.target().endpoints() {
             // for each endpoint have poolsize # of pool_managers, each managing
-            // a single TCP stream
+            // a single H3 stream
 
             let queue = Queue::new(1);
             runtime.spawn(pool_manager(
@@ -39,8 +39,8 @@ pub fn launch_tasks(
                 queue.clone(),
             ));
 
-            // since HTTP/2.0 allows muxing several sessions onto a single TCP
-            // stream, we launch one task for each session on this TCP stream
+            // since HTTP/3.0 allows muxing several sessions onto a single H3
+            // stream, we launch one task for each session on this H3 stream
             for _ in 0..config.client().unwrap().concurrency() {
                 runtime.spawn(task(
                     work_receiver.clone(),
@@ -147,22 +147,32 @@ pub async fn pool_manager(
 
                         if let Ok((mut driver, send_request)) = ::h3::client::new(quinn_conn).await
                         {
+                            CONNECT_OK.increment();
+                            CONNECT_CURR.increment();
+
                             tokio::spawn(async move {
                                 let _ = core::future::poll_fn(|cx| driver.poll_close(cx)).await;
                             });
 
                             client = Some(send_request);
+
+                            continue;
                         }
                     }
                 }
             }
+
+            // Successfully negotiated connections result in early continue back
+            // to the top of the loop. If we hit this, that means there was some
+            // exception during connection establishment / negotiation.
+            CONNECT_EX.increment();
         } else if let Some(s) = client.clone() {
             let _ = queue.send(s).await;
         }
     }
 }
 
-// a task for http/2.0
+// a task for HTTP/3.0
 #[allow(clippy::slow_vector_initialization)]
 async fn task(
     work_receiver: Receiver<ClientWorkItemKind<ClientRequest>>,
@@ -170,10 +180,6 @@ async fn task(
     _config: Config,
     queue: Queue<SendRequest<h3_quinn::OpenStreams, Bytes>>,
 ) -> Result<(), std::io::Error> {
-    // let mut buffer = Buffer::new(16384);
-    // let parser = protocol_ping::ResponseParser::new();
-    // let mut sender = None;
-
     let uri = endpoint
         .parse::<http::Uri>()
         .map_err(|_| Error::new(ErrorKind::Other, "failed to parse uri"))?;

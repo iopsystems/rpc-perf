@@ -93,11 +93,21 @@ pub async fn pool_manager(endpoint: String, _config: Config, queue: Queue<SendRe
                         });
 
                         if let Ok(h2) = h2.ready().await {
+                            CONNECT_OK.increment();
+                            CONNECT_CURR.increment();
+
                             client = Some(h2);
+
+                            continue;
                         }
                     }
                 }
             }
+
+            // Successfully negotiated connections result in early continue back
+            // to the top of the loop. If we hit this, that means there was some
+            // exception during connection establishment / negotiation.
+            CONNECT_EX.increment();
         } else if let Ok(s) = client.clone().unwrap().ready().await {
             let _ = queue.send(s).await;
         } else {
@@ -114,10 +124,6 @@ async fn task(
     _config: Config,
     queue: Queue<SendRequest<Bytes>>,
 ) -> Result<(), std::io::Error> {
-    // let mut buffer = Buffer::new(16384);
-    // let parser = protocol_ping::ResponseParser::new();
-    // let mut sender = None;
-
     let uri = endpoint
         .parse::<http::Uri>()
         .map_err(|_| Error::new(ErrorKind::Other, "failed to parse uri"))?;

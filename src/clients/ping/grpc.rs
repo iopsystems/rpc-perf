@@ -19,17 +19,25 @@ pub fn launch_tasks(
 
     for endpoint in config.target().endpoints() {
         for _ in 0..config.client().unwrap().poolsize() {
-            let _ = runtime.enter();
+            while RUNNING.load(Ordering::Relaxed) {
+                let endpoint = endpoint.clone();
 
-            let endpoint = endpoint.clone();
+                CONNECT.increment();
 
-            let client = runtime
-                .block_on(async { PingClient::connect(endpoint).await })
-                .unwrap();
+                let _ = runtime.enter();
 
-            // create one task per channel
-            for _ in 0..config.client().unwrap().concurrency() {
-                runtime.spawn(task(config.clone(), client.clone(), work_receiver.clone()));
+                if let Ok(client) = runtime.block_on(async { PingClient::connect(endpoint).await })
+                {
+                    CONNECT_OK.increment();
+                    CONNECT_CURR.increment();
+
+                    // create one task per channel
+                    for _ in 0..config.client().unwrap().concurrency() {
+                        runtime.spawn(task(config.clone(), client.clone(), work_receiver.clone()));
+                    }
+                } else {
+                    CONNECT_EX.increment();
+                }
             }
         }
     }
