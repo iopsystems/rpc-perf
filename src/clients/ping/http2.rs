@@ -89,7 +89,7 @@ pub async fn pool_manager(endpoint: String, _config: Config, queue: Queue<SendRe
 
                     if let Ok((h2, connection)) = ::h2::client::handshake(tcp).await {
                         tokio::spawn(async move {
-                            connection.await.unwrap();
+                            let _ = connection.await;
                         });
 
                         if let Ok(h2) = h2.ready().await {
