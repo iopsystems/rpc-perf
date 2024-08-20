@@ -24,7 +24,7 @@ histogram = "0.11.0"
 humantime = "2.1.0"
 hyper = { version = "1.0.0-rc.4", features = ["http1", "http2", "client"]}
 metriken = "0.7.0"
-metriken-exposition = { version = "0.9.0", features = ["json", "parquet-conversion"] }
+metriken-exposition = { version = "0.9.1", features = ["json", "parquet-conversion"] }
 mio = "0.8.8"
 momento = "0.42.0"
 pelikan-net = { version = "0.4.1", default-features = false }
