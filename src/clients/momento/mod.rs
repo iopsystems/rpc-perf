@@ -7,6 +7,8 @@ mod commands;
 
 use commands::*;
 
+pub mod http;
+
 /// Launch tasks with one channel per task as gRPC is mux-enabled.
 pub fn launch_tasks(
     runtime: &mut Runtime,
@@ -59,7 +61,6 @@ pub fn launch_tasks(
 
 async fn task(
     config: Config,
-    // cache_name: String,
     mut client: CacheClient,
     work_receiver: Receiver<ClientWorkItemKind<ClientRequest>>,
 ) -> Result<()> {

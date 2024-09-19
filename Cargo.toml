@@ -53,6 +53,12 @@ toml = "0.8.2"
 warp = "0.3.6"
 zipf = "7.0.1"
 flate2 = "1.0.28"
+url-escape = "0.1.1"
+h2 = "0.4.6"
+http = "1.1.0"
+tokio-rustls = "0.26.0"
+rustls = "0.23.13"
+webpki-roots = "0.26.5"
 
 [features]
 default = ["openssl"]
@@ -63,9 +69,9 @@ openssl = ["dep:openssl", "openssl-sys", "openssl/vendored", "tokio-openssl", "p
 opt-level = 3
 debug = true
 rpath = false
-lto = true
+lto = "thin"
 debug-assertions = false
-codegen-units = 1
+# codegen-units = 1
 
 [profile.bench]
 opt-level = 3

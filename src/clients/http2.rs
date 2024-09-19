@@ -9,7 +9,7 @@ use hyper::{Request, Uri};
 use std::future::Future;
 
 #[derive(Clone)]
-struct Queue<T> {
+pub struct Queue<T> {
     tx: async_channel::Sender<T>,
     rx: async_channel::Receiver<T>,
 }

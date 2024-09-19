@@ -46,6 +46,9 @@ pub fn launch_clients(
         Protocol::Momento => {
             clients::momento::launch_tasks(&mut client_rt, config.clone(), work_receiver)
         }
+        Protocol::MomentoHttp => {
+            clients::momento::http::launch_tasks(&mut client_rt, config.clone(), work_receiver)
+        }
         Protocol::Ping => {
             clients::ping::launch_tasks(&mut client_rt, config.clone(), work_receiver)
         }
