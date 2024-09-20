@@ -12,4 +12,5 @@ pub enum Protocol {
     Ping,
     Resp,
     Kafka,
+    S3,
 }

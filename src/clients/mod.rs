@@ -12,7 +12,7 @@ use std::io::{Error, ErrorKind, Result};
 use std::time::Instant;
 
 mod http1;
-mod http2;
+pub mod http2;
 mod memcache;
 mod momento;
 mod ping;
@@ -63,6 +63,7 @@ pub fn launch_clients(
             error!("keyspace is not supported for the blabber protocol");
             std::process::exit(1);
         }
+        Protocol::S3 => {}
     }
 
     Some(client_rt)

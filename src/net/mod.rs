@@ -1,5 +1,5 @@
 use crate::error;
-use crate::Config;
+use crate::{Config, Tls};
 
 use std::io::Result;
 
@@ -39,19 +39,10 @@ pub struct Connector {
 
 impl Connector {
     pub fn new(config: &Config) -> Result<Self> {
-        if config.tls().is_none() {
-            Self::plaintext()
+        if let Some(tls_config) = config.tls() {
+            Self::tls(tls_config)
         } else {
-            match SslProvider::default() {
-                #[cfg(feature = "boringssl")]
-                SslProvider::Boringssl => Self::boringssl(config),
-                #[cfg(feature = "openssl")]
-                SslProvider::Openssl => Self::openssl(config),
-                SslProvider::Unknown => {
-                    error!("no TLS/SSL provider could be found. Check that rpc-perf was built with either boringssl or openssl support");
-                    std::process::exit(1);
-                }
-            }
+            Self::plaintext()
         }
     }
 
@@ -61,16 +52,21 @@ impl Connector {
         })
     }
 
-    #[cfg(feature = "boringssl")]
-    fn boringssl(config: &Config) -> Result<Self> {
-        if config.tls().is_none() {
-            return Ok(Connector {
-                inner: ConnectorImpl::Tcp,
-            });
+    pub fn tls(tls_config: &Tls) -> Result<Self> {
+        match SslProvider::default() {
+            #[cfg(feature = "boringssl")]
+            SslProvider::Boringssl => Self::boringssl(tls_config),
+            #[cfg(feature = "openssl")]
+            SslProvider::Openssl => Self::openssl(tls_config),
+            SslProvider::Unknown => {
+                error!("no TLS/SSL provider could be found. Check that rpc-perf was built with either boringssl or openssl support");
+                std::process::exit(1);
+            }
         }
+    }
 
-        let tls_config = config.tls().unwrap();
-
+    #[cfg(feature = "boringssl")]
+    fn boringssl(tls_config: &TlsConfig) -> Result<Self> {
         let private_key = tls_config.private_key();
         let certificate = tls_config.certificate();
         let certificate_chain = tls_config.certificate_chain();
@@ -123,15 +119,7 @@ impl Connector {
     }
 
     #[cfg(feature = "openssl")]
-    fn openssl(config: &Config) -> Result<Self> {
-        if config.tls().is_none() {
-            return Ok(Connector {
-                inner: ConnectorImpl::Tcp,
-            });
-        }
-
-        let tls_config = config.tls().unwrap();
-
+    fn openssl(tls_config: &Tls) -> Result<Self> {
         let private_key = tls_config.private_key();
         let certificate = tls_config.certificate();
         let certificate_chain = tls_config.certificate_chain();

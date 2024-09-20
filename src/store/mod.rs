@@ -8,6 +8,7 @@ use tokio::runtime::Runtime;
 use workload::{ClientWorkItemKind, StoreClientRequest};
 
 mod momento;
+mod s3;
 
 pub fn launch_store_clients(
     config: &Config,
@@ -30,8 +31,9 @@ pub fn launch_store_clients(
 
     match config.general().protocol() {
         Protocol::Momento => momento::launch_tasks(&mut client_rt, config.clone(), work_receiver),
-        _ => {
-            error!("momento protocol is the only supported store protocol");
+        Protocol::S3 => s3::launch_tasks(&mut client_rt, config.clone(), work_receiver),
+        other => {
+            error!("{:?} is not a supported store protocol", other);
             std::process::exit(1);
         }
     }
