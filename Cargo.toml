@@ -11,8 +11,6 @@ license = "MIT OR Apache-2.0"
 [dependencies]
 ahash = "0.8.3"
 async-channel = "1.9.0"
-aws-config = { version = "1.1.7", features = ["behavior-version-latest"] }
-aws-sdk-s3 = "1.51.0"
 backtrace = "0.3.69"
 boring = { version = "3.1.0", optional = true }
 boring-sys = { version = "3.1.0", optional = true }
@@ -65,7 +63,6 @@ sha1 = "0.10.6"
 hmac = "0.12.1"
 hyper-rustls = "0.27.3"
 hyper-util = { version = "0.1.8", features = ["full"] }
-client = "0.1.1-beta1"
 hex = "0.4.3"
 
 [features]

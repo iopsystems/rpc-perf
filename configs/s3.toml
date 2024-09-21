@@ -76,9 +76,9 @@ vlen = 128
 # controls what commands will be used in this keyspace
 commands = [
 	# get a value
-	# { verb = "get", weight = 80 },
+	{ verb = "get", weight = 80 },
 	# set a value
-	# { verb = "put", weight = 19 },
+	{ verb = "put", weight = 19 },
 	# # delete a value
 	{ verb = "delete", weight = 1 },
 ]
