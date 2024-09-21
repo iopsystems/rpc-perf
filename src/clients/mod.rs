@@ -57,15 +57,10 @@ pub fn launch_clients(
         Protocol::Resp => {
             clients::redis::launch_tasks(&mut client_rt, config.clone(), work_receiver)
         }
-        Protocol::Kafka => {
-            error!("keyspace is not supported for the kafka protocol");
+        other => {
+            error!("keyspace is not supported for the {:?} protocol", other);
             std::process::exit(1);
         }
-        Protocol::Blabber => {
-            error!("keyspace is not supported for the blabber protocol");
-            std::process::exit(1);
-        }
-        Protocol::S3 => {}
     }
 
     Some(client_rt)

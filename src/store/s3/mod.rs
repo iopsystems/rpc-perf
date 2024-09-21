@@ -1,27 +1,23 @@
 use crate::workload::ClientWorkItemKind;
 use crate::workload::StoreClientRequest;
 use crate::*;
+
 use async_channel::Receiver;
 use bytes::Bytes;
-use chrono::DateTime;
-use chrono::Utc;
-use futures::Future;
-use hmac::{Hmac, Mac};
-use http::HeaderMap;
-use http::Method;
-use http::Version;
-use http_body_util::BodyExt;
-use http_body_util::Full;
-use hyper::rt::Executor;
+use chrono::{DateTime, Utc};
+use http::{HeaderMap, Method, Version};
+use http_body_util::{BodyExt, Full};
 use hyper_rustls::ConfigBuilderExt;
 use hyper_util::client::legacy::Client;
-use sha2::digest::FixedOutput;
-use sha2::Digest;
-use sha2::Sha256;
-use std::io::Error;
-use std::io::ErrorKind;
-use std::time::Instant;
+use hyper_util::rt::TokioExecutor;
 use tokio::runtime::Runtime;
+
+use std::io::{Error, ErrorKind};
+use std::time::Instant;
+
+mod aws_helpers;
+
+use aws_helpers::*;
 
 // launch a pool manager and worker tasks since HTTP/2.0 is mux'ed we prepare
 // senders in the pool manager and pass them over a queue to our worker tasks
@@ -44,19 +40,6 @@ pub fn launch_tasks(
                 config.clone(),
             ));
         }
-    }
-}
-
-#[derive(Clone)]
-struct TokioExecutor;
-
-impl<F> Executor<F> for TokioExecutor
-where
-    F: Future + Send + 'static,
-    F::Output: Send + 'static,
-{
-    fn execute(&self, future: F) {
-        tokio::spawn(future);
     }
 }
 
@@ -123,7 +106,7 @@ async fn task(
             CONNECT.increment();
 
             let c: Client<_, Full<Bytes>> =
-                Client::builder(TokioExecutor {}).build(connector.clone());
+                Client::builder(TokioExecutor::new()).build(connector.clone());
 
             client = Some(c);
 
@@ -442,59 +425,4 @@ impl S3RequestBuilder {
 
         s
     }
-}
-
-/* the code below was taken from AWS Rust SDK */
-
-/*
- * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
- * SPDX-License-Identifier: Apache-2.0
- */
-
-/// Generates a signing key for Sigv4
-pub fn generate_signing_key(
-    secret: &str,
-    date: &str,
-    region: &str,
-    service: &str,
-) -> impl AsRef<[u8]> {
-    // kSecret = your secret access key
-    // kDate = HMAC("AWS4" + kSecret, Date)
-    // kRegion = HMAC(kDate, Region)
-    // kService = HMAC(kRegion, Service)
-    // kSigning = HMAC(kService, "aws4_request")
-
-    let secret = format!("AWS4{}", secret);
-    let mut mac =
-        Hmac::<Sha256>::new_from_slice(secret.as_ref()).expect("HMAC can take key of any size");
-    mac.update(date.as_bytes());
-    let tag = mac.finalize_fixed();
-
-    // sign region
-    let mut mac = Hmac::<Sha256>::new_from_slice(&tag).expect("HMAC can take key of any size");
-    mac.update(region.as_bytes());
-    let tag = mac.finalize_fixed();
-
-    // sign service
-    let mut mac = Hmac::<Sha256>::new_from_slice(&tag).expect("HMAC can take key of any size");
-    mac.update(service.as_bytes());
-    let tag = mac.finalize_fixed();
-
-    // sign request
-    let mut mac = Hmac::<Sha256>::new_from_slice(&tag).expect("HMAC can take key of any size");
-    mac.update("aws4_request".as_bytes());
-    mac.finalize_fixed()
-}
-
-pub fn calculate_signature(signing_key: impl AsRef<[u8]>, string_to_sign: &[u8]) -> String {
-    let mut mac = Hmac::<Sha256>::new_from_slice(signing_key.as_ref())
-        .expect("HMAC can take key of any size");
-    mac.update(string_to_sign);
-    hex::encode(mac.finalize_fixed())
-}
-
-pub fn sha256_sum(bytes: impl AsRef<[u8]>) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(bytes);
-    hex::encode(hasher.finalize_fixed())
 }

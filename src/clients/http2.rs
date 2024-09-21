@@ -1,34 +1,12 @@
-use super::*;
+use crate::clients::common::*;
+use crate::clients::*;
 use crate::net::Connector;
 use bytes::Bytes;
 use http_body_util::Empty;
 use hyper::client::conn::http2::SendRequest;
 use hyper::header::{HeaderName, HeaderValue};
-use hyper::rt::Executor;
 use hyper::{Request, Uri};
-use std::future::Future;
-
-#[derive(Clone)]
-pub struct Queue<T> {
-    tx: async_channel::Sender<T>,
-    rx: async_channel::Receiver<T>,
-}
-
-impl<T> Queue<T> {
-    pub fn new(size: usize) -> Self {
-        let (tx, rx) = async_channel::bounded::<T>(size);
-
-        Self { tx, rx }
-    }
-
-    pub async fn send(&self, item: T) -> std::result::Result<(), async_channel::SendError<T>> {
-        self.tx.send(item).await
-    }
-
-    pub async fn recv(&self) -> std::result::Result<T, async_channel::RecvError> {
-        self.rx.recv().await
-    }
-}
+use hyper_util::rt::TokioExecutor;
 
 // launch a pool manager and worker tasks since HTTP/2.0 is mux'ed we prepare
 // senders in the pool manager and pass them over a queue to our worker tasks
@@ -65,19 +43,6 @@ pub fn launch_tasks(
     }
 }
 
-#[derive(Clone)]
-struct TokioExecutor;
-
-impl<F> Executor<F> for TokioExecutor
-where
-    F: Future + Send + 'static,
-    F::Output: Send + 'static,
-{
-    fn execute(&self, future: F) {
-        tokio::spawn(future);
-    }
-}
-
 async fn pool_manager(endpoint: String, config: Config, queue: Queue<SendRequest<Empty<Bytes>>>) {
     let connector = Connector::new(&config).expect("failed to init connector");
     let mut sender = None;
@@ -105,7 +70,7 @@ async fn pool_manager(endpoint: String, config: Config, queue: Queue<SendRequest
             };
 
             let (s, conn) =
-                match hyper::client::conn::http2::handshake(TokioExecutor {}, stream).await {
+                match hyper::client::conn::http2::handshake(TokioExecutor::new(), stream).await {
                     Ok((s, c)) => (s, c),
                     Err(_e) => {
                         CONNECT_EX.increment();
