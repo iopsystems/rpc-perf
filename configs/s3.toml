@@ -1,11 +1,4 @@
-# An example configuration for benchmarking Momento (https://www.gomomento.com)
-# and demonstrating the use of the preview functionality for collections. Each
-# command family is using its own keyspace and covers key-value, hash, list,
-# set, and sorted set.
-#
-# Expiration: unless otherwise specified, the default TTL of 15 minutes will be
-# used. Commands which operate on collections will not refresh the TTL for the
-# collection.
+# An example configuration for benchmarking AWS S3 over the HTTP REST API.
 
 [general]
 # specify the protocol to be used
