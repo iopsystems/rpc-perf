@@ -48,13 +48,17 @@ log_backup = "rpc-perf.log.old"
 log_max_size = 1073741824
 
 [target]
-# we don't need to specify any endpoints for momento
-endpoints = ["https://rpctest.s3.us-west-2.amazonaws.com"]
+# we provide a vHost bucket URL as the target:
+endpoints = ["https://[BUCKET_NAME].s3.[REGION].amazonaws.com"]
 
 [storage]
 # number of threads used to drive requests
 threads = 4
+# number of concurrent connections to have open to S3. Since the underlying
+# protocol is HTTP/1.1, there is no mux/concurrency per connection.
 poolsize = 1
+
+# currently these timeouts are ignored but are required config fields
 request_timeout = 1000
 connect_timeout = 100000
 
