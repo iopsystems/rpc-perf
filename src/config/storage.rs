@@ -9,8 +9,6 @@ pub struct Storage {
     concurrency: usize,
     /// Request timeout
     request_timeout: u64,
-    /// Connection timeout.
-    connect_timeout: u64,
     // number of threads for client tasks
     threads: usize,
     store_name: Option<String>,
@@ -35,9 +33,5 @@ impl Storage {
 
     pub fn store_name(&self) -> Option<&str> {
         self.store_name.as_deref()
-    }
-
-    pub fn connect_timeout(&self) -> Duration {
-        Duration::from_millis(self.connect_timeout)
     }
 }

@@ -58,9 +58,8 @@ threads = 4
 # protocol is HTTP/1.1, there is no mux/concurrency per connection.
 poolsize = 1
 
-# currently these timeouts are ignored but are required config fields
+# currently this timeout is ignored but is a required config field
 request_timeout = 1000
-connect_timeout = 100000
 
 [workload]
 # the number of threads that will be used to generate the workload

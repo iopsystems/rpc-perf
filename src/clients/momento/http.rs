@@ -1,21 +1,20 @@
-use crate::clients::http2::Queue;
+use crate::clients::common::*;
 use crate::workload::ClientRequest;
 use crate::workload::ClientWorkItemKind;
 use crate::*;
+
 use async_channel::Receiver;
 use bytes::Bytes;
 use h2::client::SendRequest;
-use http::uri::Authority;
-use http::Method;
-use http::Version;
+use http::{Method, Version};
 use rustls::pki_types::ServerName;
 use rustls::RootCertStore;
-use std::io::Error;
-use std::io::ErrorKind;
-use std::time::Instant;
 use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
 use tokio_rustls::TlsConnector;
+
+use std::io::{Error, ErrorKind};
+use std::time::Instant;
 
 // launch a pool manager and worker tasks since HTTP/2.0 is mux'ed we prepare
 // senders in the pool manager and pass them over a queue to our worker tasks
@@ -50,26 +49,6 @@ pub fn launch_tasks(
             }
         }
     }
-}
-
-async fn resolve(uri: &str) -> Result<(std::net::SocketAddr, Authority), std::io::Error> {
-    let uri = uri
-        .parse::<http::Uri>()
-        .map_err(|_| Error::new(ErrorKind::Other, "failed to parse uri"))?;
-
-    let auth = uri
-        .authority()
-        .ok_or(Error::new(ErrorKind::Other, "uri has no authority"))?
-        .clone();
-
-    let port = auth.port_u16().unwrap_or(443);
-
-    let addr = tokio::net::lookup_host((auth.host(), port))
-        .await?
-        .next()
-        .ok_or(Error::new(ErrorKind::Other, "dns found no addresses"))?;
-
-    Ok((addr, auth))
 }
 
 pub async fn pool_manager(endpoint: String, _config: Config, queue: Queue<SendRequest<Bytes>>) {
@@ -152,12 +131,11 @@ async fn task(
         .parse::<http::Uri>()
         .map_err(|_| Error::new(ErrorKind::Other, "failed to parse uri"))?;
 
-    let auth = uri
+    let endpoint = uri
         .authority()
         .ok_or(Error::new(ErrorKind::Other, "uri has no authority"))?
-        .clone();
-
-    let _port = auth.port_u16().unwrap_or(443);
+        .as_str()
+        .to_owned();
 
     while RUNNING.load(Ordering::Relaxed) {
         let sender = queue.recv().await;
@@ -178,16 +156,12 @@ async fn task(
         match &work_item {
             ClientWorkItemKind::Request { request, .. } => match request {
                 ClientRequest::Get(r) => {
-                    let request = http::request::Builder::new()
-                        .version(Version::HTTP_2)
-                        .method(Method::GET)
-                        .uri(&format!(
-                            "https://{auth}/cache/{cache}?key={}",
-                            std::str::from_utf8(&r.key).unwrap()
-                        ))
-                        .header("authorization", &token)
-                        .body(())
-                        .unwrap();
+                    let request = MomentoRequestBuilder::get(
+                        &endpoint,
+                        cache,
+                        std::str::from_utf8(&r.key).unwrap(),
+                    )
+                    .build(&token);
 
                     let start = Instant::now();
 
@@ -235,22 +209,13 @@ async fn task(
                     }
                 }
                 ClientRequest::Set(r) => {
-                    let mut uri = format!(
-                        "https://{auth}/cache/{cache}?key={}",
-                        std::str::from_utf8(&r.key).unwrap()
-                    );
-
-                    if let Some(ttl) = r.ttl {
-                        uri = format!("{uri}&ttl_seconds={}", ttl.as_secs());
-                    }
-
-                    let request = http::request::Builder::new()
-                        .version(Version::HTTP_2)
-                        .method(Method::PUT)
-                        .uri(&uri)
-                        .header("authorization", &token)
-                        .body(())
-                        .unwrap();
+                    let request = MomentoRequestBuilder::set(
+                        &endpoint,
+                        cache,
+                        std::str::from_utf8(&r.key).unwrap(),
+                        r.ttl,
+                    )
+                    .build(&token);
 
                     let start = Instant::now();
 
@@ -290,18 +255,12 @@ async fn task(
                     }
                 }
                 ClientRequest::Delete(r) => {
-                    let uri = format!(
-                        "https://{auth}/cache/{cache}?key={}",
-                        std::str::from_utf8(&r.key).unwrap()
-                    );
-
-                    let request = http::request::Builder::new()
-                        .version(Version::HTTP_2)
-                        .method(Method::DELETE)
-                        .uri(&uri)
-                        .header("authorization", &token)
-                        .body(())
-                        .unwrap();
+                    let request = MomentoRequestBuilder::delete(
+                        &endpoint,
+                        cache,
+                        std::str::from_utf8(&r.key).unwrap(),
+                    )
+                    .build(&token);
 
                     let start = Instant::now();
 
@@ -356,4 +315,45 @@ async fn task(
     }
 
     Ok(())
+}
+
+pub struct MomentoRequestBuilder {
+    inner: http::request::Builder,
+}
+
+impl MomentoRequestBuilder {
+    fn new(endpoint: &str, method: Method, relative_uri: &str) -> Self {
+        let inner = http::request::Builder::new()
+            .version(Version::HTTP_2)
+            .method(method)
+            .uri(&format!("https://{endpoint}{relative_uri}"));
+
+        Self { inner }
+    }
+
+    pub fn build(self, token: &str) -> http::Request<()> {
+        self.inner.header("authorization", token).body(()).unwrap()
+    }
+
+    pub fn delete(endpoint: &str, cache: &str, key: &str) -> Self {
+        let uri = format!("/cache/{cache}?key={key}");
+
+        Self::new(endpoint, Method::DELETE, &uri)
+    }
+
+    pub fn get(endpoint: &str, cache: &str, key: &str) -> Self {
+        let uri = format!("/cache/{cache}?key={key}");
+
+        Self::new(endpoint, Method::GET, &uri)
+    }
+
+    pub fn set(endpoint: &str, cache: &str, key: &str, ttl: Option<Duration>) -> Self {
+        let uri = if let Some(ttl) = ttl {
+            format!("/cache/{cache}?key={key}&ttl_seconds={}", ttl.as_secs())
+        } else {
+            format!("/cache/{cache}?key={key}")
+        };
+
+        Self::new(endpoint, Method::PUT, &uri)
+    }
 }

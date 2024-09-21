@@ -48,7 +48,7 @@ log_backup = "rpc-perf.log.old"
 log_max_size = 1073741824
 
 [target]
-# we don't need to specify any endpoints for momento
+# specify the Momento HTTP Cache API Endpoint
 endpoints = ["https://api.cache.cell-4-us-west-2-1.prod.a.momentohq.com"]
 # specify the name of the target cache
 cache_name = "test"

@@ -11,6 +11,8 @@ use workload::ClientWorkItemKind;
 use std::io::{Error, ErrorKind, Result};
 use std::time::Instant;
 
+mod common;
+
 mod http1;
 pub mod http2;
 mod memcache;
