@@ -37,7 +37,7 @@ impl Storage {
         self.store_name.as_deref()
     }
 
-     pub fn connect_timeout(&self) -> Duration {
+    pub fn connect_timeout(&self) -> Duration {
         Duration::from_millis(self.connect_timeout)
     }
 }

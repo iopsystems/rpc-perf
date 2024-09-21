@@ -1,6 +1,3 @@
-use rustls::pki_types::ServerName;
-use rustls::RootCertStore;
-use tokio_rustls::TlsConnector;
 use crate::clients::http2::Queue;
 use crate::workload::ClientRequest;
 use crate::workload::ClientWorkItemKind;
@@ -11,11 +8,14 @@ use h2::client::SendRequest;
 use http::uri::Authority;
 use http::Method;
 use http::Version;
+use rustls::pki_types::ServerName;
+use rustls::RootCertStore;
 use std::io::Error;
 use std::io::ErrorKind;
 use std::time::Instant;
 use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
+use tokio_rustls::TlsConnector;
 
 // launch a pool manager and worker tasks since HTTP/2.0 is mux'ed we prepare
 // senders in the pool manager and pass them over a queue to our worker tasks
@@ -78,9 +78,11 @@ pub async fn pool_manager(endpoint: String, _config: Config, queue: Queue<SendRe
     let root_store = RootCertStore {
         roots: webpki_roots::TLS_SERVER_ROOTS.into(),
     };
-    let config = Arc::new(rustls::ClientConfig::builder()
-        .with_root_certificates(root_store)
-        .with_no_client_auth());
+    let config = Arc::new(
+        rustls::ClientConfig::builder()
+            .with_root_certificates(root_store)
+            .with_no_client_auth(),
+    );
 
     while RUNNING.load(Ordering::Relaxed) {
         if client.is_none() {
@@ -94,7 +96,10 @@ pub async fn pool_manager(endpoint: String, _config: Config, queue: Queue<SendRe
 
                     let connector: TlsConnector = TlsConnector::from(config.clone());
 
-                    let stream = connector.connect(ServerName::try_from(auth.to_string()).unwrap(), tcp).await.unwrap();
+                    let stream = connector
+                        .connect(ServerName::try_from(auth.to_string()).unwrap(), tcp)
+                        .await
+                        .unwrap();
 
                     if let Ok((h2, connection)) = ::h2::client::handshake(stream).await {
                         tokio::spawn(async move {
@@ -133,7 +138,7 @@ async fn task(
     config: Config,
     queue: Queue<SendRequest<Bytes>>,
 ) -> Result<(), std::io::Error> {
-	let token = std::env::var("MOMENTO_API_KEY").unwrap_or_else(|_| {
+    let token = std::env::var("MOMENTO_API_KEY").unwrap_or_else(|_| {
         eprintln!("environment variable `MOMENTO_API_KEY` is not set");
         std::process::exit(1);
     });
@@ -173,158 +178,170 @@ async fn task(
         match &work_item {
             ClientWorkItemKind::Request { request, .. } => match request {
                 ClientRequest::Get(r) => {
-                	let request = http::request::Builder::new()
-			            .version(Version::HTTP_2)
-			            .method(Method::GET)
-			            .uri(&format!("https://{auth}/cache/{cache}?key={}", std::str::from_utf8(&r.key).unwrap()))
-			            .header("authorization", &token)
-			            .body(())
-			            .unwrap();
+                    let request = http::request::Builder::new()
+                        .version(Version::HTTP_2)
+                        .method(Method::GET)
+                        .uri(&format!(
+                            "https://{auth}/cache/{cache}?key={}",
+                            std::str::from_utf8(&r.key).unwrap()
+                        ))
+                        .header("authorization", &token)
+                        .body(())
+                        .unwrap();
 
-			        let start = Instant::now();
+                    let start = Instant::now();
 
-			        match sender.send_request(request, true) {
-			        	Ok((response, _)) => {
-			        		let response = response.await;
-				        	let latency = start.elapsed();
+                    match sender.send_request(request, true) {
+                        Ok((response, _)) => {
+                            let response = response.await;
+                            let latency = start.elapsed();
 
-				        	REQUEST_OK.increment();
+                            REQUEST_OK.increment();
 
-				        	match response.map(|r| r.status().as_u16()) {
-				        		Ok(200) => {
-				        			GET_OK.increment();
-				        			GET_KEY_HIT.increment();
+                            match response.map(|r| r.status().as_u16()) {
+                                Ok(200) => {
+                                    GET_OK.increment();
+                                    GET_KEY_HIT.increment();
 
-				        			RESPONSE_OK.increment();
-				        			RESPONSE_HIT.increment();
+                                    RESPONSE_OK.increment();
+                                    RESPONSE_HIT.increment();
 
-				        			let _ = RESPONSE_LATENCY.increment(latency.as_nanos() as _);
-				        		}
-				        		Ok(404) => {
-				        			GET_OK.increment();
-				        			GET_KEY_MISS.increment();
+                                    let _ = RESPONSE_LATENCY.increment(latency.as_nanos() as _);
+                                }
+                                Ok(404) => {
+                                    GET_OK.increment();
+                                    GET_KEY_MISS.increment();
 
-				        			RESPONSE_OK.increment();
-				        			RESPONSE_MISS.increment();
+                                    RESPONSE_OK.increment();
+                                    RESPONSE_MISS.increment();
 
-				        			let _ = RESPONSE_LATENCY.increment(latency.as_nanos() as _);
-				        		}
-				        		Ok(429) => {
-				        			GET_EX.increment();
+                                    let _ = RESPONSE_LATENCY.increment(latency.as_nanos() as _);
+                                }
+                                Ok(429) => {
+                                    GET_EX.increment();
 
-				        			RESPONSE_RATELIMITED.increment();
-				        		}
-				        		Ok(_) | Err(_) => {
-				        			GET_EX.increment();
+                                    RESPONSE_RATELIMITED.increment();
+                                }
+                                Ok(_) | Err(_) => {
+                                    GET_EX.increment();
 
-				        			RESPONSE_EX.increment();
-				        		}
-				        	}
-			        	}
-			        	Err(_) => {
-			        		continue;
-			        	}
-			        }
+                                    RESPONSE_EX.increment();
+                                }
+                            }
+                        }
+                        Err(_) => {
+                            continue;
+                        }
+                    }
                 }
                 ClientRequest::Set(r) => {
-                	let mut uri = format!("https://{auth}/cache/{cache}?key={}", std::str::from_utf8(&r.key).unwrap());
+                    let mut uri = format!(
+                        "https://{auth}/cache/{cache}?key={}",
+                        std::str::from_utf8(&r.key).unwrap()
+                    );
 
-                	if let Some(ttl) = r.ttl {
-                		uri = format!("{uri}&ttl_seconds={}", ttl.as_secs());
-                	}
+                    if let Some(ttl) = r.ttl {
+                        uri = format!("{uri}&ttl_seconds={}", ttl.as_secs());
+                    }
 
-                	let request = http::request::Builder::new()
-			            .version(Version::HTTP_2)
-			            .method(Method::PUT)
-			            .uri(&uri)
-			            .header("authorization", &token)
-			            .body(())
-			            .unwrap();
+                    let request = http::request::Builder::new()
+                        .version(Version::HTTP_2)
+                        .method(Method::PUT)
+                        .uri(&uri)
+                        .header("authorization", &token)
+                        .body(())
+                        .unwrap();
 
-			        let start = Instant::now();
+                    let start = Instant::now();
 
-			        if let Ok((response, mut stream)) = sender.send_request(request, false) {
-			        	if stream.send_data(Bytes::from(r.value.clone()), true).is_err() {
-			        		continue;
-			        	}
+                    if let Ok((response, mut stream)) = sender.send_request(request, false) {
+                        if stream
+                            .send_data(Bytes::from(r.value.clone()), true)
+                            .is_err()
+                        {
+                            continue;
+                        }
 
-			        	let response = response.await;
-			        	let latency = start.elapsed();
+                        let response = response.await;
+                        let latency = start.elapsed();
 
-			        	REQUEST_OK.increment();
+                        REQUEST_OK.increment();
 
-			        	match response.map(|r| r.status().as_u16()) {
-			        		Ok(204) => {
-			        			SET_STORED.increment();
+                        match response.map(|r| r.status().as_u16()) {
+                            Ok(204) => {
+                                SET_STORED.increment();
 
-			        			RESPONSE_OK.increment();
-			        			RESPONSE_HIT.increment();
+                                RESPONSE_OK.increment();
+                                RESPONSE_HIT.increment();
 
-			        			let _ = RESPONSE_LATENCY.increment(latency.as_nanos() as _);
-			        		}
-			        		Ok(429) => {
-			        			SET_EX.increment();
+                                let _ = RESPONSE_LATENCY.increment(latency.as_nanos() as _);
+                            }
+                            Ok(429) => {
+                                SET_EX.increment();
 
-			        			RESPONSE_RATELIMITED.increment();
-			        		}
-			        		Ok(_) | Err(_) => {
-			        			SET_EX.increment();
+                                RESPONSE_RATELIMITED.increment();
+                            }
+                            Ok(_) | Err(_) => {
+                                SET_EX.increment();
 
-			        			RESPONSE_EX.increment();
-			        		}
-			        	}
-			        }
+                                RESPONSE_EX.increment();
+                            }
+                        }
+                    }
                 }
                 ClientRequest::Delete(r) => {
-                	let uri = format!("https://{auth}/cache/{cache}?key={}", std::str::from_utf8(&r.key).unwrap());
+                    let uri = format!(
+                        "https://{auth}/cache/{cache}?key={}",
+                        std::str::from_utf8(&r.key).unwrap()
+                    );
 
-                	let request = http::request::Builder::new()
-			            .version(Version::HTTP_2)
-			            .method(Method::DELETE)
-			            .uri(&uri)
-			            .header("authorization", &token)
-			            .body(())
-			            .unwrap();
+                    let request = http::request::Builder::new()
+                        .version(Version::HTTP_2)
+                        .method(Method::DELETE)
+                        .uri(&uri)
+                        .header("authorization", &token)
+                        .body(())
+                        .unwrap();
 
-			        let start = Instant::now();
+                    let start = Instant::now();
 
-			        match sender.send_request(request, false) {
-			        	Ok((response, _)) => {
-			        		let response = response.await;
-				        	let latency = start.elapsed();
+                    match sender.send_request(request, false) {
+                        Ok((response, _)) => {
+                            let response = response.await;
+                            let latency = start.elapsed();
 
-				        	REQUEST_OK.increment();
+                            REQUEST_OK.increment();
 
-				        	match response.map(|r| r.status().as_u16()) {
-				        		Ok(204) => {
-				        			DELETE_DELETED.increment();
+                            match response.map(|r| r.status().as_u16()) {
+                                Ok(204) => {
+                                    DELETE_DELETED.increment();
 
-				        			RESPONSE_OK.increment();
+                                    RESPONSE_OK.increment();
 
-				        			let _ = RESPONSE_LATENCY.increment(latency.as_nanos() as _);
-				        		}
-				        		Ok(404) => {
-				        			DELETE_NOT_FOUND.increment();
+                                    let _ = RESPONSE_LATENCY.increment(latency.as_nanos() as _);
+                                }
+                                Ok(404) => {
+                                    DELETE_NOT_FOUND.increment();
 
-				        			RESPONSE_OK.increment();
-				        			let _ = RESPONSE_LATENCY.increment(latency.as_nanos() as _);
-				        		}
-				        		Ok(429) => {
-				        			DELETE_EX.increment();
+                                    RESPONSE_OK.increment();
+                                    let _ = RESPONSE_LATENCY.increment(latency.as_nanos() as _);
+                                }
+                                Ok(429) => {
+                                    DELETE_EX.increment();
 
-				        			RESPONSE_RATELIMITED.increment();
-				        		}
-				        		Ok(_) | Err(_) => {
-				        			DELETE_EX.increment();
+                                    RESPONSE_RATELIMITED.increment();
+                                }
+                                Ok(_) | Err(_) => {
+                                    DELETE_EX.increment();
 
-				        			RESPONSE_EX.increment();
-				        		}
-				        	}
-			        	}
-			        	Err(_) => {
-			        		continue;
-			        	}
-			        }
+                                    RESPONSE_EX.increment();
+                                }
+                            }
+                        }
+                        Err(_) => {
+                            continue;
+                        }
+                    }
                 }
                 _ => {
                     REQUEST_UNSUPPORTED.increment();

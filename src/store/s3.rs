@@ -1,26 +1,27 @@
-// use std::future::Future;
-use http_body_util::Full;
-use sha2::digest::FixedOutput;
-use http_body_util::BodyExt;
-use hyper_rustls::ConfigBuilderExt;
-use futures::Future;
-use hyper_util::client::legacy::Client;
-use hyper::rt::Executor;
-use crate::workload::StoreClientRequest;
-use sha2::Digest;
-use sha2::Sha256;
-use chrono::Utc;
 use crate::workload::ClientWorkItemKind;
+use crate::workload::StoreClientRequest;
 use crate::*;
 use async_channel::Receiver;
 use bytes::Bytes;
+use chrono::Utc;
+use futures::Future;
+use hmac::{Hmac, Mac};
 use http::Method;
 use http::Version;
+use http_body_util::BodyExt;
+use http_body_util::Full;
+use hyper::rt::Executor;
+use hyper_rustls::ConfigBuilderExt;
+use hyper_util::client::legacy::Client;
+use sha2::digest::FixedOutput;
+use sha2::Digest;
+use sha2::Sha256;
 use std::io::Error;
 use std::io::ErrorKind;
 use std::time::Instant;
 use tokio::runtime::Runtime;
-use hmac::{Hmac, Mac};
+
+static EMPTY_BODY_SHA256: &str = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
 
 // launch a pool manager and worker tasks since HTTP/2.0 is mux'ed we prepare
 // senders in the pool manager and pass them over a queue to our worker tasks
@@ -65,12 +66,12 @@ async fn task(
     endpoint: String,
     _config: Config,
 ) -> Result<(), std::io::Error> {
-	let access_key = std::env::var("AWS_ACCESS_KEY").unwrap_or_else(|_| {
+    let access_key = std::env::var("AWS_ACCESS_KEY").unwrap_or_else(|_| {
         eprintln!("environment variable `AUTH_TOKEN` is not set");
         std::process::exit(1);
     });
 
-	let secret_key = std::env::var("AWS_SECRET_KEY").unwrap_or_else(|_| {
+    let secret_key = std::env::var("AWS_SECRET_KEY").unwrap_or_else(|_| {
         eprintln!("environment variable `AUTH_TOKEN` is not set");
         std::process::exit(1);
     });
@@ -87,8 +88,8 @@ async fn task(
     let parts: Vec<&str> = auth.host().split('.').collect();
 
     if parts.len() != 5 {
-    	eprintln!("expected endpoint to be in the form: bucket.region.amazonaws.com");
-    	std::process::exit(1);
+        eprintln!("expected endpoint to be in the form: bucket.region.amazonaws.com");
+        std::process::exit(1);
     };
 
     let bucket = parts[0];
@@ -99,29 +100,30 @@ async fn task(
     let _connect_addr = format!("{auth}:{port}");
 
     let rustls_config = rustls::ClientConfig::builder()
-            .with_native_roots()?
-            .with_no_client_auth();
+        .with_native_roots()?
+        .with_no_client_auth();
 
     let connector = hyper_rustls::HttpsConnectorBuilder::new()
-	    .with_tls_config(rustls_config)
+        .with_tls_config(rustls_config)
         .https_or_http()
         .enable_http1()
-	    .build();
+        .build();
 
     let mut client = None;
     let mut session_requests = 0;
     let mut session_start = Instant::now();
 
     while RUNNING.load(Ordering::Relaxed) {
-       	if client.is_none() {
+        if client.is_none() {
             if session_requests != 0 {
                 let stop = Instant::now();
                 let lifecycle_ns = (stop - session_start).as_nanos() as u64;
                 let _ = SESSION_LIFECYCLE_REQUESTS.increment(lifecycle_ns);
             }
             CONNECT.increment();
-            
-            let c: Client<_, Full<Bytes>> = Client::builder(TokioExecutor { }).build(connector.clone());
+
+            let c: Client<_, Full<Bytes>> =
+                Client::builder(TokioExecutor {}).build(connector.clone());
 
             client = Some(c);
 
@@ -164,405 +166,273 @@ async fn task(
         match &work_item {
             ClientWorkItemKind::Request { request, .. } => match request {
                 StoreClientRequest::Get(r) => {
-                	/* Request:
-                		GET /test.txt HTTP/1.1
-						Host: examplebucket.s3.amazonaws.com
-						Authorization: SignatureToBeCalculated
-						x-amz-content-sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
-						x-amz-date: 20130524T000000Z 
-					*/
+                    let key = &*r.key;
+                    let content_sha256 = EMPTY_BODY_SHA256;
 
-					let key = &*r.key;
+                    // form and hash the canonical request
+                    let canonical_request = vec![
+                        "GET".to_string(),
+                        format!("/{key}"),
+                        "".to_string(),
+                        format!("host:{bucket}.s3.amazonaws.com"),
+                        format!("x-amz-content-sha256:{content_sha256}"),
+                        format!("x-amz-date:{datetime}"),
+                        "".to_string(),
+                        "host;x-amz-content-sha256;x-amz-date".to_string(),
+                        content_sha256.to_string(),
+                    ]
+                    .join("\n");
 
-					// form and hash the canonical request
-					let canonical_request = format!("GET
-/{key}
+                    trace!("canonical request:\n{canonical_request}");
 
-host:{bucket}.s3.amazonaws.com
-x-amz-content-sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
-x-amz-date:{datetime}
+                    let request_hash = sha256_sum(canonical_request);
 
-host;x-amz-content-sha256;x-amz-date
-e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-					);
+                    let scope = format!("{date}/{region}/s3/aws4_request");
 
-					// println!("canonical request: {canonical_request}");
-					let request_hash = sha256_sum(canonical_request);
+                    let string_to_sign =
+                        format!("AWS4-HMAC-SHA256\n{datetime}\n{scope}\n{request_hash}");
 
-					// println!("request hash: {request_hash}");
+                    trace!("string to sign:\n{string_to_sign}");
 
-					let scope = format!("{date}/{region}/s3/aws4_request");
+                    let signing_key = generate_signing_key(&secret_key, &date, region, "s3");
+                    let signature = calculate_signature(signing_key, string_to_sign.as_bytes());
 
-					let string_to_sign = format!("AWS4-HMAC-SHA256
-{datetime}
-{scope}
-{request_hash}");
+                    // and finally our authorization header
+                    let authorization = format!("AWS4-HMAC-SHA256 Credential={access_key}/{scope},SignedHeaders=host;x-amz-content-sha256;x-amz-date,Signature={signature}");
 
-					// println!("string to sign:\n{string_to_sign}");
+                    trace!("authorization: {authorization}");
 
-					let signing_key = generate_signing_key(&secret_key, &date, region, "s3");
+                    // now we can make our request
+                    let request = http::request::Builder::new()
+                        .version(Version::HTTP_11)
+                        .method(Method::GET)
+                        .uri(&format!("https://{bucket}.s3.amazonaws.com/{key}"))
+                        .header("host", &format!("{bucket}.s3.amazonaws.com"))
+                        .header("authorization", authorization)
+                        .header("x-amz-content-sha256", content_sha256)
+                        .header("x-amz-date", datetime)
+                        .body(Full::<Bytes>::new(vec![].into()))
+                        .unwrap();
 
-					// println!("signing_key: {}", hex::encode(&signing_key));
+                    let start = Instant::now();
 
-					let signature = calculate_signature(signing_key, string_to_sign.as_bytes());
+                    match c.request(request).await {
+                        Ok(response) => {
+                            let status = response.status().as_u16();
 
-					// println!("signature: {signature}");
+                            // wait until we have a complete response body
+                            let body = response.into_body().collect().await.unwrap().to_bytes();
 
-					// and finally our authorization header
-					let authorization = format!("AWS4-HMAC-SHA256 Credential={access_key}/{scope},SignedHeaders=host;x-amz-content-sha256;x-amz-date,Signature={signature}");
+                            let latency = start.elapsed();
 
-					// now we can make our request
-                	let request = http::request::Builder::new()
-			            .version(Version::HTTP_11)
-			            .method(Method::GET)
-			            .uri(&format!("https://{bucket}.s3.amazonaws.com/{key}"))
-			            .header("host", &format!("{bucket}.s3.amazonaws.com"))
-			            .header("authorization", authorization)
-			            .header("x-amz-content-sha256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
-			            .header("x-amz-date", datetime)
-			            .body(Full::<Bytes>::new(vec![].into()))
-			            .unwrap();
+                            STORE_REQUEST_OK.increment();
 
-			        let start = Instant::now();
+                            match status {
+                                200 => {
+                                    STORE_RESPONSE_OK.increment();
+                                    STORE_GET_OK.increment();
+                                    STORE_RESPONSE_FOUND.increment();
+                                    STORE_GET_KEY_FOUND.increment();
 
-			        match c.request(request).await {
-			        	Ok(response) => {
-			        		let status = response.status().as_u16();
+                                    let _ =
+                                        STORE_RESPONSE_LATENCY.increment(latency.as_nanos() as _);
+                                }
+                                404 => {
+                                    STORE_RESPONSE_OK.increment();
+                                    STORE_GET_OK.increment();
+                                    STORE_RESPONSE_NOT_FOUND.increment();
+                                    STORE_GET_KEY_NOT_FOUND.increment();
 
-			        		// wait until we have a complete response body
-			        		let body = response
-					            .into_body()
-					            .collect()
-					            .await
-					            .unwrap()
-					            .to_bytes();
-					        
-				        	let latency = start.elapsed();
+                                    let _ =
+                                        STORE_RESPONSE_LATENCY.increment(latency.as_nanos() as _);
+                                }
+                                _ => {
+                                    STORE_RESPONSE_EX.increment();
+                                    STORE_GET_EX.increment();
 
-				        	STORE_REQUEST_OK.increment();
-
-				        	// println!("got response: {status}");
-
-				        	match status {
-				        		200 => {
-				        			STORE_RESPONSE_OK.increment();
-				        			STORE_GET_OK.increment();
-					                STORE_RESPONSE_FOUND.increment();
-					                STORE_GET_KEY_FOUND.increment();
-
-				        			let _ = STORE_RESPONSE_LATENCY.increment(latency.as_nanos() as _);
-				        		}
-				        		404 => {
-				        			STORE_RESPONSE_OK.increment();
-				        			STORE_GET_OK.increment();
-					                STORE_RESPONSE_NOT_FOUND.increment();
-					                STORE_GET_KEY_NOT_FOUND.increment();
-
-				        			let _ = STORE_RESPONSE_LATENCY.increment(latency.as_nanos() as _);
-				        		}
-				        		_ => {
-				        			STORE_RESPONSE_EX.increment();
-				        			STORE_GET_EX.increment();
-
-				        			debug!("Error Body:\n{}", String::from_utf8_lossy(&body));
-				        		}
-				        	}
-			        	}
-			        	Err(e) => {
-			        		debug!("error: {e}");
-			        		continue;
-			        	}
-			        }
+                                    debug!("Error Body:\n{}", String::from_utf8_lossy(&body));
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            debug!("error: {e}");
+                            continue;
+                        }
+                    }
                 }
                 StoreClientRequest::Put(r) => {
-                	/* Request:
-                		PUT /my-image.jpg HTTP/1.1
-						Host: myBucket.s3.<Region>.amazonaws.com
-						Date: Wed, 12 Oct 2009 17:50:00 GMT
-						Authorization: authorization string
-						Content-Type: text/plain
-						Content-Length: 11434
-						x-amz-meta-author: Janet
-						Expect: 100-continue
-						[11434 bytes of object data]
-					*/
+                    let key = &*r.key;
+                    let content_sha256 = sha256_sum(&r.value);
 
-					let key = &*r.key;
+                    // form and hash the canonical request
+                    let canonical_request = vec![
+                        "PUT".to_string(),
+                        format!("/{key}"),
+                        "".to_string(),
+                        format!("date:{rfc2822}"),
+                        format!("host:{bucket}.s3.amazonaws.com"),
+                        format!("x-amz-content-sha256:{content_sha256}"),
+                        format!("x-amz-date:{datetime}"),
+                        "x-amz-storage-class:STANDARD".to_string(),
+                        "".to_string(),
+                        "date;host;x-amz-content-sha256;x-amz-date;x-amz-storage-class".to_string(),
+                        content_sha256.to_string(),
+                    ]
+                    .join("\n");
 
-					let value_checksum = sha256_sum(&r.value);
+                    trace!("canonical request:\n{canonical_request}");
 
-					/*
-PUT test$file.text HTTP/1.1
-Host: examplebucket.s3.amazonaws.com
-Date: Fri, 24 May 2013 00:00:00 GMT
-Authorization: SignatureToBeCalculated
-x-amz-date: 20130524T000000Z 
-x-amz-storage-class: REDUCED_REDUNDANCY
-x-amz-content-sha256: 44ce7dd67c959e0d3524ffac1771dfbba87d2b6b4b4e99e42034a8b803f8b072
+                    let request_hash = sha256_sum(canonical_request);
 
-<Payload>
-*/
+                    let scope = format!("{date}/{region}/s3/aws4_request");
 
-/*
-PUT
-/test%24file.text
+                    let string_to_sign =
+                        format!("AWS4-HMAC-SHA256\n{datetime}\n{scope}\n{request_hash}");
 
-date:Fri, 24 May 2013 00:00:00 GMT
-host:examplebucket.s3.amazonaws.com
-x-amz-content-sha256:44ce7dd67c959e0d3524ffac1771dfbba87d2b6b4b4e99e42034a8b803f8b072
-x-amz-date:20130524T000000Z
-x-amz-storage-class:REDUCED_REDUNDANCY
+                    trace!("string to sign:\n{string_to_sign}");
 
-date;host;x-amz-content-sha256;x-amz-date;x-amz-storage-class
-44ce7dd67c959e0d3524ffac1771dfbba87d2b6b4b4e99e42034a8b803f8b072
-*/
-					// form and hash the canonical request
-					let canonical_request = format!("PUT
-/{key}
+                    let signing_key = generate_signing_key(&secret_key, &date, region, "s3");
+                    let signature = calculate_signature(signing_key, string_to_sign.as_bytes());
 
-date:{rfc2822}
-host:{bucket}.s3.amazonaws.com
-x-amz-content-sha256:{value_checksum}
-x-amz-date:{datetime}
-x-amz-storage-class:STANDARD
+                    // and finally our authorization header
+                    let authorization = format!("AWS4-HMAC-SHA256 Credential={access_key}/{scope},SignedHeaders=date;host;x-amz-content-sha256;x-amz-date;x-amz-storage-class,Signature={signature}");
 
-date;host;x-amz-content-sha256;x-amz-date;x-amz-storage-class
-{value_checksum}"
-					);
+                    trace!("authorization: {authorization}");
 
-					// println!("canonical request: {canonical_request}");
-					let request_hash = sha256_sum(canonical_request);
+                    // now we can make our request
+                    let request = http::request::Builder::new()
+                        .version(Version::HTTP_11)
+                        .method(Method::PUT)
+                        .uri(&format!("https://{bucket}.s3.amazonaws.com/{key}"))
+                        .header("date", rfc2822)
+                        .header("host", &format!("{bucket}.s3.amazonaws.com"))
+                        .header("authorization", authorization)
+                        .header("x-amz-content-sha256", content_sha256)
+                        .header("x-amz-date", datetime)
+                        .header("x-amz-storage-class", "STANDARD")
+                        .body(Full::<Bytes>::new(r.value.clone().into()))
+                        .unwrap();
 
-					// println!("request hash: {request_hash}");
+                    let start = Instant::now();
 
-					let scope = format!("{date}/{region}/s3/aws4_request");
+                    match c.request(request).await {
+                        Ok(response) => {
+                            let status = response.status().as_u16();
 
-					let string_to_sign = format!("AWS4-HMAC-SHA256
-{datetime}
-{scope}
-{request_hash}");
+                            // wait until we have a complete response body
+                            let body = response.into_body().collect().await.unwrap().to_bytes();
 
-					// println!("string to sign:\n{string_to_sign}");
+                            let latency = start.elapsed();
 
-					let signing_key = generate_signing_key(&secret_key, &date, region, "s3");
+                            STORE_REQUEST_OK.increment();
 
-					// println!("signing_key: {}", hex::encode(&signing_key));
+                            match status {
+                                200 => {
+                                    STORE_RESPONSE_OK.increment();
+                                    STORE_PUT_OK.increment();
+                                    STORE_RESPONSE_FOUND.increment();
+                                    STORE_PUT_STORED.increment();
 
-					let signature = calculate_signature(signing_key, string_to_sign.as_bytes());
+                                    let _ =
+                                        STORE_RESPONSE_LATENCY.increment(latency.as_nanos() as _);
+                                }
+                                _ => {
+                                    STORE_RESPONSE_EX.increment();
+                                    STORE_PUT_EX.increment();
 
-					// println!("signature: {signature}");
-
-					// and finally our authorization header
-					let authorization = format!("AWS4-HMAC-SHA256 Credential={access_key}/{scope},SignedHeaders=date;host;x-amz-content-sha256;x-amz-date;x-amz-storage-class,Signature={signature}");
-
-					// now we can make our request
-                	let request = http::request::Builder::new()
-			            .version(Version::HTTP_11)
-			            .method(Method::PUT)
-			            .uri(&format!("https://{bucket}.s3.amazonaws.com/{key}"))
-			            .header("date", rfc2822)
-			            .header("host", &format!("{bucket}.s3.amazonaws.com"))
-			            .header("authorization", authorization)
-			            .header("x-amz-content-sha256", value_checksum)
-			            .header("x-amz-date", datetime)
-			            .header("x-amz-storage-class", "STANDARD")
-			            .body(Full::<Bytes>::new(r.value.clone().into()))
-			            .unwrap();
-
-			        let start = Instant::now();
-
-			        match c.request(request).await {
-			        	Ok(response) => {
-			        		let status = response.status().as_u16();
-
-			        		// wait until we have a complete response body
-			        		let body = response
-					            .into_body()
-					            .collect()
-					            .await
-					            .unwrap()
-					            .to_bytes();
-					        
-				        	let latency = start.elapsed();
-
-				        	STORE_REQUEST_OK.increment();
-
-				        	// println!("got response: {status}");
-
-				        	match status {
-				        		200 => {
-				        			STORE_RESPONSE_OK.increment();
-				        			STORE_PUT_OK.increment();
-					                STORE_RESPONSE_FOUND.increment();
-					                STORE_PUT_STORED.increment();
-
-				        			let _ = STORE_RESPONSE_LATENCY.increment(latency.as_nanos() as _);
-				        		}
-				        		_ => {
-				        			STORE_RESPONSE_EX.increment();
-				        			STORE_PUT_EX.increment();
-
-				        			debug!("Error Body:\n{}", String::from_utf8_lossy(&body));
-				        		}
-				        	}
-			        	}
-			        	Err(e) => {
-			        		debug!("error: {e}");
-			        		continue;
-			        	}
-			        }
+                                    error!("Error Body:\n{}", String::from_utf8_lossy(&body));
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            error!("error: {e}");
+                            continue;
+                        }
+                    }
                 }
                 StoreClientRequest::Delete(r) => {
-                	/* Request:
-                		DELETE /Key+?versionId=VersionId HTTP/1.1
-						Host: Bucket.s3.amazonaws.com
+                    let key = &*r.key;
+                    let content_sha256 = EMPTY_BODY_SHA256;
 
-					*/
+                    // form and hash the canonical request
+                    let canonical_request = vec![
+                        "DELETE".to_string(),
+                        format!("/{key}"),
+                        "".to_string(),
+                        format!("host:{bucket}.s3.amazonaws.com"),
+                        format!("x-amz-content-sha256:{content_sha256}"),
+                        format!("x-amz-date:{datetime}"),
+                        "".to_string(),
+                        "host;x-amz-content-sha256;x-amz-date".to_string(),
+                        content_sha256.to_string(),
+                    ]
+                    .join("\n");
 
-					let key = &*r.key;
+                    trace!("canonical request:\n{canonical_request}");
 
-					// form and hash the canonical request
-					let canonical_request = format!("DELETE
-/{key}
+                    let request_hash = sha256_sum(canonical_request);
 
-host:{bucket}.s3.amazonaws.com
-x-amz-content-sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
-x-amz-date:{datetime}
+                    let scope = format!("{date}/{region}/s3/aws4_request");
 
-host;x-amz-content-sha256;x-amz-date
-e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-					);
+                    let string_to_sign =
+                        format!("AWS4-HMAC-SHA256\n{datetime}\n{scope}\n{request_hash}");
 
-					let request_hash = sha256_sum(canonical_request);
+                    trace!("string to sign:\n{string_to_sign}");
 
-					let scope = format!("{date}/{region}/s3/aws4_request");
+                    let signing_key = generate_signing_key(&secret_key, &date, region, "s3");
+                    let signature = calculate_signature(signing_key, string_to_sign.as_bytes());
 
-					let string_to_sign = format!("AWS4-HMAC-SHA256
-{datetime}
-{scope}
-{request_hash}");
+                    // and finally our authorization header
+                    let authorization = format!("AWS4-HMAC-SHA256 Credential={access_key}/{scope},SignedHeaders=host;x-amz-content-sha256;x-amz-date,Signature={signature}");
 
-					// println!("string to sign:\n{string_to_sign}");
+                    trace!("authorization: {authorization}");
 
-					let signing_key = generate_signing_key(&secret_key, &date, region, "s3");
+                    // now we can make our request
+                    let request = http::request::Builder::new()
+                        .version(Version::HTTP_11)
+                        .method(Method::DELETE)
+                        .uri(&format!("https://{bucket}.s3.amazonaws.com/{key}"))
+                        .header("host", &format!("{bucket}.s3.amazonaws.com"))
+                        .header("authorization", authorization)
+                        .header("x-amz-content-sha256", content_sha256)
+                        .header("x-amz-date", datetime)
+                        .body(Full::<Bytes>::new(vec![].into()))
+                        .unwrap();
 
-					// println!("signing_key: {}", hex::encode(&signing_key));
+                    let start = Instant::now();
 
-					let signature = calculate_signature(signing_key, string_to_sign.as_bytes());
+                    match c.request(request).await {
+                        Ok(response) => {
+                            let status = response.status().as_u16();
 
-					// println!("signature: {signature}");
+                            // wait until we have a complete response body
+                            let body = response.into_body().collect().await.unwrap().to_bytes();
 
-					// and finally our authorization header
-					let authorization = format!("AWS4-HMAC-SHA256 Credential={access_key}/{scope},SignedHeaders=host;x-amz-content-sha256;x-amz-date,Signature={signature}");
+                            let latency = start.elapsed();
 
-					// now we can make our request
-                	let request = http::request::Builder::new()
-			            .version(Version::HTTP_11)
-			            .method(Method::DELETE)
-			            .uri(&format!("https://{bucket}.s3.amazonaws.com/{key}"))
-			            .header("host", &format!("{bucket}.s3.amazonaws.com"))
-			            .header("authorization", authorization)
-			            .header("x-amz-content-sha256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
-			            .header("x-amz-date", datetime)
-			            .body(Full::<Bytes>::new(vec![].into()))
-			            .unwrap();
+                            STORE_REQUEST_OK.increment();
 
-			        let start = Instant::now();
+                            match status {
+                                204 => {
+                                    STORE_RESPONSE_OK.increment();
+                                    STORE_DELETE_OK.increment();
 
-			        match c.request(request).await {
-			        	Ok(response) => {
-			        		let status = response.status().as_u16();
+                                    let _ =
+                                        STORE_RESPONSE_LATENCY.increment(latency.as_nanos() as _);
+                                }
+                                _ => {
+                                    STORE_RESPONSE_EX.increment();
+                                    STORE_DELETE_EX.increment();
 
-			        		// wait until we have a complete response body
-			        		let body = response
-					            .into_body()
-					            .collect()
-					            .await
-					            .unwrap()
-					            .to_bytes();
-					        
-				        	let latency = start.elapsed();
-
-				        	STORE_REQUEST_OK.increment();
-
-				        	// println!("got response: {status}");
-
-				        	match status {
-				        		204 => {
-				        			STORE_RESPONSE_OK.increment();
-				        			STORE_DELETE_OK.increment();
-
-				        			let _ = STORE_RESPONSE_LATENCY.increment(latency.as_nanos() as _);
-				        		}
-				        		// 404 => {
-				        		// 	STORE_RESPONSE_OK.increment();
-				        		// 	STORE_GET_OK.increment();
-					            //     STORE_RESPONSE_NOT_FOUND.increment();
-					            //     STORE_GET_KEY_NOT_FOUND.increment();
-
-				        		// 	let _ = STORE_RESPONSE_LATENCY.increment(latency.as_nanos() as _);
-				        		// }
-				        		_ => {
-				        			STORE_RESPONSE_EX.increment();
-				        			STORE_DELETE_EX.increment();
-
-				        			debug!("Error Body:\n{}", String::from_utf8_lossy(&body));
-				        		}
-				        	}
-			        	}
-			        	Err(e) => {
-			        		debug!("error: {e}");
-			        		continue;
-			        	}
-			        }
-                // 	let uri = format!("https://{auth}/cache/{cache}?key={}", std::str::from_utf8(&r.key).unwrap());
-
-                // 	let request = http::request::Builder::new()
-			    //         .version(Version::HTTP_2)
-			    //         .method(Method::DELETE)
-			    //         .uri(&uri)
-			    //         .body(())
-			    //         .unwrap();
-
-			    //     let start = Instant::now();
-
-			    //     match sender.send_request(request, false) {
-			    //     	Ok((response, _)) => {
-			    //     		let response = response.await;
-				//         	let latency = start.elapsed();
-
-				//         	REQUEST_OK.increment();
-
-				//         	match response.map(|r| r.status().as_u16()) {
-				//         		Ok(204) => {
-				//         			DELETE_DELETED.increment();
-
-				//         			RESPONSE_OK.increment();
-
-				//         			let _ = RESPONSE_LATENCY.increment(latency.as_nanos() as _);
-				//         		}
-				//         		Ok(404) => {
-				//         			DELETE_NOT_FOUND.increment();
-
-				//         			RESPONSE_OK.increment();
-				//         			let _ = RESPONSE_LATENCY.increment(latency.as_nanos() as _);
-				//         		}
-				//         		Ok(429) => {
-				//         			DELETE_EX.increment();
-
-				//         			RESPONSE_RATELIMITED.increment();
-				//         		}
-				//         		Ok(_) | Err(_) => {
-				//         			DELETE_EX.increment();
-
-				//         			RESPONSE_EX.increment();
-				//         		}
-				//         	}
-			    //     	}
-			    //     	Err(_) => {
-			    //     		continue;
-			    //     	}
-			    //     }
+                                    error!("Error Body:\n{}", String::from_utf8_lossy(&body));
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            error!("error: {e}");
+                            continue;
+                        }
+                    }
                 }
                 _ => {
                     REQUEST_UNSUPPORTED.increment();
