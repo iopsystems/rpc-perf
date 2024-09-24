@@ -1,3 +1,14 @@
+/// # Cache clients
+///
+/// Cache clients support key-value storage where data that is written is not
+/// guaranteed to be persistent. Often writes specify some Time-To-Live (TTL) or
+/// expiration. Some cache backends may support more advanced datastructures
+/// such as hashes, lists, sets, etc. These operations are also included here
+/// when applicable.
+///
+/// The RPC-Perf cache clients track hit rate, throughput, and latency to help
+/// measure cache effectiveness and performance.
+
 use crate::workload::ClientRequest;
 use crate::*;
 

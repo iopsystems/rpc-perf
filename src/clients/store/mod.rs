@@ -1,3 +1,12 @@
+/// # Store Clients
+///
+/// Store clients are focused on object storage. This is distinct from caching
+/// in that data is not evicted from an object store. Expiration may still be
+/// possible with some implementations.
+///
+/// RPC-Perf store clients are used to evaluate the performance of object
+/// storage services in terms of throughput and latency.
+
 use crate::*;
 
 use async_channel::Receiver;
