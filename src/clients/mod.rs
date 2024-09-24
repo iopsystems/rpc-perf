@@ -1,6 +1,8 @@
 use momento::MomentoError;
 use momento::MomentoErrorCode;
 
+pub mod common;
+
 pub mod cache;
 pub mod ping;
 pub mod pubsub;

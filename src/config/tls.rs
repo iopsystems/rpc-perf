@@ -17,6 +17,20 @@ pub struct Tls {
     use_sni: bool,
 }
 
+impl Default for Tls {
+    fn default() -> Self {
+        Self {
+            private_key: None,
+            private_key_password: None,
+            certificate: None,
+            certificate_chain: None,
+            ca_file: None,
+            verify_hostname: true,
+            use_sni: true,
+        }
+    }
+}
+
 impl Tls {
     pub fn private_key(&self) -> Option<&str> {
         self.private_key.as_deref()
