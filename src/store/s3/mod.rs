@@ -1,5 +1,4 @@
-use crate::workload::ClientWorkItemKind;
-use crate::workload::StoreClientRequest;
+use crate::workload::{ClientWorkItemKind, StoreClientRequest};
 use crate::*;
 
 use async_channel::Receiver;
@@ -7,12 +6,10 @@ use bytes::Bytes;
 use chrono::{DateTime, Utc};
 use http::{HeaderMap, Method, Version};
 use http_body_util::{BodyExt, Full};
-use hyper_rustls::ConfigBuilderExt;
 use hyper_util::client::legacy::Client;
 use hyper_util::rt::TokioExecutor;
 use tokio::runtime::Runtime;
 
-use std::io::{Error, ErrorKind};
 use std::time::Instant;
 
 mod aws_helpers;
@@ -61,11 +58,17 @@ async fn task(
 
     let uri = endpoint
         .parse::<http::Uri>()
-        .map_err(|_| Error::new(ErrorKind::Other, "failed to parse uri"))?;
+        .unwrap_or_else(|e| {
+            eprintln!("target endpoint could not be parsed as a uri: {endpoint}\n{e}");
+            std::process::exit(1);
+        });
 
     let auth = uri
         .authority()
-        .ok_or(Error::new(ErrorKind::Other, "uri has no authority"))?
+        .unwrap_or_else(|| {
+            eprintln!("endpoint uri is missing an authority: {endpoint}");
+            std::process::exit(1);
+        })
         .clone();
 
     let parts: Vec<&str> = auth.host().split('.').collect();
@@ -126,10 +129,13 @@ async fn task(
 
         let c = client.take().unwrap();
 
-        let work_item = work_receiver
-            .recv()
-            .await
-            .map_err(|_| Error::new(ErrorKind::Other, "channel closed"))?;
+        let work_item = match work_receiver.recv().await {
+            Ok(w) => w,
+            Err(e) => {
+                error!("error while attempting to receive work item: {e}");
+                continue;
+            }
+        };
 
         REQUEST.increment();
 

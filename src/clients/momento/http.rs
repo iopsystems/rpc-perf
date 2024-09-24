@@ -1,6 +1,5 @@
 use crate::clients::common::*;
-use crate::workload::ClientRequest;
-use crate::workload::ClientWorkItemKind;
+use crate::workload::{ClientRequest, ClientWorkItemKind};
 use crate::*;
 
 use async_channel::Receiver;
@@ -13,7 +12,6 @@ use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
 use tokio_rustls::TlsConnector;
 
-use std::io::{Error, ErrorKind};
 use std::time::Instant;
 
 // launch a pool manager and worker tasks since HTTP/2.0 is mux'ed we prepare
@@ -57,6 +55,7 @@ pub async fn pool_manager(endpoint: String, _config: Config, queue: Queue<SendRe
     let root_store = RootCertStore {
         roots: webpki_roots::TLS_SERVER_ROOTS.into(),
     };
+
     let config = Arc::new(
         rustls::ClientConfig::builder()
             .with_root_certificates(root_store)
@@ -129,11 +128,17 @@ async fn task(
 
     let uri = endpoint
         .parse::<http::Uri>()
-        .map_err(|_| Error::new(ErrorKind::Other, "failed to parse uri"))?;
+        .unwrap_or_else(|e| {
+            eprintln!("target endpoint could not be parsed as a uri: {endpoint}\n{e}");
+            std::process::exit(1);
+        });
 
     let endpoint = uri
         .authority()
-        .ok_or(Error::new(ErrorKind::Other, "uri has no authority"))?
+        .unwrap_or_else(|| {
+            eprintln!("endpoint uri is missing an authority: {endpoint}");
+            std::process::exit(1);
+        })
         .as_str()
         .to_owned();
 
@@ -146,10 +151,13 @@ async fn task(
 
         let mut sender = sender.unwrap();
 
-        let work_item = work_receiver
-            .recv()
-            .await
-            .map_err(|_| Error::new(ErrorKind::Other, "channel closed"))?;
+        let work_item = match work_receiver.recv().await {
+            Ok(w) => w,
+            Err(e) => {
+                error!("error while attempting to receive work item: {e}");
+                continue;
+            }
+        };
 
         REQUEST.increment();
 
