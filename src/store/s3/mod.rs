@@ -56,12 +56,10 @@ async fn task(
         std::process::exit(1);
     });
 
-    let uri = endpoint
-        .parse::<http::Uri>()
-        .unwrap_or_else(|e| {
-            eprintln!("target endpoint could not be parsed as a uri: {endpoint}\n{e}");
-            std::process::exit(1);
-        });
+    let uri = endpoint.parse::<http::Uri>().unwrap_or_else(|e| {
+        eprintln!("target endpoint could not be parsed as a uri: {endpoint}\n{e}");
+        std::process::exit(1);
+    });
 
     let auth = uri
         .authority()
@@ -85,11 +83,8 @@ async fn task(
 
     let _connect_addr = format!("{auth}:{port}");
 
-    let root_store = rustls::RootCertStore::from_iter(
-        webpki_roots::TLS_SERVER_ROOTS
-            .iter()
-            .cloned(),
-    );
+    let root_store =
+        rustls::RootCertStore::from_iter(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
 
     let rustls_config = rustls::ClientConfig::builder()
         .with_root_certificates(root_store)

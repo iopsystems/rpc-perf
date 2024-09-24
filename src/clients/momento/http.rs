@@ -126,12 +126,10 @@ async fn task(
         std::process::exit(1);
     });
 
-    let uri = endpoint
-        .parse::<http::Uri>()
-        .unwrap_or_else(|e| {
-            eprintln!("target endpoint could not be parsed as a uri: {endpoint}\n{e}");
-            std::process::exit(1);
-        });
+    let uri = endpoint.parse::<http::Uri>().unwrap_or_else(|e| {
+        eprintln!("target endpoint could not be parsed as a uri: {endpoint}\n{e}");
+        std::process::exit(1);
+    });
 
     let endpoint = uri
         .authority()

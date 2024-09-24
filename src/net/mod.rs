@@ -66,7 +66,7 @@ impl Connector {
     }
 
     #[cfg(feature = "boringssl")]
-    fn boringssl(tls_config: &TlsConfig) -> Result<Self> {
+    fn boringssl(tls_config: &Tls) -> Result<Self> {
         let private_key = tls_config.private_key();
         let certificate = tls_config.certificate();
         let certificate_chain = tls_config.certificate_chain();
