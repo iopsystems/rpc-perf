@@ -82,8 +82,14 @@ async fn task(
 
     let _connect_addr = format!("{auth}:{port}");
 
+    let root_store = rustls::RootCertStore::from_iter(
+        webpki_roots::TLS_SERVER_ROOTS
+            .iter()
+            .cloned(),
+    );
+
     let rustls_config = rustls::ClientConfig::builder()
-        .with_native_roots()?
+        .with_root_certificates(root_store)
         .with_no_client_auth();
 
     let connector = hyper_rustls::HttpsConnectorBuilder::new()
