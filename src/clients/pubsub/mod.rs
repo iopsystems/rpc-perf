@@ -7,7 +7,6 @@
 /// RPC-Perf pubsub clients can be used to measure the performance in terms of
 /// throughput and latency from both the publisher's perspective as well as the
 /// end-to-end latency and total message throughput.
-
 use crate::workload::Component;
 use crate::workload::PublisherWorkItem as WorkItem;
 use crate::*;

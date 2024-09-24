@@ -8,7 +8,6 @@
 ///
 /// The RPC-Perf cache clients track hit rate, throughput, and latency to help
 /// measure cache effectiveness and performance.
-
 use crate::workload::ClientRequest;
 use crate::*;
 

@@ -6,7 +6,6 @@
 ///
 /// RPC-Perf store clients are used to evaluate the performance of object
 /// storage services in terms of throughput and latency.
-
 use crate::*;
 
 use async_channel::Receiver;
