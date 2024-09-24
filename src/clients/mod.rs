@@ -11,8 +11,10 @@ use workload::ClientWorkItemKind;
 use std::io::{Error, ErrorKind, Result};
 use std::time::Instant;
 
+mod common;
+
 mod http1;
-mod http2;
+pub mod http2;
 mod memcache;
 mod momento;
 mod ping;
@@ -46,18 +48,17 @@ pub fn launch_clients(
         Protocol::Momento => {
             clients::momento::launch_tasks(&mut client_rt, config.clone(), work_receiver)
         }
+        Protocol::MomentoHttp => {
+            clients::momento::http::launch_tasks(&mut client_rt, config.clone(), work_receiver)
+        }
         Protocol::Ping => {
             clients::ping::launch_tasks(&mut client_rt, config.clone(), work_receiver)
         }
         Protocol::Resp => {
             clients::redis::launch_tasks(&mut client_rt, config.clone(), work_receiver)
         }
-        Protocol::Kafka => {
-            error!("keyspace is not supported for the kafka protocol");
-            std::process::exit(1);
-        }
-        Protocol::Blabber => {
-            error!("keyspace is not supported for the blabber protocol");
+        other => {
+            error!("keyspace is not supported for the {:?} protocol", other);
             std::process::exit(1);
         }
     }
