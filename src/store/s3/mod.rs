@@ -50,12 +50,12 @@ async fn task(
     _config: Config,
 ) -> Result<(), std::io::Error> {
     let access_key = std::env::var("AWS_ACCESS_KEY").unwrap_or_else(|_| {
-        eprintln!("environment variable `AUTH_TOKEN` is not set");
+        eprintln!("environment variable `AWS_ACCESS_KEY` is not set");
         std::process::exit(1);
     });
 
     let secret_key = std::env::var("AWS_SECRET_KEY").unwrap_or_else(|_| {
-        eprintln!("environment variable `AUTH_TOKEN` is not set");
+        eprintln!("environment variable `AWS_SECRET_KEY` is not set");
         std::process::exit(1);
     });
 
