@@ -1,15 +1,12 @@
 use crate::*;
 
-use ::momento::{MomentoError, MomentoErrorCode};
 use async_channel::Receiver;
-use std::io::{Error, ErrorKind, Result};
-use std::time::Instant;
 use tokio::runtime::Runtime;
 use workload::{ClientWorkItemKind, StoreClientRequest};
 
 mod momento;
 
-pub fn launch_store_clients(
+pub fn launch(
     config: &Config,
     work_receiver: Receiver<ClientWorkItemKind<StoreClientRequest>>,
 ) -> Option<Runtime> {
@@ -30,32 +27,11 @@ pub fn launch_store_clients(
 
     match config.general().protocol() {
         Protocol::Momento => momento::launch_tasks(&mut client_rt, config.clone(), work_receiver),
-        _ => {
-            error!("momento protocol is the only supported store protocol");
+        protocol => {
+            error!("store commands are not supported for the {:?} protocol", protocol);
             std::process::exit(1);
         }
     }
 
     Some(client_rt)
-}
-
-pub enum ResponseError {
-    /// Some exception while reading the response
-    Exception,
-    /// A timeout while awaiting the response
-    Timeout,
-    /// Some backends may have rate limits
-    Ratelimited,
-    /// Some backends may have their own timeout
-    BackendTimeout,
-}
-
-impl From<MomentoError> for ResponseError {
-    fn from(other: MomentoError) -> Self {
-        match other.error_code {
-            MomentoErrorCode::LimitExceededError { .. } => ResponseError::Ratelimited,
-            MomentoErrorCode::TimeoutError { .. } => ResponseError::BackendTimeout,
-            _ => ResponseError::Exception,
-        }
-    }
 }

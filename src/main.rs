@@ -1,5 +1,3 @@
-use crate::clients::launch_clients;
-use crate::pubsub::launch_pubsub;
 use crate::workload::{launch_workload, Generator, Ratelimit};
 use async_channel::{bounded, Sender};
 use backtrace::Backtrace;
@@ -10,7 +8,6 @@ use ringlog::*;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
-use store::launch_store_clients;
 use tokio::runtime::Builder;
 use tokio::sync::RwLock;
 use tokio::time::sleep;
@@ -21,8 +18,6 @@ mod config;
 mod metrics;
 mod net;
 mod output;
-mod pubsub;
-mod store;
 mod workload;
 
 use config::*;
@@ -167,13 +162,13 @@ fn main() {
     );
 
     // start client(s)
-    let client_runtime = launch_clients(&config, client_receiver);
+    let client_runtime = clients::cache::launch(&config, client_receiver);
 
     // start store client(s)
-    let store_runtime = launch_store_clients(&config, store_receiver);
+    let store_runtime = clients::store::launch(&config, store_receiver);
 
     // start publisher(s) and subscriber(s)
-    let mut pubsub_runtimes = launch_pubsub(&config, pubsub_receiver, &workload_components);
+    let mut pubsub_runtimes = clients::pubsub::launch(&config, pubsub_receiver, &workload_components);
 
     // start ratelimit controller thread if a dynamic ratelimit is configured
     {

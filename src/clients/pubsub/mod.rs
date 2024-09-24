@@ -1,4 +1,3 @@
-use crate::clients::*;
 use crate::workload::Component;
 use crate::workload::PublisherWorkItem as WorkItem;
 use crate::*;
@@ -111,7 +110,7 @@ impl PubsubRuntimes {
     }
 }
 
-pub fn launch_pubsub(
+pub fn launch(
     config: &Config,
     work_receiver: Receiver<WorkItem>,
     workload_components: &[Component],
@@ -152,8 +151,8 @@ fn launch_publishers(
             kafka::create_topics(&mut publisher_rt, config.clone(), workload_components);
             kafka::launch_publishers(&mut publisher_rt, config.clone(), work_receiver);
         }
-        _ => {
-            error!("pubsub is not supported for the selected protocol");
+        protocol => {
+            error!("pubsub is not supported for the selected protocol: {:?}", protocol);
             std::process::exit(1);
         }
     }

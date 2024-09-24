@@ -1,19 +1,26 @@
+use crate::clients::ResponseError;
 use super::*;
 use crate::net::Connector;
-use protocol_ping::{Compose, Parse, Request, Response};
+use protocol_memcache::{Compose, Parse, Request, Response, Ttl};
 use session::{Buf, BufMut, Buffer};
 use std::borrow::{Borrow, BorrowMut};
 
-/// Launch tasks with one conncetion per task as ping protocol is not mux-enabled.
+mod commands;
+
+struct RequestWithValidator {
+    request: Request,
+    validator: Box<dyn Fn(Response) -> std::result::Result<(), ()> + Send>,
+}
+
+/// Launch tasks with one conncetion per task as memcache protocol is not mux-enabled.
 pub fn launch_tasks(
     runtime: &mut Runtime,
     config: Config,
     work_receiver: Receiver<ClientWorkItemKind<ClientRequest>>,
 ) {
-    debug!("launching ping protocol tasks");
+    debug!("launching memcache protocol tasks");
 
-    // create one task per "connection"
-    // note: these may be channels instead of connections for multiplexed protocols
+    // create one task per connection
     for _ in 0..config.client().unwrap().poolsize() {
         for endpoint in config.target().endpoints() {
             runtime.spawn(task(
@@ -25,7 +32,6 @@ pub fn launch_tasks(
     }
 }
 
-// a task for ping servers (eg: Pelikan Pingserver)
 #[allow(clippy::slow_vector_initialization)]
 async fn task(
     work_receiver: Receiver<ClientWorkItemKind<ClientRequest>>,
@@ -34,12 +40,12 @@ async fn task(
 ) -> Result<()> {
     let connector = Connector::new(&config)?;
 
-    // this unwrap will succeed because we wouldn't be creating these tasks if
-    // there wasn't a client config.
+    // we would not be creating a memcache client task if we didn't have a
+    // client config, so this unwrap will succeed.
     let client_config = config.client().unwrap();
 
     let mut stream = None;
-    let parser = protocol_ping::ResponseParser::new();
+    let parser = protocol_memcache::ResponseParser {};
     let mut read_buffer = Buffer::new(client_config.read_buffer_size());
     let mut write_buffer = Buffer::new(client_config.write_buffer_size());
 
@@ -79,36 +85,46 @@ async fn task(
 
         REQUEST.increment();
 
-        // compose request into buffer
-        match &work_item {
-            ClientWorkItemKind::Request { request, .. } => match request {
-                ClientRequest::Ping(_) => {
-                    Request::Ping.compose(&mut write_buffer);
-                }
-                _ => {
-                    REQUEST_UNSUPPORTED.increment();
-                    stream = Some(s);
-                    continue;
-                }
-            },
-            ClientWorkItemKind::Reconnect => {
-                REQUEST_RECONNECT.increment();
-                continue;
-            }
+        // check if we should reconnect
+        if work_item == ClientWorkItemKind::Reconnect {
+            CONNECT_CURR.decrement();
+            continue;
         }
 
+        let request = RequestWithValidator::try_from(&work_item);
+
+        // skip unsupported work items
+        if request.is_err() {
+            stream = Some(s);
+            continue;
+        }
+
+        let request = request.unwrap();
+
+        // compose request
         REQUEST_OK.increment();
+        request.request.compose(&mut write_buffer);
 
         // send request
         let start = Instant::now();
         s.write_all(write_buffer.borrow()).await?;
+
+        // clear the buffers
         write_buffer.clear();
+        read_buffer.clear();
 
         // read until response or timeout
-        let mut remaining_time = client_config.request_timeout().as_nanos() as u64;
         let response = loop {
+            let remaining_time = client_config
+                .request_timeout()
+                .as_millis()
+                .saturating_sub(start.elapsed().as_millis());
+            if remaining_time == 0 {
+                break Err(ResponseError::Timeout);
+            }
+
             match timeout(
-                Duration::from_millis(remaining_time / 1000000),
+                Duration::from_millis(remaining_time as _),
                 s.read(read_buffer.borrow_mut()),
             )
             .await
@@ -127,13 +143,7 @@ async fn task(
                             break Ok(resp);
                         }
                         Err(e) => match e.kind() {
-                            ErrorKind::WouldBlock => {
-                                let elapsed = start.elapsed().as_nanos() as u64;
-                                remaining_time = remaining_time.saturating_sub(elapsed);
-                                if remaining_time == 0 {
-                                    break Err(ResponseError::Timeout);
-                                }
-                            }
+                            ErrorKind::WouldBlock => {}
                             _ => {
                                 break Err(ResponseError::Exception);
                             }
@@ -153,57 +163,35 @@ async fn task(
 
         match response {
             Ok(response) => {
-                // validate response
-                match work_item {
-                    ClientWorkItemKind::Request { request, .. } => match request {
-                        ClientRequest::Ping(_) => match response {
-                            Response::Pong => {
-                                PING_OK.increment();
-                            }
-                        },
-                        _ => {
-                            error!("unexpected request");
-                            unimplemented!();
-                        }
-                    },
-                    _ => {
-                        error!("unexpected work item");
-                        unimplemented!();
-                    }
+                let latency_ns = stop.duration_since(start).as_nanos() as u64;
+
+                // check if the response is valid
+                if (request.validator)(response).is_err() {
+                    // increment error stats, connection will be dropped
+                    RESPONSE_EX.increment();
+                    CONNECT_CURR.increment();
+                } else {
+                    // increment success stats and latency
+                    RESPONSE_OK.increment();
+
+                    let _ = RESPONSE_LATENCY.increment(latency_ns);
+
+                    // preserve the connection for the next request
+                    stream = Some(s);
                 }
-
-                // preserve the connection for reuse
-                stream = Some(s);
-
-                RESPONSE_OK.increment();
-
-                let latency = stop.duration_since(start).as_nanos() as u64;
-
-                let _ = RESPONSE_LATENCY.increment(latency);
             }
             Err(ResponseError::Exception) => {
-                // record execption
-                match work_item {
-                    ClientWorkItemKind::Request { request, .. } => match request {
-                        ClientRequest::Ping(_) => {
-                            PING_EX.increment();
-                        }
-                        _ => {
-                            error!("unexpected request");
-                            unimplemented!();
-                        }
-                    },
-                    _ => {
-                        error!("unexpected work item");
-                        unimplemented!();
-                    }
-                }
+                // use validate response to record the exception
+                let _ = (request.validator)(Response::error());
 
-                CONNECT_CURR.sub(1);
+                // increment error stats and allow connection to be dropped
+                RESPONSE_EX.increment();
+                CONNECT_CURR.decrement();
             }
             Err(ResponseError::Timeout) => {
+                // increment error stats and allow connection to be dropped
                 RESPONSE_TIMEOUT.increment();
-                CONNECT_CURR.sub(1);
+                CONNECT_CURR.decrement();
             }
             Err(ResponseError::Ratelimited) | Err(ResponseError::BackendTimeout) => {
                 unimplemented!();
@@ -212,4 +200,30 @@ async fn task(
     }
 
     Ok(())
+}
+
+impl From<&workload::client::Delete> for Request {
+    fn from(other: &workload::client::Delete) -> Self {
+        DELETE.increment();
+        Request::delete((*other.key).to_owned().into_boxed_slice(), false)
+    }
+}
+
+impl TryFrom<&ClientWorkItemKind<ClientRequest>> for RequestWithValidator {
+    type Error = ();
+    fn try_from(
+        other: &ClientWorkItemKind<ClientRequest>,
+    ) -> std::result::Result<RequestWithValidator, ()> {
+        match other {
+            ClientWorkItemKind::Request { request, .. } => match request {
+                ClientRequest::Add(r) => Ok(Self::from(r)),
+                ClientRequest::Get(r) => Ok(Self::from(r)),
+                ClientRequest::Delete(r) => Ok(Self::from(r)),
+                ClientRequest::Replace(r) => Ok(Self::from(r)),
+                ClientRequest::Set(r) => Ok(Self::from(r)),
+                _ => Err(()),
+            },
+            _ => Err(()),
+        }
+    }
 }
