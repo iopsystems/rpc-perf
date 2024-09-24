@@ -1,8 +1,8 @@
 use crate::clients::pubsub::*;
-use async_channel::Receiver;
-use crate::workload::*;
-use tokio::runtime::Runtime;
 use crate::clients::*;
+use crate::workload::*;
+use async_channel::Receiver;
+use tokio::runtime::Runtime;
 
 use ::momento::topics::configurations::LowLatency;
 use ::momento::topics::{TopicClient, ValueKind};

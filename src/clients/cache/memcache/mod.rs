@@ -1,5 +1,5 @@
-use crate::clients::ResponseError;
 use super::*;
+use crate::clients::ResponseError;
 use crate::net::Connector;
 use protocol_memcache::{Compose, Parse, Request, Response, Ttl};
 use session::{Buf, BufMut, Buffer};

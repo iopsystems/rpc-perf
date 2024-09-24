@@ -168,7 +168,8 @@ fn main() {
     let store_runtime = clients::store::launch(&config, store_receiver);
 
     // start publisher(s) and subscriber(s)
-    let mut pubsub_runtimes = clients::pubsub::launch(&config, pubsub_receiver, &workload_components);
+    let mut pubsub_runtimes =
+        clients::pubsub::launch(&config, pubsub_receiver, &workload_components);
 
     // start ratelimit controller thread if a dynamic ratelimit is configured
     {

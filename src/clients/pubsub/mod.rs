@@ -152,7 +152,10 @@ fn launch_publishers(
             kafka::launch_publishers(&mut publisher_rt, config.clone(), work_receiver);
         }
         protocol => {
-            error!("pubsub is not supported for the selected protocol: {:?}", protocol);
+            error!(
+                "pubsub is not supported for the selected protocol: {:?}",
+                protocol
+            );
             std::process::exit(1);
         }
     }

@@ -30,18 +30,12 @@ pub fn launch(
         .expect("failed to initialize tokio runtime");
 
     match config.general().protocol() {
-        Protocol::Memcache => {
-            memcache::launch_tasks(&mut client_rt, config.clone(), work_receiver)
-        }
-        Protocol::Momento => {
-            momento::launch_tasks(&mut client_rt, config.clone(), work_receiver)
-        }
+        Protocol::Memcache => memcache::launch_tasks(&mut client_rt, config.clone(), work_receiver),
+        Protocol::Momento => momento::launch_tasks(&mut client_rt, config.clone(), work_receiver),
         Protocol::Ping => {
             crate::clients::ping::ascii::launch_tasks(&mut client_rt, config.clone(), work_receiver)
         }
-        Protocol::Resp => {
-            redis::launch_tasks(&mut client_rt, config.clone(), work_receiver)
-        }
+        Protocol::Resp => redis::launch_tasks(&mut client_rt, config.clone(), work_receiver),
         protocol => {
             error!("keyspace is not supported for the {:?} protocol", protocol);
             std::process::exit(1);
