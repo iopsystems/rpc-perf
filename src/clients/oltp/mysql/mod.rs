@@ -88,7 +88,8 @@ async fn task(
                         Err(Error::RowNotFound) => {
                             OLTP_RESPONSE_OK.increment();
                         }
-                        _ => {
+                        Err(e) => {
+                            error!("error getting response: {e}");
                             OLTP_CONNECT_CURR.decrement();
                             continue;
                         }
