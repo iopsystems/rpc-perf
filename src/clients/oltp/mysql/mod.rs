@@ -41,8 +41,13 @@ async fn task(
 
     while RUNNING.load(Ordering::Relaxed) {
         if connection.is_none() {
+            OLTP_CONNECT.increment();
             connection = match MySqlConnection::connect(&endpoint).await {
-                Ok(c) => Some(c),
+                Ok(c) => {
+                    OLTP_CONNECT_OK.increment();
+                    OLTP_CONNECT_CURR.increment();
+                    Some(c)
+                }
                 Err(e) => {
                     error!("error acquiring connection from pool: {e}");
                     None
@@ -66,7 +71,7 @@ async fn task(
             workload::ClientWorkItemKind::Request { request, .. } => match request {
                 workload::OltpRequest::PointSelect(request) => {
 
-                    REQUEST_OK.increment();
+                    OLTP_REQUEST_OK.increment();
 
                     let result = QueryBuilder::<MySql>::new(
                             "SELECT c FROM ? WHERE id = ?"
@@ -78,18 +83,20 @@ async fn task(
 
                     match result {
                         Ok(_) => {
-                            RESPONSE_OK.increment();
+                            OLTP_RESPONSE_OK.increment();
                         }
                         Err(Error::RowNotFound) => {
-                            RESPONSE_OK.increment();
+                            OLTP_RESPONSE_OK.increment();
                         }
                         _ => {
+                            OLTP_CONNECT_CURR.decrement();
                             continue;
                         }
                     }
                 }
             }
             workload::ClientWorkItemKind::Reconnect => {
+                OLTP_CONNECT_CURR.decrement();
                 continue;
             }
         }
