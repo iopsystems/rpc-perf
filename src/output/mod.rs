@@ -31,6 +31,7 @@ pub async fn log(config: Config) {
     let client = !config.workload().keyspaces().is_empty();
     let pubsub = !config.workload().topics().is_empty();
     let store = !config.workload().stores().is_empty();
+    let oltp = config.workload().oltp().is_some();
 
     // get an aligned start time
     let start = tokio::time::Instant::now() - Duration::from_nanos(Utc::now().nanosecond() as u64)
@@ -68,6 +69,11 @@ pub async fn log(config: Config) {
         // output the store stats
         if store {
             store_stats(&mut snapshot);
+        }
+
+        // output the store stats
+        if oltp {
+            oltp_stats(&mut snapshot);
         }
 
         window_id += 1;
