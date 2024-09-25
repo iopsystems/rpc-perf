@@ -74,10 +74,8 @@ async fn task(
                     OLTP_REQUEST_OK.increment();
 
                     let result = QueryBuilder::<MySql>::new(
-                            "SELECT c FROM ? WHERE id = ?"
+                            &format!("SELECT c FROM {} WHERE id = {}", request.table, request.id)
                         )
-                        .push_bind(request.table)
-                        .push_bind(request.id)
                         .build()
                         .fetch_one(&mut c).await;
 
@@ -89,7 +87,9 @@ async fn task(
                             OLTP_RESPONSE_OK.increment();
                         }
                         Err(e) => {
-                            error!("error getting response: {e}");
+                            debug!("request error: {e}");
+
+                            OLTP_RESPONSE_EX.increment();
                             OLTP_CONNECT_CURR.decrement();
                             continue;
                         }
