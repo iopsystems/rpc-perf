@@ -715,7 +715,6 @@ counter!(STORE_PUT_STORED, "store_put/stored");
 
 request!(STORE_DELETE, "store_delete");
 
-
 /*
  * OLTP CLIENT
  */

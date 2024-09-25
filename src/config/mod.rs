@@ -24,8 +24,8 @@ pub use storage::Storage;
 pub use target::Target;
 pub use tls::Tls;
 pub use workload::{
-    Command, Distribution, Keyspace, RampCompletionAction, RampType, Store, StoreCommand,
-    StoreVerb, Topics, ValueKind, Verb, Workload, Oltp,
+    Command, Distribution, Keyspace, Oltp, RampCompletionAction, RampType, Store, StoreCommand,
+    StoreVerb, Topics, ValueKind, Verb, Workload,
 };
 
 pub const PAGESIZE: usize = 4096;

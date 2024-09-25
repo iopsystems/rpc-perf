@@ -315,7 +315,6 @@ fn store_stats(snapshot: &mut MetricsSnapshot) {
     output!("{latencies}");
 }
 
-
 /// Outputs store stats
 fn oltp_stats(snapshot: &mut MetricsSnapshot) {
     let connect_ok = snapshot.counter_rate(OLTP_CONNECT_OK_COUNTER);

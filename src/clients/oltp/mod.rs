@@ -1,8 +1,8 @@
-use tokio::runtime::Runtime;
-use crate::workload::OltpRequest;
 use crate::workload::ClientWorkItemKind;
-use async_channel::Receiver;
+use crate::workload::OltpRequest;
 use crate::*;
+use async_channel::Receiver;
+use tokio::runtime::Runtime;
 
 mod mysql;
 

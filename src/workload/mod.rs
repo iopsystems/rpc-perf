@@ -18,12 +18,12 @@ use tokio::runtime::Runtime;
 use zipf::ZipfDistribution;
 
 pub mod client;
-mod publisher;
 mod oltp;
+mod publisher;
 
 pub use client::ClientRequest;
-pub use publisher::PublisherWorkItem;
 pub use oltp::OltpRequest;
+pub use publisher::PublisherWorkItem;
 
 pub mod store;
 pub use store::StoreClientRequest;
@@ -69,7 +69,13 @@ pub fn launch_workload(
             let mut rng = Xoshiro512PlusPlus::from_seed(Seed512(seed));
 
             while RUNNING.load(Ordering::Relaxed) {
-                generator.generate(&client_sender, &pubsub_sender, &store_sender, &oltp_sender, &mut rng);
+                generator.generate(
+                    &client_sender,
+                    &pubsub_sender,
+                    &store_sender,
+                    &oltp_sender,
+                    &mut rng,
+                );
             }
         });
     }
@@ -930,7 +936,7 @@ pub struct Oltp {
 }
 
 impl Oltp {
-    pub fn new(_config: &Config, oltp: &config::Oltp) -> Self { 
+    pub fn new(_config: &Config, oltp: &config::Oltp) -> Self {
         {
             Self {
                 tables: oltp.tables(),
@@ -938,8 +944,6 @@ impl Oltp {
             }
         }
     }
-
-
 }
 
 #[derive(Debug, PartialEq)]

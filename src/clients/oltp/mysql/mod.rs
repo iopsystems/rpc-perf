@@ -1,12 +1,13 @@
-use sqlx::Connection;
-use sqlx::MySqlConnection;
-use sqlx::MySql;
-use sqlx::QueryBuilder;
-use sqlx::Error;
 use crate::workload::*;
 use crate::*;
 use async_channel::Receiver;
-use std::io::{Result};
+use sqlx::Connection;
+use sqlx::Error;
+use sqlx::MySql;
+use sqlx::MySqlConnection;
+use sqlx::QueryBuilder;
+use std::io::Result;
+use std::time::Instant;
 use tokio::runtime::Runtime;
 
 /// Launch tasks with one conncetion per task as ping protocol is not mux-enabled.
@@ -23,11 +24,9 @@ pub fn launch_tasks(
                 work_receiver.clone(),
                 endpoint.clone(),
                 config.clone(),
-                
             ));
         }
     }
-    
 }
 
 // a task for ping servers (eg: Pelikan Pingserver)
@@ -70,21 +69,30 @@ async fn task(
         match work_item {
             workload::ClientWorkItemKind::Request { request, .. } => match request {
                 workload::OltpRequest::PointSelect(request) => {
-
                     OLTP_REQUEST_OK.increment();
 
-                    let result = QueryBuilder::<MySql>::new(
-                            &format!("SELECT c FROM {} WHERE id = {}", request.table, request.id)
-                        )
-                        .build()
-                        .fetch_one(&mut c).await;
+                    let start = Instant::now();
+
+                    let result = QueryBuilder::<MySql>::new(&format!(
+                        "SELECT c FROM {} WHERE id = {}",
+                        request.table, request.id
+                    ))
+                    .build()
+                    .fetch_one(&mut c)
+                    .await;
+
+                    let latency = start.elapsed();
 
                     match result {
                         Ok(_) => {
                             OLTP_RESPONSE_OK.increment();
+
+                            let _ = OLTP_RESPONSE_LATENCY.increment(latency.as_nanos() as _);
                         }
                         Err(Error::RowNotFound) => {
                             OLTP_RESPONSE_OK.increment();
+
+                            let _ = OLTP_RESPONSE_LATENCY.increment(latency.as_nanos() as _);
                         }
                         Err(e) => {
                             debug!("request error: {e}");
@@ -95,7 +103,7 @@ async fn task(
                         }
                     }
                 }
-            }
+            },
             workload::ClientWorkItemKind::Reconnect => {
                 OLTP_CONNECT_CURR.decrement();
                 continue;
