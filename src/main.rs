@@ -133,6 +133,7 @@ fn main() {
     let (client_sender, client_receiver) = bounded(128);
     let (pubsub_sender, pubsub_receiver) = bounded(128);
     let (store_sender, store_receiver) = bounded(128);
+    let (oltp_sender, oltp_receiver) = bounded(128);
 
     output!("Protocol: {:?}", config.general().protocol());
 
@@ -159,6 +160,7 @@ fn main() {
         client_sender,
         pubsub_sender,
         store_sender,
+        oltp_sender,
     );
 
     // start client(s)
@@ -166,6 +168,9 @@ fn main() {
 
     // start store client(s)
     let store_runtime = clients::store::launch(&config, store_receiver);
+
+    // start OLTP clients
+    let oltp_runtime = clients::oltp::launch(&config, oltp_receiver);
 
     // start publisher(s) and subscriber(s)
     let mut pubsub_runtimes =
@@ -200,6 +205,10 @@ fn main() {
 
     if let Some(store_runtime) = store_runtime {
         store_runtime.shutdown_timeout(std::time::Duration::from_millis(100));
+    }
+
+    if let Some(rt) = oltp_runtime {
+        rt.shutdown_timeout(std::time::Duration::from_millis(100));
     }
 
     pubsub_runtimes.shutdown_timeout(std::time::Duration::from_millis(100));
