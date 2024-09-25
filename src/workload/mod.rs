@@ -273,7 +273,7 @@ impl Generator {
 
         let request = OltpRequest::PointSelect(oltp::PointSelect {
             id,
-            table,
+            table: format!("sbtest{table}"),
         });
 
         ClientWorkItemKind::Request {

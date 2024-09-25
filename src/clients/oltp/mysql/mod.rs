@@ -15,7 +15,7 @@ pub fn launch_tasks(
     config: Config,
     work_receiver: Receiver<ClientWorkItemKind<OltpRequest>>,
 ) {
-    debug!("launching mysql protocol tasks");
+    info!("launching mysql protocol tasks");
 
     for _ in 0..config.client().unwrap().poolsize() {
         for endpoint in config.target().endpoints() {

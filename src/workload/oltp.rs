@@ -8,5 +8,5 @@ pub enum OltpRequest {
 #[derive(Debug, PartialEq)]
 pub struct PointSelect {
     pub id: i32,
-    pub table: i32,
+    pub table: String,
 }
