@@ -309,6 +309,86 @@ fn store_stats(snapshot: &mut MetricsSnapshot) {
     output!("{latencies}");
 }
 
+
+/// Outputs store stats
+fn oltp_stats(snapshot: &mut MetricsSnapshot) {
+    let connect_ok = snapshot.counter_rate(OLTP_CONNECT_OK_COUNTER);
+    let connect_ex = snapshot.counter_rate(OLTP_CONNECT_EX_COUNTER);
+    let connect_timeout = snapshot.counter_rate(OLTP_CONNECT_TIMEOUT_COUNTER);
+    let connect_total = snapshot.counter_rate(OLTP_CONNECT_COUNTER);
+
+    let request_reconnect = snapshot.counter_rate(OLTP_REQUEST_RECONNECT_COUNTER);
+    let request_ok = snapshot.counter_rate(OLTP_REQUEST_OK_COUNTER);
+    let request_unsupported = snapshot.counter_rate(OLTP_REQUEST_UNSUPPORTED_COUNTER);
+    let request_total = snapshot.counter_rate(OLTP_REQUEST_COUNTER);
+
+    let response_ok = snapshot.counter_rate(OLTP_RESPONSE_OK_COUNTER);
+    let response_ex = snapshot.counter_rate(OLTP_RESPONSE_EX_COUNTER);
+    let response_timeout = snapshot.counter_rate(OLTP_RESPONSE_TIMEOUT_COUNTER);
+    let response_found = snapshot.counter_rate(OLTP_RESPONSE_FOUND_COUNTER);
+    let response_not_found = snapshot.counter_rate(OLTP_RESPONSE_NOT_FOUND_COUNTER);
+
+    let connect_sr = 100.0 * connect_ok / connect_total;
+
+    let response_latency = snapshot.percentiles(OLTP_RESPONSE_LATENCY_HISTOGRAM);
+
+    output!(
+        "OLTP Client Connection: Open: {} Success Rate: {:.2} %",
+        CONNECT_CURR.value(),
+        connect_sr
+    );
+    output!(
+        "OLTP Client Connection Rates (/s): Attempt: {:.2} Opened: {:.2} Errors: {:.2} Timeout: {:.2} Closed: {:.2}",
+        connect_total,
+        connect_ok,
+        connect_ex,
+        connect_timeout,
+        request_reconnect,
+    );
+
+    let request_sr = 100.0 * request_ok / request_total;
+    let request_ur = 100.0 * request_unsupported / request_total;
+
+    output!(
+        "OLTP Client Request: Success: {:.2} % Unsupported: {:.2} %",
+        request_sr,
+        request_ur,
+    );
+    output!(
+        "OLTP Client Request Rate (/s): Ok: {:.2} Unsupported: {:.2}",
+        request_ok,
+        request_unsupported,
+    );
+
+    let response_total = response_ok + response_ex + response_timeout;
+
+    let response_sr = 100.0 * response_ok / response_total;
+    let response_to = 100.0 * response_timeout / response_total;
+    let response_fr = 100.0 * response_found / (response_found + response_not_found);
+
+    output!(
+        "OLTP Client Response: Success: {:.2} % Timeout: {:.2} % Found: {:.2} %",
+        response_sr,
+        response_to,
+        response_fr,
+    );
+    output!(
+        "OLTP Client Response Rate (/s): Ok: {:.2} Error: {:.2} Timeout: {:.2}",
+        response_ok,
+        response_ex,
+        response_timeout,
+    );
+
+    let mut latencies = "OLTP Client Response Latency (us):".to_owned();
+
+    for (label, _percentile, nanoseconds) in response_latency {
+        let microseconds = nanoseconds / 1000;
+        latencies.push_str(&format!(" {label}: {microseconds}"))
+    }
+
+    output!("{latencies}");
+}
+
 pub async fn metrics(config: Config) {
     if config.metrics().is_none() {
         return;
