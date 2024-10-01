@@ -8,6 +8,11 @@ name: package
       - .github/actions/**
       - .github/workflows/package.yml
       - debian/**
+  pull_request:
+    paths:
+      - .github/actions/**
+      - .github/workflows/package.yml
+      - debian/**
   release:
     types: [published]
   workflow_dispatch:
@@ -16,7 +21,11 @@ name: package
         description: 'Debian package release number'
         default: '1'
 
+permissions: write-all
+
 env:
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: 0
   CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
@@ -35,24 +44,20 @@ env:
 jobs:
   build-deb:
     name: "${{ matrix.distro }}:${{ matrix.release }}"
-    runs-on: ubuntu-latest
+    runs-on: buildjet-8vcpu-ubuntu-2204${{ matrix.arch == 'arm64' && '-arm' || '' }}
     container: "${{ matrix.distro }}:${{ matrix.release }}"
     strategy:
       matrix:
         include:
-          - { distro: debian, release: buster } # LTS until July 2024
-          - { distro: debian, release: bullseye } # LTS until July 2026
-          - { distro: debian, release: bookworm } # LTS until July 2028
+          - { distro: debian, release: bullseye, arch: x86_64 }
+          - { distro: debian, release: bullseye, arch: arm64 }
+          - { distro: debian, release: bookworm, arch: x86_64 }
+          - { distro: debian, release: bookworm, arch: arm64 }
 
-          # trusty and xenial are too old to properly support cross compiling
-          # (or a compiler that supports C++17).
-          # - { distro: ubuntu, release: trusty  } # LTS until Apr 2024
-          # - { distro: ubuntu, release: xenial  } # LTS until Apr 2026
-          # - { distro: ubuntu, release: bionic  } # LTS until Apr 2028
-          - { distro: ubuntu, release: focal   } # LTS until Apr 2030
-          - { distro: ubuntu, release: jammy   } # LTS until Apr 2032
-            # - { distro: ubuntu, release: lunar } # Previous release
-          - { distro: ubuntu, release: mantic   } # Current release
+          - { distro: ubuntu, release: jammy, arch: x86_64 } # 22.04
+          - { distro: ubuntu, release: jammy, arch: arm64 } # 22.04
+          - { distro: ubuntu, release: noble, arch: x86_64 } # 24.04
+          - { distro: ubuntu, release: noble, arch: arm64 } # 24.04
       fail-fast: false
     env:
       # dpkg-buildpackage issues a warning if we attempt to cross compile and
@@ -62,55 +67,23 @@ jobs:
       # anything for us.
       DEB_BUILD_OPTS: nocheck
     steps:
-      - uses: actions/checkout@v3
-
-      - name: modify /etc/apt/sources.list
-        if: ${{ matrix.distro == 'ubuntu' }}
-        run: |
-          cat /etc/apt/sources.list             | \
-            sed 's/^deb /deb [arch=amd64] /g'   | \
-            grep '^deb '                          \
-            > amd64.list
-          
-          cat /etc/apt/sources.list             | \
-            sed 's/^deb /deb [arch=arm64] /g'   | \
-            grep archive.ubuntu.com             | \
-            grep '^deb '                        | \
-            sed 's|archive.ubuntu.com/ubuntu|ports.ubuntu.com|g' \
-            > arm64.list
-
-          cat amd64.list arm64.list > /etc/apt/sources.list
-          rm amd64.list arm64.list
-
-      - name: enable arm64 dpkg architecture
-        run: dpkg --add-architecture arm64
+      - uses: actions/checkout@v4
 
       - name: install buildsystem apt dependencies
         run: |
           apt-get update
           apt-get install -y            \
             build-essential             \
-            crossbuild-essential-arm64  \
-            curl jq lsb-release unzip   \
-            pkg-config libzstd-dev
+            curl jq lsb-release unzip gpg pkg-config libzstd-dev
 
       - name: install rust
         run: |
-          curl -sSf https://sh.rustup.rs | sh /dev/stdin -y --profile minimal
+          curl -sSf https://sh.rustup.rs | sh /dev/stdin -y
           echo "PATH=$HOME/.cargo/bin:$PATH" >> "$GITHUB_ENV"
 
-      - name: enable additional rustup targets
-        run: rustup target add aarch64-unknown-linux-gnu
-
-      # Older ubuntu versions have a protoc version that is too old to build
-      # momento-protos. To work around this we manually install protoc.
-      - name: Manually install protoc
-        if: ${{ matrix.distro == 'ubuntu' }}
-        shell: bash
-        run: |
-          curl -sSL https://github.com/protocolbuffers/protobuf/releases/download/v${{ env.PROTOC_VERSION }}/protoc-${{ env.PROTOC_VERSION }}-linux-x86_64.zip -o protoc.zip
-          unzip protoc.zip -d /usr/local
-          rm protoc.zip
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: build-deb-${{ matrix.distro }}-${{ matrix.release }}-${{ matrix.arch }}
 
       - name: check cargo
         shell: bash
@@ -138,16 +111,10 @@ jobs:
         shell: bash
         run: ./debian/gen-changelog.sh > debian/changelog
 
-      # Cross-compiling for arm64 fails with boring-ssl errors; disable for now.
-      # - name: install arm64 build dependencies
-      #   run: apt-get build-dep -y -a arm64 ../rpc-perf*.dsc
-      # - name: build arm64 package
-      #   run: dpkg-buildpackage -b -us -uc --host-arch arm64
-
-      - name: install x86_64 build dependencies
-        run: apt-get build-dep -y -a amd64 ../rpc-perf*.dsc
-      - name: build x86_64 package
-        run: dpkg-buildpackage -b -us -uc --host-arch amd64
+      - name: install build dependencies
+        run: apt-get build-dep -y ../rpc-perf*.dsc
+      - name: build package
+        run: dpkg-buildpackage -b -us -uc
 
       - name: copy debs
         shell: bash
@@ -156,10 +123,10 @@ jobs:
           mkdir -p target/debian
           cp ../*.deb ../*.ddeb target/debian/
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           path: target/debian/*
-          name: ${{ matrix.distro }}_${{ matrix.release }}_all
+          name: ${{ matrix.distro }}_${{ matrix.release }}_${{ matrix.arch }}
 
   upload-to-apt-repo:
     if: ${{ github.event_name == 'release' || github.event_name == 'workflow_dispatch' }}
@@ -167,13 +134,13 @@ jobs:
     needs:
       - build-deb
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: google-github-actions/auth@v1
         id: auth
         with:
           credentials_json: "${{ secrets.GCP_CREDENTIALS }}"
       - uses: google-github-actions/setup-gcloud@v1
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4.1.7
         with:
           path: target/debian/
 
@@ -193,3 +160,33 @@ jobs:
             gcloud artifacts apt upload "$release" --source "$artifact"
             echo "::endgroup::"
           done
+
+  upload-release-artifacts:
+    if: ${{ github.event_name == 'release' }}
+    runs-on: ubuntu-latest
+    needs:
+      - build-deb
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4.1.7
+        with:
+          path: target/debian/
+
+      - name: upload packages
+        shell: bash
+        run: |
+          set -x
+          shopt -s nullglob
+
+          mkdir -p target/artifacts
+
+          for artifact in target/debian/**/*; do
+            name="$(basename "$artifact")"
+            directory="$(basename "$(dirname "$artifact")")"
+            distro="$(echo "$directory" | cut -d _ -f 1)"
+            release="$(echo "$directory" | cut -d _ -f 2)"
+
+            mv "$artifact" "target/artifacts/${distro}_${release}_${name}"
+          done
+
+          gh release upload "${{ github.event.release.tag_name }}" target/artifacts/*
