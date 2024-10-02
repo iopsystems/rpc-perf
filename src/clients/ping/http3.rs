@@ -1,4 +1,4 @@
-use crate::clients::http2::Queue;
+use crate::clients::common::Queue;
 use crate::workload::ClientRequest;
 use crate::workload::ClientWorkItemKind;
 use crate::*;

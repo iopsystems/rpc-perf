@@ -11,7 +11,9 @@ pub enum Protocol {
     Http3Ping,
     Memcache,
     Momento,
+    MomentoHttp,
     Ping,
     Resp,
     Kafka,
+    S3,
 }

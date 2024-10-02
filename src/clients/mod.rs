@@ -11,8 +11,8 @@ use workload::ClientWorkItemKind;
 use std::io::{Error, ErrorKind, Result};
 use std::time::Instant;
 
-mod http1;
-mod http2;
+mod common;
+
 mod memcache;
 mod momento;
 mod ping;
@@ -37,12 +37,6 @@ pub fn launch_clients(
         Protocol::GrpcPing => {
             clients::ping::grpc::launch_tasks(&mut client_rt, config.clone(), work_receiver)
         }
-        Protocol::Http1 => {
-            clients::http1::launch_tasks(&mut client_rt, config.clone(), work_receiver)
-        }
-        Protocol::Http2 => {
-            clients::http2::launch_tasks(&mut client_rt, config.clone(), work_receiver)
-        }
         Protocol::Http2Ping => {
             clients::ping::http2::launch_tasks(&mut client_rt, config.clone(), work_receiver)
         }
@@ -55,18 +49,17 @@ pub fn launch_clients(
         Protocol::Momento => {
             clients::momento::launch_tasks(&mut client_rt, config.clone(), work_receiver)
         }
+        Protocol::MomentoHttp => {
+            clients::momento::http::launch_tasks(&mut client_rt, config.clone(), work_receiver)
+        }
         Protocol::Ping => {
             clients::ping::ascii::launch_tasks(&mut client_rt, config.clone(), work_receiver)
         }
         Protocol::Resp => {
             clients::redis::launch_tasks(&mut client_rt, config.clone(), work_receiver)
         }
-        Protocol::Kafka => {
-            error!("keyspace is not supported for the kafka protocol");
-            std::process::exit(1);
-        }
-        Protocol::Blabber => {
-            error!("keyspace is not supported for the blabber protocol");
+        other => {
+            error!("keyspace is not supported for the {:?} protocol", other);
             std::process::exit(1);
         }
     }
