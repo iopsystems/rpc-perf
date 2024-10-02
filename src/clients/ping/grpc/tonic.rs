@@ -1,10 +1,10 @@
-use std::time::Instant;
-use crate::workload::ClientWorkItemKind;
 use crate::workload::ClientRequest;
-use std::io::Error;
-use tokio::runtime::Runtime;
-use async_channel::Receiver;
+use crate::workload::ClientWorkItemKind;
 use crate::*;
+use async_channel::Receiver;
+use std::io::Error;
+use std::time::Instant;
+use tokio::runtime::Runtime;
 use tonic::transport::Channel;
 
 use pingpong::ping_client::PingClient;

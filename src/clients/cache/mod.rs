@@ -48,15 +48,21 @@ pub fn launch(
         Protocol::Ping => {
             crate::clients::ping::ascii::launch_tasks(&mut client_rt, config.clone(), work_receiver)
         }
-        Protocol::PingGrpc => {
-            crate::clients::ping::grpc::tonic::launch_tasks(&mut client_rt, config.clone(), work_receiver)
-        }
-        Protocol::PingGrpcH2 => {
-            crate::clients::ping::grpc::h2::launch_tasks(&mut client_rt, config.clone(), work_receiver)
-        }
-        Protocol::PingGrpcH3 => {
-            crate::clients::ping::grpc::h3::launch_tasks(&mut client_rt, config.clone(), work_receiver)
-        }
+        Protocol::PingGrpc => crate::clients::ping::grpc::tonic::launch_tasks(
+            &mut client_rt,
+            config.clone(),
+            work_receiver,
+        ),
+        Protocol::PingGrpcH2 => crate::clients::ping::grpc::h2::launch_tasks(
+            &mut client_rt,
+            config.clone(),
+            work_receiver,
+        ),
+        Protocol::PingGrpcH3 => crate::clients::ping::grpc::h3::launch_tasks(
+            &mut client_rt,
+            config.clone(),
+            work_receiver,
+        ),
         Protocol::Resp => redis::launch_tasks(&mut client_rt, config.clone(), work_receiver),
         protocol => {
             error!("keyspace is not supported for the {:?} protocol", protocol);
