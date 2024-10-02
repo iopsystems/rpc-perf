@@ -10,7 +10,7 @@ pub fn launch_tasks(
     config: Config,
     work_receiver: Receiver<ClientWorkItemKind<ClientRequest>>,
 ) {
-    debug!("launching ping protocol tasks");
+    debug!("launching ping ascii protocol tasks");
 
     // create one task per "connection"
     // note: these may be channels instead of connections for multiplexed protocols

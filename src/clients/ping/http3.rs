@@ -18,14 +18,14 @@ use tokio::runtime::Runtime;
 
 static ALPN: &[u8] = b"h3";
 
-// launch a pool manager and worker tasks since HTTP/2.0 is mux'ed we prepare
+// launch a pool manager and worker tasks since HTTP/3 is mux'ed we prepare
 // senders in the pool manager and pass them over a queue to our worker tasks
 pub fn launch_tasks(
     runtime: &mut Runtime,
     config: Config,
     work_receiver: Receiver<ClientWorkItemKind<ClientRequest>>,
 ) {
-    debug!("launching http2 protocol tasks");
+    debug!("launching ping http3 protocol tasks");
 
     for _ in 0..config.client().unwrap().poolsize() {
         for endpoint in config.target().endpoints() {
@@ -228,7 +228,7 @@ async fn task(
         let request = http::request::Builder::new()
             .version(Version::HTTP_3)
             .method(Method::POST)
-            .uri(&format!("http://{auth}/pingpong.Ping/Ping"))
+            .uri(&format!("https://{auth}/pingpong.Ping/Ping"))
             .header("content-type", "application/grpc")
             .header("date", date)
             .header("user-agent", "unknown/0.0.0")

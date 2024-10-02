@@ -15,7 +15,7 @@ pub fn launch_tasks(
     config: Config,
     work_receiver: Receiver<ClientWorkItemKind<ClientRequest>>,
 ) {
-    debug!("launching http2 protocol tasks");
+    debug!("launching ping grpc protocol tasks");
 
     for endpoint in config.target().endpoints() {
         for _ in 0..config.client().unwrap().poolsize() {
