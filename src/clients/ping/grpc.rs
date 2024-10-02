@@ -1,4 +1,10 @@
-use crate::clients::*;
+use std::time::Instant;
+use crate::workload::ClientWorkItemKind;
+use crate::workload::ClientRequest;
+use std::io::Error;
+use tokio::runtime::Runtime;
+use async_channel::Receiver;
+use crate::*;
 use tonic::transport::Channel;
 
 use pingpong::ping_client::PingClient;
@@ -47,12 +53,12 @@ async fn task(
     _config: Config,
     mut client: PingClient<Channel>,
     work_receiver: Receiver<ClientWorkItemKind<ClientRequest>>,
-) -> Result<()> {
+) -> Result<(), std::io::Error> {
     while RUNNING.load(Ordering::Relaxed) {
         let work_item = work_receiver
             .recv()
             .await
-            .map_err(|_| Error::new(ErrorKind::Other, "channel closed"))?;
+            .map_err(|_| Error::other("channel closed"))?;
 
         REQUEST.increment();
         let start = Instant::now();

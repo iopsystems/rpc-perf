@@ -1,4 +1,12 @@
-use crate::clients::*;
+/// # Pubsub Clients
+///
+/// Pubsub clients have two components, Publishers and Subscribers. Publishers
+/// write messages to the service and subscribers receive those messages.
+/// Essentially this is a queue as a network service.
+///
+/// RPC-Perf pubsub clients can be used to measure the performance in terms of
+/// throughput and latency from both the publisher's perspective as well as the
+/// end-to-end latency and total message throughput.
 use crate::workload::Component;
 use crate::workload::PublisherWorkItem as WorkItem;
 use crate::*;
@@ -111,7 +119,7 @@ impl PubsubRuntimes {
     }
 }
 
-pub fn launch_pubsub(
+pub fn launch(
     config: &Config,
     work_receiver: Receiver<WorkItem>,
     workload_components: &[Component],
@@ -152,8 +160,11 @@ fn launch_publishers(
             kafka::create_topics(&mut publisher_rt, config.clone(), workload_components);
             kafka::launch_publishers(&mut publisher_rt, config.clone(), work_receiver);
         }
-        _ => {
-            error!("pubsub is not supported for the selected protocol");
+        protocol => {
+            error!(
+                "pubsub is not supported for the selected protocol: {:?}",
+                protocol
+            );
             std::process::exit(1);
         }
     }

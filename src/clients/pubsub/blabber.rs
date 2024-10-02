@@ -1,13 +1,12 @@
-use super::*;
+use crate::clients::pubsub::*;
 use crate::net::Connector;
-use bytes::Buf;
-use bytes::BufMut;
-use session::Buffer;
-use std::borrow::Borrow;
-use std::borrow::BorrowMut;
-use tokio::io::AsyncReadExt;
 
+use bytes::{Buf, BufMut};
+use session::Buffer;
+use tokio::io::AsyncReadExt;
 use tokio::time::timeout;
+
+use std::borrow::{Borrow, BorrowMut};
 
 // blabber has a header before the standard pubsub message
 //

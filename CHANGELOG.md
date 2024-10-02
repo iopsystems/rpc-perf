@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+## [5.11.1] - 2024-10-02
+
+### Fixed
+
+- Fixes release packaging workflow (#273)
+
 ## [5.11.0] - 2024-10-01
 
 ### Added
@@ -162,8 +168,9 @@
 - Support Momento topics.
 - Basic HTTP/1.1 and HTTP/2.0 load generation.
 
-[unreleased]: https://github.com/iopsystems/rpc-perf/compare/v5.11.0...HEAD
-[5.10.0]: https://github.com/iopsystems/rezolus/compare/v5.10.0...v5.11.0
+[unreleased]: https://github.com/iopsystems/rpc-perf/compare/v5.11.1...HEAD
+[5.11.1]: https://github.com/iopsystems/rezolus/compare/v5.11.0...v5.11.1
+[5.11.0]: https://github.com/iopsystems/rezolus/compare/v5.10.0...v5.11.0
 [5.10.0]: https://github.com/iopsystems/rezolus/compare/v5.9.1...v5.10.0
 [5.9.1]: https://github.com/iopsystems/rezolus/compare/v5.9.0...v5.9.1
 [5.9.0]: https://github.com/iopsystems/rezolus/compare/v5.8.0...v5.9.0

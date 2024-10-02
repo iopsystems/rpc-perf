@@ -4,15 +4,13 @@ use super::*;
 #[serde(rename_all = "snake_case")]
 pub enum Protocol {
     Blabber,
-    GrpcPing,
-    Http1,
-    Http2,
-    Http2Ping,
-    Http3Ping,
     Memcache,
     Momento,
     MomentoHttp,
     Ping,
+    PingGrpc,
+    PingHttp2,
+    PingHttp3,
     Resp,
     Kafka,
     S3,
