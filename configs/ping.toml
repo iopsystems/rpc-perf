@@ -5,8 +5,9 @@
 # specify the protocol to be used
 # should be one of:
 #   ping - ascii ping/pong over TCP (w/ optional TLS)
-#   grpc_ping - ping/pong using GRPC over HTTP(s)/2 
-#   http2_ping - ping/pong implemented using HTTP(s)/2 GET
+#   ping_grpc - ping/pong using GRPC over HTTP(s)/2 using Tonic
+#   ping_grpc_h2 - gRPC compatible ping/pong client using `h2` directly
+#   ping_grpc_h3 - draft gRPC client over HTTP3 (QUIC) using `h3` directly
 protocol = "grpc_ping"
 # the interval for stats integration and reporting
 interval = 1

@@ -49,13 +49,13 @@ pub fn launch(
             crate::clients::ping::ascii::launch_tasks(&mut client_rt, config.clone(), work_receiver)
         }
         Protocol::PingGrpc => {
-            crate::clients::ping::grpc::launch_tasks(&mut client_rt, config.clone(), work_receiver)
+            crate::clients::ping::grpc::tonic::launch_tasks(&mut client_rt, config.clone(), work_receiver)
         }
-        Protocol::PingHttp2 => {
-            crate::clients::ping::http2::launch_tasks(&mut client_rt, config.clone(), work_receiver)
+        Protocol::PingGrpcH2 => {
+            crate::clients::ping::grpc::h2::launch_tasks(&mut client_rt, config.clone(), work_receiver)
         }
-        Protocol::PingHttp3 => {
-            crate::clients::ping::http3::launch_tasks(&mut client_rt, config.clone(), work_receiver)
+        Protocol::PingGrpcH3 => {
+            crate::clients::ping::grpc::h3::launch_tasks(&mut client_rt, config.clone(), work_receiver)
         }
         Protocol::Resp => redis::launch_tasks(&mut client_rt, config.clone(), work_receiver),
         protocol => {
