@@ -74,7 +74,7 @@ openssl = ["dep:openssl", "openssl-sys", "openssl/vendored", "tokio-openssl", "p
 opt-level = 3
 debug = true
 rpath = false
-lto = true
+lto = "thin"
 debug-assertions = false
 codegen-units = 1
 
@@ -82,7 +82,7 @@ codegen-units = 1
 opt-level = 3
 debug = true
 rpath = false
-lto = true
+lto = "thin"
 debug-assertions = false
 codegen-units = 1
 
