@@ -1,8 +1,18 @@
-use super::*;
+use crate::clients::*;
 use crate::net::Connector;
+use crate::workload::*;
+use crate::*;
+use async_channel::Receiver;
 use protocol_ping::{Compose, Parse, Request, Response};
 use session::{Buf, BufMut, Buffer};
 use std::borrow::{Borrow, BorrowMut};
+use std::io::ErrorKind;
+use std::io::{Error, Result};
+use std::time::Instant;
+use tokio::io::AsyncReadExt;
+use tokio::io::AsyncWriteExt;
+use tokio::runtime::Runtime;
+use tokio::time::timeout;
 
 /// Launch tasks with one conncetion per task as ping protocol is not mux-enabled.
 pub fn launch_tasks(
@@ -75,7 +85,7 @@ async fn task(
         let work_item = work_receiver
             .recv()
             .await
-            .map_err(|_| Error::new(ErrorKind::Other, "channel closed"))?;
+            .map_err(|_| Error::other("channel closed"))?;
 
         REQUEST.increment();
 

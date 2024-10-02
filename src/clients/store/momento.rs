@@ -1,14 +1,18 @@
-use super::*;
+use crate::clients::*;
+use crate::workload::*;
+use crate::*;
 
 use ::momento::storage::configurations::LowLatency;
-use ::momento::*;
-
-use paste::paste;
-
 use ::momento::storage::PutRequest;
+use ::momento::*;
+use async_channel::Receiver;
+use paste::paste;
 use storage::GetResponse;
+use tokio::runtime::Runtime;
 use tokio::time::timeout;
-use workload::StoreClientRequest;
+
+use std::io::{Error, Result};
+use std::time::Instant;
 
 /// Launch tasks with one channel per task as gRPC is mux-enabled.
 pub fn launch_tasks(
@@ -78,7 +82,7 @@ async fn task(
         let work_item = work_receiver
             .recv()
             .await
-            .map_err(|_| Error::new(ErrorKind::Other, "channel closed"))?;
+            .map_err(|_| Error::other("channel closed"))?;
 
         STORE_REQUEST.increment();
         let start = Instant::now();
