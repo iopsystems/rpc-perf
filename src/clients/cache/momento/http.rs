@@ -76,9 +76,8 @@ pub async fn pool_manager(endpoint: String, _config: Config, queue: Queue<SendRe
                     }
 
                     let connector: TlsConnector = TlsConnector::from(config.clone());
-
                     let stream = connector
-                        .connect(ServerName::try_from(auth.to_string()).unwrap(), tcp)
+                        .connect(ServerName::try_from(auth.host().to_string()).unwrap(), tcp)
                         .await
                         .unwrap();
 
