@@ -8,3 +8,5 @@
 /// RPC-Perf ping clients help measure the throughput and latency of fairly
 /// minimal network services.
 pub mod ascii;
+pub mod grpc;
+

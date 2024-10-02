@@ -3,9 +3,14 @@
 
 [general]
 # specify the protocol to be used
-protocol = "ping"
+# should be one of:
+#   ping - ascii ping/pong over TCP (w/ optional TLS)
+#   ping_grpc - ping/pong using GRPC over HTTP(s)/2 using Tonic
+#   ping_grpc_h2 - gRPC compatible ping/pong client using `h2` directly
+#   ping_grpc_h3 - draft gRPC client over HTTP3 (QUIC) using `h3` directly
+protocol = "grpc_ping"
 # the interval for stats integration and reporting
-interval = 60
+interval = 1
 # the number of intervals to run the test for
 duration = 300
 # run the admin thread with a HTTP listener at the address provided, this allows
@@ -44,14 +49,14 @@ log_max_size = 1073741824
 [target]
 # specify one or more endpoints as IP:PORT pairs
 endpoints = [
-	"127.0.0.1:12321",
+	"http://127.0.0.1:8080",
 ]
 
 [client]
 # number of threads used to drive client requests
 threads = 4
 # the total number of connections to each endpoint
-poolsize = 20
+poolsize = 100
 # the connect timeout in milliseconds
 connect_timeout = 10000
 # set the timeout in milliseconds
@@ -63,7 +68,7 @@ threads = 1
 
 [workload.ratelimit]
 # set a global ratelimit for the workload
-start = 10_000
+#start = 1
 
 # Note, even though the command does not use keys, it's still a member of a
 # keyspace.
