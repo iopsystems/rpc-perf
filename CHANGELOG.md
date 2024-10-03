@@ -1,5 +1,20 @@
 ## [Unreleased]
 
+## [5.12.0] - 2024-10-03
+
+### Changed
+
+- Removed the HTTP1/HTTP2 clients and reorganized the client code. (#266)
+
+### Added
+
+- Adds support for gRPC ping using `tonic`, directly using `h2`, and a pre-draft
+  implementation that is gRPC ping over HTTP3/QUIC. (#275)
+
+### Fixed
+
+- Fixes a bug in Redis `set` commands when a TTL is specified. (#278)
+
 ## [5.11.1] - 2024-10-02
 
 ### Fixed
