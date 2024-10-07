@@ -3,7 +3,7 @@ use crate::workload::{ClientRequest, ClientWorkItemKind};
 use crate::*;
 
 use async_channel::Receiver;
-use bytes::Bytes;
+use bytes::{Bytes, BytesMut};
 use h2::client::SendRequest;
 use http::{Method, Version};
 use rustls::pki_types::ServerName;
@@ -174,12 +174,43 @@ async fn task(
                     match sender.send_request(request, true) {
                         Ok((response, _)) => {
                             let response = response.await;
+
+                            let response = match response {
+                                Ok(r) => r,
+                                Err(_e) => {
+                                    GET_EX.increment();
+
+                                    RESPONSE_EX.increment();
+
+                                    continue;
+                                }
+                            };
+
+                            let status = response.status().as_u16();
+
+                            // read the response body to completion
+
+                            let mut buffer = BytesMut::new();
+                            let mut body = response.into_body();
+
+                            while let Some(chunk) = body.data().await {
+                                if let Ok(b) = chunk {
+                                    buffer.extend_from_slice(&b);
+                                } else {
+                                    GET_EX.increment();
+
+                                    RESPONSE_EX.increment();
+
+                                    continue;
+                                }
+                            }
+
                             let latency = start.elapsed();
 
                             REQUEST_OK.increment();
 
-                            match response.map(|r| r.status().as_u16()) {
-                                Ok(200) => {
+                            match status {
+                                200 => {
                                     GET_OK.increment();
                                     GET_KEY_HIT.increment();
 
@@ -188,7 +219,7 @@ async fn task(
 
                                     let _ = RESPONSE_LATENCY.increment(latency.as_nanos() as _);
                                 }
-                                Ok(404) => {
+                                404 => {
                                     GET_OK.increment();
                                     GET_KEY_MISS.increment();
 
@@ -197,12 +228,12 @@ async fn task(
 
                                     let _ = RESPONSE_LATENCY.increment(latency.as_nanos() as _);
                                 }
-                                Ok(429) => {
+                                429 => {
                                     GET_EX.increment();
 
                                     RESPONSE_RATELIMITED.increment();
                                 }
-                                Ok(_) | Err(_) => {
+                                _ => {
                                     GET_EX.increment();
 
                                     RESPONSE_EX.increment();
@@ -234,12 +265,43 @@ async fn task(
                         }
 
                         let response = response.await;
+
+                        let response = match response {
+                            Ok(r) => r,
+                            Err(_e) => {
+                                GET_EX.increment();
+
+                                RESPONSE_EX.increment();
+
+                                continue;
+                            }
+                        };
+
+                        let status = response.status().as_u16();
+
+                        // read the response body to completion
+
+                        let mut buffer = BytesMut::new();
+                        let mut body = response.into_body();
+
+                        while let Some(chunk) = body.data().await {
+                            if let Ok(b) = chunk {
+                                buffer.extend_from_slice(&b);
+                            } else {
+                                GET_EX.increment();
+
+                                RESPONSE_EX.increment();
+
+                                continue;
+                            }
+                        }
+
                         let latency = start.elapsed();
 
                         REQUEST_OK.increment();
 
-                        match response.map(|r| r.status().as_u16()) {
-                            Ok(204) => {
+                        match status {
+                            204 => {
                                 SET_STORED.increment();
 
                                 RESPONSE_OK.increment();
@@ -247,12 +309,12 @@ async fn task(
 
                                 let _ = RESPONSE_LATENCY.increment(latency.as_nanos() as _);
                             }
-                            Ok(429) => {
+                            429 => {
                                 SET_EX.increment();
 
                                 RESPONSE_RATELIMITED.increment();
                             }
-                            Ok(_) | Err(_) => {
+                            _ => {
                                 SET_EX.increment();
 
                                 RESPONSE_EX.increment();
@@ -273,30 +335,61 @@ async fn task(
                     match sender.send_request(request, false) {
                         Ok((response, _)) => {
                             let response = response.await;
+
+                            let response = match response {
+                                Ok(r) => r,
+                                Err(_e) => {
+                                    GET_EX.increment();
+
+                                    RESPONSE_EX.increment();
+
+                                    continue;
+                                }
+                            };
+
+                            let status = response.status().as_u16();
+
+                            // read the response body to completion
+
+                            let mut buffer = BytesMut::new();
+                            let mut body = response.into_body();
+
+                            while let Some(chunk) = body.data().await {
+                                if let Ok(b) = chunk {
+                                    buffer.extend_from_slice(&b);
+                                } else {
+                                    GET_EX.increment();
+
+                                    RESPONSE_EX.increment();
+
+                                    continue;
+                                }
+                            }
+
                             let latency = start.elapsed();
 
                             REQUEST_OK.increment();
 
-                            match response.map(|r| r.status().as_u16()) {
-                                Ok(204) => {
+                            match status {
+                                204 => {
                                     DELETE_DELETED.increment();
 
                                     RESPONSE_OK.increment();
 
                                     let _ = RESPONSE_LATENCY.increment(latency.as_nanos() as _);
                                 }
-                                Ok(404) => {
+                                404 => {
                                     DELETE_NOT_FOUND.increment();
 
                                     RESPONSE_OK.increment();
                                     let _ = RESPONSE_LATENCY.increment(latency.as_nanos() as _);
                                 }
-                                Ok(429) => {
+                                429 => {
                                     DELETE_EX.increment();
 
                                     RESPONSE_RATELIMITED.increment();
                                 }
-                                Ok(_) | Err(_) => {
+                                _ => {
                                     DELETE_EX.increment();
 
                                     RESPONSE_EX.increment();
