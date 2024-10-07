@@ -1,10 +1,9 @@
-use bytes::BytesMut;
 use crate::clients::common::*;
 use crate::workload::{ClientRequest, ClientWorkItemKind};
 use crate::*;
 
 use async_channel::Receiver;
-use bytes::Bytes;
+use bytes::{Bytes, BytesMut};
 use h2::client::SendRequest;
 use http::{Method, Version};
 use rustls::pki_types::ServerName;
