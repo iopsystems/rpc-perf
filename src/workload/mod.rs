@@ -97,11 +97,9 @@ impl Generator {
             // ratelimits.
             let interval = Duration::from_nanos(1_000_000_000 / (rate / amount));
 
-            let capacity = std::cmp::max(100, amount);
-
             Arc::new(
                 Ratelimiter::builder(amount, interval)
-                    .max_tokens(capacity)
+                    .max_tokens(amount)
                     .build()
                     .expect("failed to initialize ratelimiter"),
             )
@@ -909,11 +907,9 @@ pub async fn reconnect<TRequestKind>(
         // ratelimits.
         let interval = Duration::from_nanos(1_000_000_000 / (rate / amount));
 
-        let capacity = std::cmp::max(100, amount);
-
         Arc::new(
             Ratelimiter::builder(amount, interval)
-                .max_tokens(capacity)
+                .max_tokens(amount)
                 .build()
                 .expect("failed to initialize ratelimiter"),
         )
