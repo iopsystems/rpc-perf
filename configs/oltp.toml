@@ -44,15 +44,11 @@ endpoints = [
 	"mysql://user_name:password@localhost:3333",
 ]
 
-[client]
-# number of threads used to drive client requests
+[oltp]
+# number of threads used to drive oltp requests
 threads = 4
 # the total number of connections to each endpoint
 poolsize = 20
-# the connect timeout in milliseconds
-connect_timeout = 10000
-# set the timeout in milliseconds
-request_timeout = 1000
 
 [workload]
 # the number of threads that will be used to generate the workload

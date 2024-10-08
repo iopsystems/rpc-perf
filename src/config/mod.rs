@@ -7,6 +7,7 @@ mod client;
 mod debug;
 mod general;
 mod metrics;
+mod oltp;
 mod protocol;
 mod pubsub;
 mod storage;
@@ -18,6 +19,7 @@ pub use client::Client;
 pub use debug::Debug;
 pub use general::General;
 pub use metrics::{Format as MetricsFormat, Metrics};
+pub use oltp::{Oltp as OltpConfig};
 pub use protocol::Protocol;
 pub use pubsub::Pubsub;
 pub use storage::Storage;
@@ -40,6 +42,7 @@ pub struct Config {
     general: General,
     client: Option<Client>,
     debug: Debug,
+    oltp: Option<OltpConfig>,
     pubsub: Option<Pubsub>,
     target: Target,
     tls: Option<Tls>,
@@ -88,6 +91,10 @@ impl Config {
 
     pub fn client(&self) -> Option<&Client> {
         self.client.as_ref()
+    }
+
+    pub fn oltp(&self) -> Option<&OltpConfig> {
+        self.oltp.as_ref()
     }
 
     pub fn pubsub(&self) -> Option<&Pubsub> {

@@ -18,7 +18,7 @@ pub fn launch_tasks(
 ) {
     info!("launching mysql protocol tasks");
 
-    for _ in 0..config.client().unwrap().poolsize() {
+    for _ in 0..config.oltp().unwrap().poolsize() {
         for endpoint in config.target().endpoints() {
             runtime.spawn(task(
                 work_receiver.clone(),
