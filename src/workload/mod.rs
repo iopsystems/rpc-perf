@@ -99,7 +99,7 @@ impl Generator {
 
             Arc::new(
                 Ratelimiter::builder(amount, interval)
-                    .max_tokens(amount)
+                    .max_tokens(amount * 8)
                     .build()
                     .expect("failed to initialize ratelimiter"),
             )
@@ -909,7 +909,7 @@ pub async fn reconnect<TRequestKind>(
 
         Arc::new(
             Ratelimiter::builder(amount, interval)
-                .max_tokens(amount)
+                .max_tokens(amount * 8)
                 .build()
                 .expect("failed to initialize ratelimiter"),
         )
