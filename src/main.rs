@@ -136,9 +136,16 @@ fn main() {
     }
 
     // TODO: figure out what a reasonable size is here
-    let (client_sender, client_receiver) = bounded(128);
-    let (pubsub_sender, pubsub_receiver) = bounded(128);
-    let (store_sender, store_receiver) = bounded(128);
+    let (client_sender, client_receiver) =
+        bounded(config.client().map(|c| c.threads() * 2).unwrap_or(1));
+    let (pubsub_sender, pubsub_receiver) = bounded(
+        config
+            .pubsub()
+            .map(|c| c.publisher_threads() * 2)
+            .unwrap_or(1),
+    );
+    let (store_sender, store_receiver) =
+        bounded(config.storage().map(|c| c.threads() * 2).unwrap_or(1));
 
     output!("Protocol: {:?}", config.general().protocol());
 
