@@ -1,5 +1,16 @@
 ## [Unreleased]
 
+## [5.13.0] - 2024-10-08
+
+### Added
+
+- Adds a metric for time-to-first-byte for S3 client. (#286)
+
+### Fixed
+
+- Improves ratelimit stability by reducing queue size and max tokens. (#287)
+- Fixes handling of large payloads for Momento HTTP client. (#288)
+
 ## [5.12.1] - 2024-10-07
 
 ### Fixed
