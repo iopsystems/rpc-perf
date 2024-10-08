@@ -82,8 +82,7 @@ pub async fn pool_manager(endpoint: String, _config: Config, queue: Queue<SendRe
                         .await
                         .unwrap();
 
-                    let client_builder = ::h2::client::Builder::new()
-                        .handshake(stream);
+                    let client_builder = ::h2::client::Builder::new().handshake(stream);
 
                     if let Ok((h2, connection)) = client_builder.await {
                         tokio::spawn(async move {
