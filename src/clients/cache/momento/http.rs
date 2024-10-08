@@ -1,7 +1,7 @@
-use rustls::KeyLogFile;
 use crate::clients::common::*;
 use crate::workload::{ClientRequest, ClientWorkItemKind};
 use crate::*;
+use rustls::KeyLogFile;
 
 use async_channel::Receiver;
 use bytes::{Bytes, BytesMut};
@@ -205,7 +205,12 @@ async fn task(
                                 if let Ok(b) = chunk {
                                     // info!("chunk for get: ({}) {}", std::str::from_utf8(&r.key).unwrap(), b.len());
                                     buffer.extend_from_slice(&b);
-                                    if response.body_mut().flow_control().release_capacity(b.len()).is_err() {
+                                    if response
+                                        .body_mut()
+                                        .flow_control()
+                                        .release_capacity(b.len())
+                                        .is_err()
+                                    {
                                         // info!("error releasing capacity");
                                         GET_EX.increment();
 
@@ -312,7 +317,12 @@ async fn task(
                             if let Ok(b) = chunk {
                                 // info!("chunk for set: {}", b.len());
                                 buffer.extend_from_slice(&b);
-                                if response.body_mut().flow_control().release_capacity(b.len()).is_err() {
+                                if response
+                                    .body_mut()
+                                    .flow_control()
+                                    .release_capacity(b.len())
+                                    .is_err()
+                                {
                                     // info!("error releasing capacity");
                                     SET_EX.increment();
 
@@ -320,7 +330,6 @@ async fn task(
 
                                     continue;
                                 }
-
                             } else {
                                 SET_EX.increment();
 
@@ -395,7 +404,12 @@ async fn task(
                                 if let Ok(b) = chunk {
                                     // info!("chunk for delete: {}", b.len());
                                     buffer.extend_from_slice(&b);
-                                    if response.body_mut().flow_control().release_capacity(b.len()).is_err() {
+                                    if response
+                                        .body_mut()
+                                        .flow_control()
+                                        .release_capacity(b.len())
+                                        .is_err()
+                                    {
                                         // info!("error releasing capacity");
                                         DELETE_EX.increment();
 
