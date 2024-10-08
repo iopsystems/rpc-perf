@@ -2,7 +2,7 @@ use crate::workload::{ClientWorkItemKind, StoreClientRequest};
 use crate::*;
 
 use async_channel::Receiver;
-use bytes::Bytes;
+use bytes::{Bytes, BytesMut};
 use chrono::{DateTime, Utc};
 use http::{HeaderMap, Method, Version};
 use http_body_util::{BodyExt, Full};
@@ -149,11 +149,28 @@ async fn task(
                     let start = Instant::now();
 
                     match c.request(request).await {
-                        Ok(response) => {
+                        Ok(mut response) => {
                             let status = response.status().as_u16();
 
                             // wait until we have a complete response body
-                            let body = response.into_body().collect().await.unwrap().to_bytes();
+                            let mut body = BytesMut::new();
+
+                            let mut ttfb = None;
+
+                            while let Some(next) = response.frame().await {
+                                if let Ok(frame) = next {
+                                    if let Some(chunk) = frame.data_ref() {
+                                        if ttfb.is_none() {
+                                            ttfb = Some(start.elapsed());
+                                        }
+
+                                        body.extend_from_slice(chunk);
+                                    }
+                                } else {
+                                    STORE_RESPONSE_EX.increment();
+                                    STORE_GET_EX.increment();
+                                }
+                            }
 
                             let latency = start.elapsed();
 
@@ -168,6 +185,10 @@ async fn task(
 
                                     let _ =
                                         STORE_RESPONSE_LATENCY.increment(latency.as_nanos() as _);
+
+                                    if let Some(ttfb) = ttfb {
+                                        let _ = STORE_RESPONSE_TTFB.increment(ttfb.as_nanos() as _);
+                                    }
                                 }
                                 404 => {
                                     STORE_RESPONSE_OK.increment();
@@ -177,6 +198,11 @@ async fn task(
 
                                     let _ =
                                         STORE_RESPONSE_LATENCY.increment(latency.as_nanos() as _);
+                                }
+                                503 => {
+                                    STORE_RESPONSE_RATELIMITED.increment();
+                                    STORE_RESPONSE_EX.increment();
+                                    STORE_GET_EX.increment();
                                 }
                                 _ => {
                                     STORE_RESPONSE_EX.increment();
@@ -227,6 +253,11 @@ async fn task(
                                     let _ =
                                         STORE_RESPONSE_LATENCY.increment(latency.as_nanos() as _);
                                 }
+                                503 => {
+                                    STORE_RESPONSE_RATELIMITED.increment();
+                                    STORE_RESPONSE_EX.increment();
+                                    STORE_PUT_EX.increment();
+                                }
                                 _ => {
                                     STORE_RESPONSE_EX.increment();
                                     STORE_PUT_EX.increment();
@@ -271,6 +302,11 @@ async fn task(
 
                                     let _ =
                                         STORE_RESPONSE_LATENCY.increment(latency.as_nanos() as _);
+                                }
+                                503 => {
+                                    STORE_RESPONSE_RATELIMITED.increment();
+                                    STORE_RESPONSE_EX.increment();
+                                    STORE_DELETE_EX.increment();
                                 }
                                 _ => {
                                     STORE_RESPONSE_EX.increment();
