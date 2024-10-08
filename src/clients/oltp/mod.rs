@@ -10,6 +10,11 @@ pub fn launch(
     config: &Config,
     work_receiver: Receiver<ClientWorkItemKind<OltpRequest>>,
 ) -> Option<Runtime> {
+	if config.storage().is_none() {
+		debug!("No storage configuration specified");
+		return None;
+	}
+
     debug!("Launching clients...");
 
     config.client()?;
@@ -24,7 +29,7 @@ pub fn launch(
     match config.general().protocol() {
         Protocol::Mysql => mysql::launch_tasks(&mut client_rt, config.clone(), work_receiver),
         protocol => {
-            error!("oltp is not supported for the {:?} protocol", protocol);
+            eprintln!("oltp is not supported for the {:?} protocol", protocol);
             std::process::exit(1);
         }
     }
