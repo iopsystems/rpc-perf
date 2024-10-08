@@ -19,7 +19,7 @@ pub use client::Client;
 pub use debug::Debug;
 pub use general::General;
 pub use metrics::{Format as MetricsFormat, Metrics};
-pub use oltp::{Oltp as OltpConfig};
+pub use oltp::Oltp as OltpConfig;
 pub use protocol::Protocol;
 pub use pubsub::Pubsub;
 pub use storage::Storage;

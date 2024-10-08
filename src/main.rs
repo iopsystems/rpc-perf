@@ -145,8 +145,7 @@ fn main() {
     );
     let (store_sender, store_receiver) =
         bounded(config.storage().map(|c| c.threads() * 2).unwrap_or(1));
-    let (oltp_sender, oltp_receiver) =
-        bounded(config.oltp().map(|c| c.threads() * 2).unwrap_or(1));
+    let (oltp_sender, oltp_receiver) = bounded(config.oltp().map(|c| c.threads() * 2).unwrap_or(1));
 
     output!("Protocol: {:?}", config.general().protocol());
 
