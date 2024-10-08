@@ -38,7 +38,7 @@ pub fn launch(
         Protocol::Momento => momento::launch_tasks(&mut client_rt, config.clone(), work_receiver),
         Protocol::S3 => s3::launch_tasks(&mut client_rt, config.clone(), work_receiver),
         protocol => {
-            error!(
+            eprintln!(
                 "store commands are not supported for the {:?} protocol",
                 protocol
             );

@@ -722,3 +722,98 @@ request!(STORE_PUT, "store_put");
 counter!(STORE_PUT_STORED, "store_put/stored");
 
 request!(STORE_DELETE, "store_delete");
+
+/*
+ * OLTP CLIENT
+ */
+#[metric(
+    name = OLTP_RESPONSE_LATENCY_HISTOGRAM,
+    description = "Distribution of oltp client response latencies",
+    metadata = { unit = "nanoseconds" }
+)]
+pub static OLTP_RESPONSE_LATENCY: AtomicHistogram = AtomicHistogram::new(7, 64);
+pub static OLTP_RESPONSE_LATENCY_HISTOGRAM: &str = "oltp_response_latency";
+
+counter!(OLTP_CONNECT, "oltp_client/connect/total");
+counter!(OLTP_CONNECT_OK, "oltp_client/connect/ok");
+counter!(OLTP_CONNECT_EX, "oltp_client/connect/exception");
+counter!(OLTP_CONNECT_TIMEOUT, "oltp_client/connect/timeout");
+gauge!(OLTP_CONNECT_CURR, "oltp_client/connections/current");
+counter!(
+    OLTP_REQUEST,
+    "oltp_client/request/total",
+    "total requests dequeued"
+);
+counter!(
+    OLTP_REQUEST_DROPPED,
+    "oltp_client/request/dropped",
+    "number of requests dropped due to a full work queue"
+);
+counter!(
+    OLTP_REQUEST_OK,
+    "oltp_client/request/ok",
+    "requests that were successfully generated and sent"
+);
+
+counter!(
+    OLTP_REQUEST_RECONNECT,
+    "oltp_client/connect/reconnect",
+    "requests to reconnect"
+);
+
+counter!(
+    OLTP_REQUEST_UNSUPPORTED,
+    "oltp_client/request/unsupported",
+    "skipped requests due to protocol incompatibility"
+);
+
+counter!(
+    OLTP_RESPONSE_EX,
+    "oltp_client/response/exception",
+    "responses which encountered some exception while processing"
+);
+
+counter!(
+    OLTP_RESPONSE_RATELIMITED,
+    "oltp_client/response/ratelimited",
+    "backend indicated that we were ratelimited"
+);
+
+counter!(
+    OLTP_RESPONSE_BACKEND_TIMEOUT,
+    "oltp_client/response/backend_timeout",
+    "responses indicating the backend timedout"
+);
+
+counter!(
+    OLTP_RESPONSE_OK,
+    "oltp_client/response/ok",
+    "responses which were successful"
+);
+
+counter!(
+    OLTP_RESPONSE_TIMEOUT,
+    "oltp_client/response/timeout",
+    "responses not received due to timeout"
+);
+
+counter!(
+    OLTP_RESPONSE_INVALID,
+    "oltp_client/response/invalid",
+    "responses that were invalid for the protocol"
+);
+
+counter!(OLTP_RESPONSE_FOUND, "oltp_client/response/found");
+counter!(OLTP_RESPONSE_NOT_FOUND, "oltp_client/response/not_found");
+
+/*
+ * OLTP
+ */
+request!(OLTP_GET, "oltp_get");
+counter!(OLTP_GET_KEY_FOUND, "oltp_get/found");
+counter!(OLTP_GET_KEY_NOT_FOUND, "oltp_get/not_found");
+
+request!(OLTP_PUT, "oltp_put");
+counter!(OLTP_PUT_OLTPD, "oltp_put/oltpd");
+
+request!(OLTP_DELETE, "oltp_delete");

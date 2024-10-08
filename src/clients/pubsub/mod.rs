@@ -198,7 +198,7 @@ fn launch_subscribers(config: &Config, workload_components: &[Component]) -> Opt
             kafka::launch_subscribers(&mut subscriber_rt, config.clone(), workload_components);
         }
         _ => {
-            error!("pubsub is not supported for the selected protocol");
+            eprintln!("pubsub is not supported for the selected protocol");
             std::process::exit(1);
         }
     }

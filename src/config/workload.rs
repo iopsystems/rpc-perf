@@ -12,6 +12,8 @@ pub struct Workload {
     stores: Vec<Store>,
     #[serde(default)]
     topics: Vec<Topics>,
+    #[serde(default)]
+    oltp: Option<Oltp>,
     threads: usize,
     ratelimit: Ratelimit,
 }
@@ -34,6 +36,10 @@ impl Workload {
 
     pub fn topics(&self) -> &[Topics] {
         &self.topics
+    }
+
+    pub fn oltp(&self) -> Option<&Oltp> {
+        self.oltp.as_ref()
     }
 
     pub fn threads(&self) -> usize {
@@ -174,6 +180,29 @@ impl Topics {
 
     pub fn kafka_single_subscriber_group(&self) -> bool {
         self.kafka_single_subscriber_group
+    }
+}
+
+#[derive(Clone, Deserialize)]
+pub struct Oltp {
+    tables: u8,
+    keys: i32,
+
+    #[serde(default = "one")]
+    weight: usize,
+}
+
+impl Oltp {
+    pub fn tables(&self) -> u8 {
+        self.tables
+    }
+
+    pub fn keys(&self) -> i32 {
+        self.keys
+    }
+
+    pub fn weight(&self) -> usize {
+        self.weight
     }
 }
 

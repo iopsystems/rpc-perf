@@ -65,7 +65,7 @@ pub fn launch(
         ),
         Protocol::Resp => redis::launch_tasks(&mut client_rt, config.clone(), work_receiver),
         protocol => {
-            error!("keyspace is not supported for the {:?} protocol", protocol);
+            eprintln!("keyspace is not supported for the {:?} protocol", protocol);
             std::process::exit(1);
         }
     }

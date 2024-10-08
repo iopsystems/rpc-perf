@@ -18,9 +18,11 @@ use tokio::runtime::Runtime;
 use zipf::ZipfDistribution;
 
 pub mod client;
+mod oltp;
 mod publisher;
 
 pub use client::ClientRequest;
+pub use oltp::OltpRequest;
 pub use publisher::PublisherWorkItem;
 
 pub mod store;
@@ -34,6 +36,7 @@ pub fn launch_workload(
     client_sender: Sender<ClientWorkItemKind<ClientRequest>>,
     pubsub_sender: Sender<PublisherWorkItem>,
     store_sender: Sender<ClientWorkItemKind<StoreClientRequest>>,
+    oltp_sender: Sender<ClientWorkItemKind<OltpRequest>>,
 ) -> Runtime {
     debug!("Launching workload...");
 
@@ -53,6 +56,7 @@ pub fn launch_workload(
         let client_sender = client_sender.clone();
         let pubsub_sender = pubsub_sender.clone();
         let store_sender = store_sender.clone();
+        let oltp_sender = oltp_sender.clone();
         let generator = generator.clone();
 
         // generate the seed for this workload thread
@@ -65,7 +69,13 @@ pub fn launch_workload(
             let mut rng = Xoshiro512PlusPlus::from_seed(Seed512(seed));
 
             while RUNNING.load(Ordering::Relaxed) {
-                generator.generate(&client_sender, &pubsub_sender, &store_sender, &mut rng);
+                generator.generate(
+                    &client_sender,
+                    &pubsub_sender,
+                    &store_sender,
+                    &oltp_sender,
+                    &mut rng,
+                );
             }
         });
     }
@@ -123,6 +133,11 @@ impl Generator {
             component_weights.push(store.weight());
         }
 
+        if let Some(oltp) = config.workload().oltp() {
+            components.push(Component::Oltp(Oltp::new(config, oltp)));
+            component_weights.push(oltp.weight());
+        }
+
         if components.is_empty() {
             eprintln!("no workload components were specified in the config");
             std::process::exit(1);
@@ -144,6 +159,7 @@ impl Generator {
         client_sender: &Sender<ClientWorkItemKind<ClientRequest>>,
         pubsub_sender: &Sender<PublisherWorkItem>,
         store_sender: &Sender<ClientWorkItemKind<StoreClientRequest>>,
+        oltp_sender: &Sender<ClientWorkItemKind<OltpRequest>>,
         rng: &mut dyn RngCore,
     ) {
         if let Some(ref ratelimiter) = self.ratelimiter {
@@ -178,6 +194,14 @@ impl Generator {
             Component::Store(store) => {
                 if store_sender
                     .try_send(self.generate_store_request(store, rng))
+                    .is_err()
+                {
+                    REQUEST_DROPPED.increment();
+                }
+            }
+            Component::Oltp(oltp) => {
+                if oltp_sender
+                    .try_send(self.generate_oltp_request(oltp, rng))
                     .is_err()
                 {
                     REQUEST_DROPPED.increment();
@@ -237,6 +261,25 @@ impl Generator {
             }),
             StoreVerb::Ping => StoreClientRequest::Ping(store::Ping {}),
         };
+        ClientWorkItemKind::Request {
+            request,
+            sequence: SEQUENCE_NUMBER.fetch_add(1, Ordering::Relaxed),
+        }
+    }
+
+    fn generate_oltp_request(
+        &self,
+        oltp: &Oltp,
+        rng: &mut dyn RngCore,
+    ) -> ClientWorkItemKind<OltpRequest> {
+        let id = rng.gen_range(1..=oltp.keys);
+        let table = rng.gen_range(1..=oltp.tables) as i32;
+
+        let request = OltpRequest::PointSelect(oltp::PointSelect {
+            id,
+            table: format!("sbtest{table}"),
+        });
+
         ClientWorkItemKind::Request {
             request,
             sequence: SEQUENCE_NUMBER.fetch_add(1, Ordering::Relaxed),
@@ -459,6 +502,7 @@ pub enum Component {
     Keyspace(Keyspace),
     Topics(Topics),
     Store(Store),
+    Oltp(Oltp),
 }
 
 #[derive(Clone)]
@@ -878,6 +922,23 @@ impl Store {
                 let mut buf = vec![0_u8; self.vlen];
                 rng.fill(&mut buf[0..self.value_random_bytes]);
                 buf
+            }
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct Oltp {
+    tables: u8,
+    keys: i32,
+}
+
+impl Oltp {
+    pub fn new(_config: &Config, oltp: &config::Oltp) -> Self {
+        {
+            Self {
+                tables: oltp.tables(),
+                keys: oltp.keys(),
             }
         }
     }
