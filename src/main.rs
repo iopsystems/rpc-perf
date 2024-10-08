@@ -37,6 +37,12 @@ fn main() {
         std::process::exit(101);
     }));
 
+    #[allow(clippy::expect_used)]
+    tokio_rustls::rustls::crypto::CryptoProvider::install_default(
+        tokio_rustls::rustls::crypto::aws_lc_rs::default_provider(),
+    )
+    .expect("rustls _why_");
+
     // parse command line options
     let matches = Command::new(env!("CARGO_BIN_NAME"))
         .version(env!("CARGO_PKG_VERSION"))

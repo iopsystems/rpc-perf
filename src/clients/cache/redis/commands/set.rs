@@ -17,17 +17,9 @@ pub async fn set(
 
     if let Some(ttl) = request.ttl {
         if ttl.subsec_nanos() == 0 {
-            command = base_command
-                .arg(key)
-                .arg("EX")
-                .arg(ttl.as_secs())
-                .arg(value);
+            command = command.arg("EX").arg(ttl.as_secs());
         } else {
-            command = base_command
-                .arg(key)
-                .arg("PX")
-                .arg(ttl.as_millis() as u64)
-                .arg(value);
+            command = command.arg("PX").arg(ttl.as_millis() as u64);
         }
     }
 

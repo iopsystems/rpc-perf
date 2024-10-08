@@ -1,5 +1,29 @@
 ## [Unreleased]
 
+## [5.12.1] - 2024-10-07
+
+### Fixed
+
+- Fixed runtime panic in Momento HTTP load test due to missing default TLS
+  provider. (#280)
+- Fix to consume complete response body before calculating response latency for
+  Momento HTTP client. (#283)
+
+## [5.12.0] - 2024-10-03
+
+### Changed
+
+- Removed the HTTP1/HTTP2 clients and reorganized the client code. (#266)
+
+### Added
+
+- Adds support for gRPC ping using `tonic`, directly using `h2`, and a pre-draft
+  implementation that is gRPC ping over HTTP3/QUIC. (#275)
+
+### Fixed
+
+- Fixes a bug in Redis `set` commands when a TTL is specified. (#278)
+
 ## [5.11.1] - 2024-10-02
 
 ### Fixed
@@ -168,7 +192,9 @@
 - Support Momento topics.
 - Basic HTTP/1.1 and HTTP/2.0 load generation.
 
-[unreleased]: https://github.com/iopsystems/rpc-perf/compare/v5.11.1...HEAD
+[unreleased]: https://github.com/iopsystems/rpc-perf/compare/v5.12.1...HEAD
+[5.12.1]: https://github.com/iopsystems/rezolus/compare/v5.12.0...v5.12.1
+[5.12.0]: https://github.com/iopsystems/rezolus/compare/v5.11.1...v5.12.0
 [5.11.1]: https://github.com/iopsystems/rezolus/compare/v5.11.0...v5.11.1
 [5.11.0]: https://github.com/iopsystems/rezolus/compare/v5.10.0...v5.11.0
 [5.10.0]: https://github.com/iopsystems/rezolus/compare/v5.9.1...v5.10.0
