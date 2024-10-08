@@ -631,6 +631,14 @@ counter!(PUBSUB_RECEIVE_OK, "subscriber/receive/ok");
 pub static STORE_RESPONSE_LATENCY: AtomicHistogram = AtomicHistogram::new(7, 64);
 pub static STORE_RESPONSE_LATENCY_HISTOGRAM: &str = "store_response_latency";
 
+#[metric(
+    name = STORE_RESPONSE_TTFB_HISTOGRAM,
+    description = "Distribution of storage client response time-to-first-byte for read operations",
+    metadata = { unit = "nanoseconds" }
+)]
+pub static STORE_RESPONSE_TTFB: AtomicHistogram = AtomicHistogram::new(7, 64);
+pub static STORE_RESPONSE_TTFB_HISTOGRAM: &str = "store_response_ttfb";
+
 counter!(STORE_CONNECT, "store_client/connect/total");
 counter!(STORE_CONNECT_OK, "store_client/connect/ok");
 counter!(STORE_CONNECT_EX, "store_client/connect/exception");
