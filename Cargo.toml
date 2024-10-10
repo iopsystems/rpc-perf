@@ -38,6 +38,7 @@ mio = "0.8.8"
 momento = "0.42.0"
 once_cell = "1.18.0"
 openssl = { version = "0.10.66", optional = true }
+openssl-src = "=300.3.1+3.3.1"
 openssl-sys = { version = "0.9.103", optional = true }
 paste = "1.0.14"
 pelikan-net = { version = "0.4.1", default-features = false }
