@@ -1,5 +1,16 @@
 ## [Unreleased]
 
+## [5.14.0] - 2024-10-10
+
+### Added
+
+- Added sysbench compatible OLTP workload with MySQL support. (#277)
+
+### Fixed
+
+- Improved compatibility with older distributions by pinning openssl dependency.
+  (#291)
+
 ## [5.13.0] - 2024-10-08
 
 ### Added
@@ -203,7 +214,9 @@
 - Support Momento topics.
 - Basic HTTP/1.1 and HTTP/2.0 load generation.
 
-[unreleased]: https://github.com/iopsystems/rpc-perf/compare/v5.12.1...HEAD
+[unreleased]: https://github.com/iopsystems/rpc-perf/compare/v5.14.0...HEAD
+[5.14.0]: https://github.com/iopsystems/rezolus/compare/v5.13.0...v5.14.0
+[5.13.0]: https://github.com/iopsystems/rezolus/compare/v5.12.1...v5.13.0
 [5.12.1]: https://github.com/iopsystems/rezolus/compare/v5.12.0...v5.12.1
 [5.12.0]: https://github.com/iopsystems/rezolus/compare/v5.11.1...v5.12.0
 [5.11.1]: https://github.com/iopsystems/rezolus/compare/v5.11.0...v5.11.1
