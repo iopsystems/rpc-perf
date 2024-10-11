@@ -1,5 +1,12 @@
 ## [Unreleased]
 
+## [5.14.1] - 2024-10-11
+
+### Fixed
+
+- Fix handling of Momento HTTP endpoint DNS resolution when port number is
+  specified. (#295)
+
 ## [5.14.0] - 2024-10-10
 
 ### Added
@@ -214,7 +221,8 @@
 - Support Momento topics.
 - Basic HTTP/1.1 and HTTP/2.0 load generation.
 
-[unreleased]: https://github.com/iopsystems/rpc-perf/compare/v5.14.0...HEAD
+[unreleased]: https://github.com/iopsystems/rpc-perf/compare/v5.14.1...HEAD
+[5.14.0]: https://github.com/iopsystems/rezolus/compare/v5.14.0...v5.14.1
 [5.14.0]: https://github.com/iopsystems/rezolus/compare/v5.13.0...v5.14.0
 [5.13.0]: https://github.com/iopsystems/rezolus/compare/v5.12.1...v5.13.0
 [5.12.1]: https://github.com/iopsystems/rezolus/compare/v5.12.0...v5.12.1
