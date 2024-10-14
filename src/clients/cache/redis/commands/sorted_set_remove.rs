@@ -2,7 +2,7 @@ use super::*;
 
 /// Removes a member from a sorted set.
 pub async fn sorted_set_remove(
-    connection: &mut Connection<net::Stream>,
+    connection: &mut MultiplexedConnection,
     config: &Config,
     request: workload::client::SortedSetRemove,
 ) -> std::result::Result<(), ResponseError> {

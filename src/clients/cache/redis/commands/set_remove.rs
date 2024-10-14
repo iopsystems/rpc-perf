@@ -2,7 +2,7 @@ use super::*;
 
 /// Removes one or more members of a set.
 pub async fn set_remove(
-    connection: &mut Connection<net::Stream>,
+    connection: &mut MultiplexedConnection,
     config: &Config,
     request: workload::client::SetRemove,
 ) -> std::result::Result<(), ResponseError> {

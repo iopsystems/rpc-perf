@@ -2,7 +2,7 @@ use super::*;
 
 /// Removes and returns an element from the front of a list.
 pub async fn list_pop_front(
-    connection: &mut Connection<net::Stream>,
+    connection: &mut MultiplexedConnection,
     config: &Config,
     request: workload::client::ListPopFront,
 ) -> std::result::Result<(), ResponseError> {

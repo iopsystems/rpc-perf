@@ -44,7 +44,10 @@ log_backup = "rpc-perf.log.old"
 log_max_size = 1073741824
 
 [target]
-# specify one or more endpoints as IP:PORT pairs
+# specify one or more endpoints as:
+# - IP:PORT pairs
+# - redis connection strings, eg: redis://localhost
+# - unix socket connection strings, eg: unix:///path/to/redis.sock
 endpoints = [
 	"127.0.0.1:6379",
 ]

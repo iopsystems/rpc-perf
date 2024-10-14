@@ -2,7 +2,7 @@ use super::*;
 
 /// Removes and returns the element from the back of a list.
 pub async fn list_pop_back(
-    connection: &mut Connection<net::Stream>,
+    connection: &mut MultiplexedConnection,
     config: &Config,
     request: workload::client::ListPopBack,
 ) -> std::result::Result<(), ResponseError> {

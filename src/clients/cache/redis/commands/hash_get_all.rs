@@ -2,7 +2,7 @@ use super::*;
 
 /// Retrieve all fields for a hash.
 pub async fn hash_get_all(
-    connection: &mut Connection<net::Stream>,
+    connection: &mut MultiplexedConnection,
     config: &Config,
     request: workload::client::HashGetAll,
 ) -> std::result::Result<(), ResponseError> {

@@ -2,7 +2,7 @@ use super::*;
 
 /// Sets a key-value pair in the cache if the key already exists.
 pub async fn replace(
-    connection: &mut Connection<net::Stream>,
+    connection: &mut MultiplexedConnection,
     config: &Config,
     request: workload::client::Replace,
 ) -> std::result::Result<(), ResponseError> {
@@ -35,7 +35,7 @@ pub async fn replace(
 
     match timeout(
         config.client().unwrap().request_timeout(),
-        command.query_async::<::redis::aio::Connection<net::Stream>, Option<String>>(connection),
+        command.query_async::<MultiplexedConnection, Option<String>>(connection),
     )
     .await
     {

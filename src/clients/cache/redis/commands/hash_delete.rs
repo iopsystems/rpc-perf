@@ -2,7 +2,7 @@ use super::*;
 
 /// Delete a field from a hash stored in the cache.
 pub async fn hash_delete(
-    connection: &mut Connection<net::Stream>,
+    connection: &mut MultiplexedConnection,
     config: &Config,
     request: workload::client::HashDelete,
 ) -> std::result::Result<(), ResponseError> {

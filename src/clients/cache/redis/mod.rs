@@ -1,9 +1,12 @@
 use crate::clients::cache::*;
+use crate::clients::common::Queue;
 use crate::clients::*;
-use crate::net::Connector;
-use ::redis::aio::Connection;
-use ::redis::{AsyncCommands, RedisConnectionInfo};
+
+use ::redis::aio::MultiplexedConnection;
+use ::redis::AsyncCommands;
+
 use std::borrow::Borrow;
+use std::net::SocketAddr;
 
 mod commands;
 
@@ -21,11 +24,66 @@ pub fn launch_tasks(
     // note: these may be channels instead of connections for multiplexed protocols
     for _ in 0..config.client().unwrap().poolsize() {
         for endpoint in config.target().endpoints() {
-            runtime.spawn(task(
-                work_receiver.clone(),
+            // for each endpoint there are poolsize # of pool managers, each
+            // managed a single connection
+
+            let queue = Queue::new(1);
+            runtime.spawn(pool_manager(
                 endpoint.clone(),
                 config.clone(),
+                queue.clone(),
             ));
+
+            // one task for each concurrent session on the connection
+
+            for _ in 0..config.client().unwrap().concurrency() {
+                runtime.spawn(task(
+                    work_receiver.clone(),
+                    endpoint.clone(),
+                    config.clone(),
+                    queue.clone(),
+                ));
+            }
+        }
+    }
+}
+
+pub async fn pool_manager(endpoint: String, _config: Config, queue: Queue<MultiplexedConnection>) {
+    let mut client = None;
+
+    let endpoint = if endpoint.parse::<SocketAddr>().is_ok() {
+        format!("redis://{endpoint}")
+    } else {
+        endpoint
+    };
+
+    while RUNNING.load(Ordering::Relaxed) {
+        if client.is_none() {
+            CONNECT.increment();
+
+            if let Ok(c) = ::redis::Client::open(endpoint.clone()) {
+                CONNECT_OK.increment();
+                CONNECT_CURR.increment();
+
+                client = Some(c);
+            } else {
+                CONNECT_EX.increment();
+
+                tokio::time::sleep(Duration::from_millis(1)).await;
+            }
+
+            continue;
+        }
+
+        if let Ok(connection) = client
+            .as_ref()
+            .unwrap()
+            .get_multiplexed_async_connection()
+            .await
+        {
+            let _ = queue.send(connection).await;
+        } else {
+            client = None;
         }
     }
 }
@@ -36,54 +94,25 @@ async fn task(
     work_receiver: Receiver<ClientWorkItemKind<ClientRequest>>,
     endpoint: String,
     config: Config,
+    queue: Queue<MultiplexedConnection>,
 ) -> Result<()> {
     trace!("launching resp task for endpoint: {endpoint}");
-    let connector = Connector::new(&config)?;
-
-    let redis_connection_info = RedisConnectionInfo {
-        db: 0,
-        username: None,
-        password: None,
-    };
 
     let mut connection = None;
 
     while RUNNING.load(Ordering::Relaxed) {
         if connection.is_none() {
-            CONNECT.increment();
-            connection = match timeout(
-                config.client().unwrap().connect_timeout(),
-                connector.connect(&endpoint),
-            )
-            .await
-            {
-                Ok(Ok(c)) => {
-                    CONNECT_OK.increment();
-                    CONNECT_CURR.increment();
-                    if let Ok(c) = ::redis::aio::Connection::new(&redis_connection_info, c).await {
-                        Some(c)
-                    } else {
-                        CONNECT_EX.increment();
-                        sleep(Duration::from_millis(100)).await;
-                        continue;
-                    }
-                }
-                Ok(Err(e)) => {
-                    trace!("error connecting: {e}");
-                    CONNECT_EX.increment();
-                    sleep(Duration::from_millis(100)).await;
-                    continue;
-                }
-                Err(_) => {
-                    trace!("connect timeout");
-                    CONNECT_TIMEOUT.increment();
-                    sleep(Duration::from_millis(100)).await;
-                    continue;
-                }
+            if let Ok(c) = queue.recv().await {
+                connection = Some(c);
+            } else {
+                tokio::time::sleep(Duration::from_millis(1)).await;
             }
+
+            continue;
         }
 
         let mut con = connection.take().unwrap();
+
         let work_item = work_receiver
             .recv()
             .await
@@ -159,7 +188,6 @@ async fn task(
                 }
             },
             ClientWorkItemKind::Reconnect => {
-                CONNECT_CURR.sub(1);
                 continue;
             }
         };
@@ -178,11 +206,9 @@ async fn task(
                 let _ = RESPONSE_LATENCY.increment(latency_ns);
             }
             Err(ResponseError::Exception) => {
-                CONNECT_CURR.decrement();
                 RESPONSE_EX.increment();
             }
             Err(ResponseError::Timeout) => {
-                CONNECT_CURR.decrement();
                 RESPONSE_TIMEOUT.increment();
             }
             Err(ResponseError::Ratelimited) => {

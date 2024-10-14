@@ -2,7 +2,7 @@ use super::*;
 
 /// Returns the rank for a member in a sorted set.
 pub async fn sorted_set_rank(
-    connection: &mut Connection<net::Stream>,
+    connection: &mut MultiplexedConnection,
     config: &Config,
     request: workload::client::SortedSetRank,
 ) -> std::result::Result<(), ResponseError> {

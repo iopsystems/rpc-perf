@@ -2,7 +2,7 @@ use super::*;
 
 /// Sets a key-value pair in the cache.
 pub async fn set(
-    connection: &mut Connection<net::Stream>,
+    connection: &mut MultiplexedConnection,
     config: &Config,
     request: workload::client::Set,
 ) -> std::result::Result<(), ResponseError> {
