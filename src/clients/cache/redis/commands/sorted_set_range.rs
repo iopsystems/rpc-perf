@@ -3,7 +3,7 @@ use super::*;
 /// Performs a range query on a sorted set, returning the specified range of
 /// elements. Supports selecting a range of keys by index (rank).
 pub async fn sorted_set_range(
-    connection: &mut Connection<net::Stream>,
+    connection: &mut MultiplexedConnection,
     config: &Config,
     request: workload::client::SortedSetRange,
 ) -> std::result::Result<(), ResponseError> {

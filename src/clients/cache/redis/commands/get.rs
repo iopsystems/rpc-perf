@@ -2,7 +2,7 @@ use super::*;
 
 /// Retrieve a key-value pair from the cache.
 pub async fn get(
-    connection: &mut Connection<net::Stream>,
+    connection: &mut MultiplexedConnection,
     config: &Config,
     request: workload::client::Get,
 ) -> std::result::Result<(), ResponseError> {

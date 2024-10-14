@@ -2,7 +2,7 @@ use super::*;
 
 /// Adds a key-value pair to the cache if the key does not exist.
 pub async fn add(
-    connection: &mut Connection<net::Stream>,
+    connection: &mut MultiplexedConnection,
     config: &Config,
     request: workload::client::Add,
 ) -> std::result::Result<(), ResponseError> {
@@ -35,7 +35,7 @@ pub async fn add(
 
     match timeout(
         config.client().unwrap().request_timeout(),
-        command.query_async::<::redis::aio::Connection<net::Stream>, Option<String>>(connection),
+        command.query_async::<MultiplexedConnection, Option<String>>(connection),
     )
     .await
     {

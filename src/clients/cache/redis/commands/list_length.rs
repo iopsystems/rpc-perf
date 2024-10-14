@@ -2,7 +2,7 @@ use super::*;
 
 /// Retrieve the length of a list in the cache.
 pub async fn list_length(
-    connection: &mut Connection<net::Stream>,
+    connection: &mut MultiplexedConnection,
     config: &Config,
     request: workload::client::ListLength,
 ) -> std::result::Result<(), ResponseError> {

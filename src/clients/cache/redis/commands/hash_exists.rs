@@ -2,7 +2,7 @@ use super::*;
 
 /// Checks if a field exists in a hash.
 pub async fn hash_exists(
-    connection: &mut Connection<net::Stream>,
+    connection: &mut MultiplexedConnection,
     config: &Config,
     request: workload::client::HashExists,
 ) -> std::result::Result<(), ResponseError> {

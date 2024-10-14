@@ -12,7 +12,7 @@ use tokio::time::error::Elapsed;
 /// success/failure of the command to set the expiration does not count towards
 /// the request metrics (such as the number of requests, success rate, etc).
 pub async fn sorted_set_add(
-    connection: &mut Connection<net::Stream>,
+    connection: &mut MultiplexedConnection,
     config: &Config,
     request: workload::client::SortedSetAdd,
 ) -> std::result::Result<(), ResponseError> {

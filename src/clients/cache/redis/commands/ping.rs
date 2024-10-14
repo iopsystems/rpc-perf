@@ -2,7 +2,7 @@ use super::*;
 
 /// Sends a `PING` and expects a `PONG` response from the server.
 pub async fn ping(
-    connection: &mut Connection<net::Stream>,
+    connection: &mut MultiplexedConnection,
     config: &Config,
     _request: workload::client::Ping,
 ) -> std::result::Result<(), ResponseError> {

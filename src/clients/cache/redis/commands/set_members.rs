@@ -2,7 +2,7 @@ use super::*;
 
 /// Return the members of a set.
 pub async fn set_members(
-    connection: &mut Connection<net::Stream>,
+    connection: &mut MultiplexedConnection,
     config: &Config,
     request: workload::client::SetMembers,
 ) -> std::result::Result<(), ResponseError> {
