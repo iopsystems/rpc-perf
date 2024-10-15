@@ -10,7 +10,7 @@ pub fn launch(
     config: &Config,
     work_receiver: Receiver<ClientWorkItemKind<OltpRequest>>,
 ) -> Option<Runtime> {
-    if config.storage().is_none() {
+    if config.oltp().is_none() {
         debug!("No storage configuration specified");
         return None;
     }

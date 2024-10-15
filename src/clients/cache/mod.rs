@@ -28,6 +28,11 @@ pub fn launch(
     config: &Config,
     work_receiver: Receiver<ClientWorkItemKind<ClientRequest>>,
 ) -> Option<Runtime> {
+    if config.client().is_none() {
+        debug!("No client configuration specified");
+        return None;
+    }
+
     debug!("Launching clients...");
 
     config.client()?;
