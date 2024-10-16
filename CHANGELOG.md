@@ -1,5 +1,22 @@
 ## [Unreleased]
 
+## [5.15.0] - 2024-10-16
+
+### Changed
+
+- Improved speed of value generation which could have been a bottleneck when
+  large values are used. (#301)
+
+### Added
+
+- Add support for connecting to redis over unix socket. (#300)
+
+### Fixed
+
+- Fixed bugs in client initialization which prevented OLTP workload from
+  functioning. (#301)
+
+
 ## [5.14.1] - 2024-10-11
 
 ### Fixed
@@ -221,8 +238,9 @@
 - Support Momento topics.
 - Basic HTTP/1.1 and HTTP/2.0 load generation.
 
-[unreleased]: https://github.com/iopsystems/rpc-perf/compare/v5.14.1...HEAD
-[5.14.0]: https://github.com/iopsystems/rezolus/compare/v5.14.0...v5.14.1
+[unreleased]: https://github.com/iopsystems/rpc-perf/compare/v5.15.0...HEAD
+[5.15.0]: https://github.com/iopsystems/rpc-perf/compare/v5.14.1...v5.15.0
+[5.14.1]: https://github.com/iopsystems/rezolus/compare/v5.14.0...v5.14.1
 [5.14.0]: https://github.com/iopsystems/rezolus/compare/v5.13.0...v5.14.0
 [5.13.0]: https://github.com/iopsystems/rezolus/compare/v5.12.1...v5.13.0
 [5.12.1]: https://github.com/iopsystems/rezolus/compare/v5.12.0...v5.12.1
