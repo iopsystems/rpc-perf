@@ -41,7 +41,7 @@ log_max_size = 1073741824
 [target]
 # specify one or more mysql connection strings
 endpoints = [
-	"mysql://root:root@localhost:3306",
+	"mysql://root:root@127.0.0.1:3306",
 ]
 
 [oltp]
