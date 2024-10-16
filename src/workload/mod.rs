@@ -1,6 +1,6 @@
-use bytes::BytesMut;
-use bytes::Bytes;
 use super::*;
+use bytes::Bytes;
+use bytes::BytesMut;
 use config::{Command, RampCompletionAction, RampType, ValueKind, Verb};
 use flate2::write::GzEncoder;
 use flate2::Compression;
@@ -72,13 +72,15 @@ pub fn launch_workload(
             let mut rng = Xoshiro512PlusPlus::from_seed(Seed512(seed));
 
             while RUNNING.load(Ordering::Relaxed) {
-                generator.generate(
-                    &client_sender,
-                    &pubsub_sender,
-                    &store_sender,
-                    &oltp_sender,
-                    &mut rng,
-                ).await;
+                generator
+                    .generate(
+                        &client_sender,
+                        &pubsub_sender,
+                        &store_sender,
+                        &oltp_sender,
+                        &mut rng,
+                    )
+                    .await;
             }
         });
     }
@@ -270,10 +272,7 @@ impl Generator {
             }),
             StoreVerb::Ping => StoreClientRequest::Ping(store::Ping {}),
         };
-        ClientWorkItemKind::Request {
-            request,
-            sequence,
-        }
+        ClientWorkItemKind::Request { request, sequence }
     }
 
     fn generate_oltp_request(
@@ -290,10 +289,7 @@ impl Generator {
             table: format!("sbtest{table}"),
         });
 
-        ClientWorkItemKind::Request {
-            request,
-            sequence,
-        }
+        ClientWorkItemKind::Request { request, sequence }
     }
 
     fn generate_request(
@@ -367,7 +363,10 @@ impl Generator {
             Verb::HashSet => {
                 let mut data = HashMap::new();
                 while data.len() < command.cardinality() {
-                    data.insert(keyspace.sample_inner(rng), keyspace.gen_value(sequence as usize + data.len(), rng),);
+                    data.insert(
+                        keyspace.sample_inner(rng),
+                        keyspace.gen_value(sequence as usize + data.len(), rng),
+                    );
                 }
                 ClientRequest::HashSet(client::HashSet {
                     key: keyspace.sample(rng),
@@ -498,10 +497,7 @@ impl Generator {
             }),
         };
 
-        ClientWorkItemKind::Request {
-            request,
-            sequence,
-        }
+        ClientWorkItemKind::Request { request, sequence }
     }
 
     pub fn components(&self) -> &[Component] {

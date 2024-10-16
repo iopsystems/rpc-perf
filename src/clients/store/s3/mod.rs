@@ -455,7 +455,13 @@ impl S3RequestBuilder {
     }
 
     pub fn get_object(region: String, bucket: String, key: String) -> Self {
-        Self::new(region, bucket, Method::GET, format!("/{key}"), Vec::new().into())
+        Self::new(
+            region,
+            bucket,
+            Method::GET,
+            format!("/{key}"),
+            Vec::new().into(),
+        )
     }
 
     pub fn put_object(region: String, bucket: String, key: String, value: Bytes) -> Self {
