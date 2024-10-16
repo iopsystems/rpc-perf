@@ -208,7 +208,7 @@ jobs:
       - name: prepare database
         shell: bash
         run: |
-          mysql -u root -p root -e "create database sbtest";
+          mysql --user=root --password=root -e "create database sbtest";
           sysbench --config-file=sysbench.config oltp_point_select --tables=1 --table-size=100000 prepare
       - name: warmup database
         shell: bash
