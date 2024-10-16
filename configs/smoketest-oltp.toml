@@ -29,7 +29,7 @@ admin = "127.0.0.1:9090"
 
 [debug]
 # choose from: error, warn, info, debug, trace
-log_level = "info"
+log_level = "debug"
 # optionally, log to the file below instead of standard out
 # log_file = "rpc-perf.log"
 # backup file name for use with log rotation
