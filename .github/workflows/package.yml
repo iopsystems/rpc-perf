@@ -74,7 +74,7 @@ jobs:
           apt-get update
           apt-get install -y            \
             build-essential             \
-            curl jq lsb-release unzip gpg pkg-config libzstd-dev
+            curl jq lsb-release unzip gpg pkg-config libzstd-dev libssl-dev
 
       - name: install rust
         run: |
