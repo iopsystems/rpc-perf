@@ -229,6 +229,7 @@ jobs:
       - clippy-upload
       - audit
       - smoketest-cache
+      - smoketest-oltp
 
     steps:
       - name: no-op
