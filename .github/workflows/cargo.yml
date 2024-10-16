@@ -176,6 +176,49 @@ jobs:
           memcached -t 1 -p 11211 -m 256 &
           target/release/rpc-perf configs/smoketest-cache.toml
 
+  smoketest-oltp:
+    name: smoketest-oltp
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/setup-rust
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: smoketest-ubuntu-latest
+      - name: build
+        shell: bash
+        run: |
+          cargo build --workspace --all-targets --locked --release
+      - name: start mysql
+        shell: bash
+        run: |
+          sudo systemctl start mysql
+      - name: install sysbench
+        shell: bash
+        run: |
+          curl -s https://packagecloud.io/install/repositories/akopytov/sysbench/script.deb.sh | sudo bash
+          sudo apt -y install sysbench
+      - name: configure sysbench
+        shell: bash
+        run: |
+          echo "mysql-user=root" >> sysbench.config
+          echo "mysql-password=root" >> sysbench.config
+          echo "time=60" >> sysbench.config
+          echo "db-driver=mysql" >> sysbench.config
+      - name: prepare database
+        shell: bash
+        run: |
+          mysql --user=root --password=root -e "create database sbtest";
+          sysbench --config-file=sysbench.config oltp_point_select --tables=1 --table-size=100000 prepare
+      - name: warmup database
+        shell: bash
+        run: |
+          sysbench --config-file=sysbench.config oltp_point_select --tables=1 --table-size=100000 prewarm
+      - name: test
+        shell: bash
+        run: |
+          target/release/rpc-perf configs/smoketest-oltp.toml
+
   check-success:
     name: verify all tests pass
     runs-on: ubuntu-latest
@@ -187,6 +230,7 @@ jobs:
       - clippy-upload
       - audit
       - smoketest-cache
+      - smoketest-oltp
 
     steps:
       - name: no-op

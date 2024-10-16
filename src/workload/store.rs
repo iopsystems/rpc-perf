@@ -1,3 +1,4 @@
+use bytes::Bytes;
 use std::sync::Arc;
 
 #[derive(Debug, PartialEq)]
@@ -18,7 +19,7 @@ pub struct Put {
     /// For a Momento PUT request to a store, keys will always be
     /// a `String` type.
     pub key: Arc<String>,
-    pub value: Vec<u8>,
+    pub value: Bytes,
 }
 
 #[allow(dead_code)]

@@ -1,4 +1,6 @@
 use super::*;
+use bytes::Bytes;
+use bytes::BytesMut;
 use config::{Command, RampCompletionAction, RampType, ValueKind, Verb};
 use flate2::write::GzEncoder;
 use flate2::Compression;
@@ -43,7 +45,8 @@ pub fn launch_workload(
     // spawn the request drivers on their own runtime
     let workload_rt = Builder::new_multi_thread()
         .enable_all()
-        .worker_threads(1)
+        .thread_name("rpc-perf-gen")
+        .worker_threads(config.workload().threads())
         .build()
         .expect("failed to initialize tokio runtime");
 
@@ -63,19 +66,21 @@ pub fn launch_workload(
         let mut seed = [0; 64];
         rng.fill_bytes(&mut seed);
 
-        workload_rt.spawn_blocking(move || {
+        workload_rt.spawn(async move {
             // since this seed is unique, each workload thread should produce
             // requests in a different sequence
             let mut rng = Xoshiro512PlusPlus::from_seed(Seed512(seed));
 
             while RUNNING.load(Ordering::Relaxed) {
-                generator.generate(
-                    &client_sender,
-                    &pubsub_sender,
-                    &store_sender,
-                    &oltp_sender,
-                    &mut rng,
-                );
+                generator
+                    .generate(
+                        &client_sender,
+                        &pubsub_sender,
+                        &store_sender,
+                        &oltp_sender,
+                        &mut rng,
+                    )
+                    .await;
             }
         });
     }
@@ -154,13 +159,13 @@ impl Generator {
         self.ratelimiter.clone()
     }
 
-    pub fn generate(
+    pub async fn generate(
         &self,
         client_sender: &Sender<ClientWorkItemKind<ClientRequest>>,
         pubsub_sender: &Sender<PublisherWorkItem>,
         store_sender: &Sender<ClientWorkItemKind<StoreClientRequest>>,
         oltp_sender: &Sender<ClientWorkItemKind<OltpRequest>>,
-        rng: &mut dyn RngCore,
+        rng: &mut Xoshiro512PlusPlus,
     ) {
         if let Some(ref ratelimiter) = self.ratelimiter {
             loop {
@@ -177,7 +182,8 @@ impl Generator {
         match &self.components[self.component_dist.sample(rng)] {
             Component::Keyspace(keyspace) => {
                 if client_sender
-                    .try_send(self.generate_request(keyspace, rng))
+                    .send(self.generate_request(keyspace, rng))
+                    .await
                     .is_err()
                 {
                     REQUEST_DROPPED.increment();
@@ -185,7 +191,8 @@ impl Generator {
             }
             Component::Topics(topics) => {
                 if pubsub_sender
-                    .try_send(self.generate_pubsub(topics, rng))
+                    .send(self.generate_pubsub(topics, rng))
+                    .await
                     .is_err()
                 {
                     REQUEST_DROPPED.increment();
@@ -193,7 +200,8 @@ impl Generator {
             }
             Component::Store(store) => {
                 if store_sender
-                    .try_send(self.generate_store_request(store, rng))
+                    .send(self.generate_store_request(store, rng))
+                    .await
                     .is_err()
                 {
                     REQUEST_DROPPED.increment();
@@ -201,7 +209,8 @@ impl Generator {
             }
             Component::Oltp(oltp) => {
                 if oltp_sender
-                    .try_send(self.generate_oltp_request(oltp, rng))
+                    .send(self.generate_oltp_request(oltp, rng))
+                    .await
                     .is_err()
                 {
                     REQUEST_DROPPED.increment();
@@ -248,10 +257,12 @@ impl Generator {
         rng: &mut dyn RngCore,
     ) -> ClientWorkItemKind<StoreClientRequest> {
         let command = &store.commands[store.command_dist.sample(rng)];
+        let sequence = SEQUENCE_NUMBER.fetch_add(1, Ordering::Relaxed);
+
         let request = match command.verb() {
             StoreVerb::Put => StoreClientRequest::Put(store::Put {
                 key: store.sample_string(rng),
-                value: store.gen_value(rng),
+                value: store.gen_value(sequence as _, rng),
             }),
             StoreVerb::Get => StoreClientRequest::Get(store::Get {
                 key: store.sample_string(rng),
@@ -261,10 +272,7 @@ impl Generator {
             }),
             StoreVerb::Ping => StoreClientRequest::Ping(store::Ping {}),
         };
-        ClientWorkItemKind::Request {
-            request,
-            sequence: SEQUENCE_NUMBER.fetch_add(1, Ordering::Relaxed),
-        }
+        ClientWorkItemKind::Request { request, sequence }
     }
 
     fn generate_oltp_request(
@@ -274,16 +282,14 @@ impl Generator {
     ) -> ClientWorkItemKind<OltpRequest> {
         let id = rng.gen_range(1..=oltp.keys);
         let table = rng.gen_range(1..=oltp.tables) as i32;
+        let sequence = SEQUENCE_NUMBER.fetch_add(1, Ordering::Relaxed);
 
         let request = OltpRequest::PointSelect(oltp::PointSelect {
             id,
             table: format!("sbtest{table}"),
         });
 
-        ClientWorkItemKind::Request {
-            request,
-            sequence: SEQUENCE_NUMBER.fetch_add(1, Ordering::Relaxed),
-        }
+        ClientWorkItemKind::Request { request, sequence }
     }
 
     fn generate_request(
@@ -293,10 +299,12 @@ impl Generator {
     ) -> ClientWorkItemKind<ClientRequest> {
         let command = &keyspace.commands[keyspace.command_dist.sample(rng)];
 
+        let sequence = SEQUENCE_NUMBER.fetch_add(1, Ordering::Relaxed);
+
         let request = match command.verb() {
             Verb::Add => ClientRequest::Add(client::Add {
                 key: keyspace.sample(rng),
-                value: keyspace.gen_value(rng),
+                value: keyspace.gen_value(sequence as _, rng),
                 ttl: keyspace.ttl(),
             }),
             Verb::Get => ClientRequest::Get(client::Get {
@@ -304,7 +312,7 @@ impl Generator {
             }),
             Verb::Set => ClientRequest::Set(client::Set {
                 key: keyspace.sample(rng),
-                value: keyspace.gen_value(rng),
+                value: keyspace.gen_value(sequence as _, rng),
                 ttl: keyspace.ttl(),
             }),
             Verb::Delete => ClientRequest::Delete(client::Delete {
@@ -312,7 +320,7 @@ impl Generator {
             }),
             Verb::Replace => ClientRequest::Replace(client::Replace {
                 key: keyspace.sample(rng),
-                value: keyspace.gen_value(rng),
+                value: keyspace.gen_value(sequence as _, rng),
                 ttl: keyspace.ttl(),
             }),
             Verb::HashGet => {
@@ -355,7 +363,10 @@ impl Generator {
             Verb::HashSet => {
                 let mut data = HashMap::new();
                 while data.len() < command.cardinality() {
-                    data.insert(keyspace.sample_inner(rng), keyspace.gen_value(rng));
+                    data.insert(
+                        keyspace.sample_inner(rng),
+                        keyspace.gen_value(sequence as usize + data.len(), rng),
+                    );
                 }
                 ClientRequest::HashSet(client::HashSet {
                     key: keyspace.sample(rng),
@@ -486,10 +497,7 @@ impl Generator {
             }),
         };
 
-        ClientWorkItemKind::Request {
-            request,
-            sequence: SEQUENCE_NUMBER.fetch_add(1, Ordering::Relaxed),
-        }
+        ClientWorkItemKind::Request { request, sequence }
     }
 
     pub fn components(&self) -> &[Component] {
@@ -619,8 +627,8 @@ pub struct Keyspace {
     inner_key_dist: Distribution,
     vlen: usize,
     vkind: ValueKind,
-    value_random_bytes: usize,
     ttl: Option<Duration>,
+    vbuf: Bytes,
 }
 
 #[derive(Clone)]
@@ -779,7 +787,14 @@ impl Keyspace {
             }
         }
 
+        // prepare 100MB of random value
+        let len = 100 * 1024 * 1024;
+        let mut vbuf = BytesMut::zeroed(len);
+        rng.fill_bytes(&mut vbuf[0..value_random_bytes]);
+        vbuf.shuffle(&mut rng);
+
         let command_dist = WeightedAliasIndex::new(command_weights).unwrap();
+
         Self {
             keys,
             key_dist,
@@ -789,8 +804,8 @@ impl Keyspace {
             inner_key_dist,
             vlen: keyspace.vlen().unwrap_or(0),
             vkind: keyspace.vkind(),
-            value_random_bytes,
             ttl: keyspace.ttl(),
+            vbuf: vbuf.into(),
         }
     }
 
@@ -804,13 +819,14 @@ impl Keyspace {
         self.inner_keys[index].clone()
     }
 
-    pub fn gen_value(&self, rng: &mut dyn RngCore) -> Vec<u8> {
+    pub fn gen_value(&self, sequence: usize, rng: &mut dyn RngCore) -> Bytes {
         match self.vkind {
-            ValueKind::I64 => format!("{}", rng.gen::<i64>()).into_bytes(),
+            ValueKind::I64 => format!("{}", rng.gen::<i64>()).into_bytes().into(),
             ValueKind::Bytes => {
-                let mut buf = vec![0_u8; self.vlen];
-                rng.fill(&mut buf[0..self.value_random_bytes]);
-                buf
+                let start = sequence % (self.vbuf.len() - self.vlen);
+                let end = start + self.vlen;
+
+                self.vbuf.slice(start..end)
             }
         }
     }
@@ -828,7 +844,7 @@ pub struct Store {
     command_dist: WeightedAliasIndex<usize>,
     vlen: usize,
     vkind: ValueKind,
-    value_random_bytes: usize,
+    vbuf: Bytes,
 }
 
 impl Store {
@@ -893,6 +909,12 @@ impl Store {
             }
         }
 
+        // prepare 100MB of random value
+        let len = 100 * 1024 * 1024;
+        let mut vbuf = BytesMut::zeroed(len);
+        rng.fill_bytes(&mut vbuf[0..value_random_bytes]);
+        vbuf.shuffle(&mut rng);
+
         let command_dist = WeightedAliasIndex::new(command_weights).unwrap();
         Self {
             keys,
@@ -901,7 +923,7 @@ impl Store {
             command_dist,
             vlen: store.vlen().unwrap_or(0),
             vkind: store.vkind(),
-            value_random_bytes,
+            vbuf: vbuf.into(),
         }
     }
 
@@ -915,13 +937,14 @@ impl Store {
         Arc::new(String::from_utf8_lossy(&keys).into_owned())
     }
 
-    pub fn gen_value(&self, rng: &mut dyn RngCore) -> Vec<u8> {
+    pub fn gen_value(&self, sequence: usize, rng: &mut dyn RngCore) -> Bytes {
         match self.vkind {
-            ValueKind::I64 => format!("{}", rng.gen::<i64>()).into_bytes(),
+            ValueKind::I64 => format!("{}", rng.gen::<i64>()).into_bytes().into(),
             ValueKind::Bytes => {
-                let mut buf = vec![0_u8; self.vlen];
-                rng.fill(&mut buf[0..self.value_random_bytes]);
-                buf
+                let start = sequence % (self.vbuf.len() - self.vlen);
+                let end = start + self.vlen;
+
+                self.vbuf.slice(start..end)
             }
         }
     }
@@ -1099,6 +1122,9 @@ fn estimate_random_bytes_needed(length: usize, compression_ratio: f64) -> usize 
 
         // fill first N bytes with pseudorandom data
         rng.fill_bytes(&mut m[0..idx]);
+
+        // shuffle the value
+        m.shuffle(&mut rng);
 
         let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
         let _ = encoder.write_all(&m);

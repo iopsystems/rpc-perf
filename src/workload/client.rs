@@ -1,3 +1,4 @@
+use bytes::Bytes;
 use core::time::Duration;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -8,7 +9,7 @@ pub struct Ping {}
 #[derive(Debug, PartialEq)]
 pub struct Add {
     pub key: Arc<[u8]>,
-    pub value: Vec<u8>,
+    pub value: Bytes,
     pub ttl: Option<Duration>,
 }
 
@@ -30,14 +31,14 @@ pub struct Delete {
 #[derive(Debug, PartialEq)]
 pub struct Replace {
     pub key: Arc<[u8]>,
-    pub value: Vec<u8>,
+    pub value: Bytes,
     pub ttl: Option<Duration>,
 }
 
 #[derive(Debug, PartialEq)]
 pub struct Set {
     pub key: Arc<[u8]>,
-    pub value: Vec<u8>,
+    pub value: Bytes,
     pub ttl: Option<Duration>,
 }
 
@@ -77,7 +78,7 @@ pub struct HashIncrement {
 #[derive(Debug, PartialEq)]
 pub struct HashSet {
     pub key: Arc<[u8]>,
-    pub data: HashMap<Arc<[u8]>, Vec<u8>>,
+    pub data: HashMap<Arc<[u8]>, Bytes>,
     pub ttl: Option<Duration>,
 }
 

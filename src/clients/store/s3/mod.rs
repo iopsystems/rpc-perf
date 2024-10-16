@@ -343,7 +343,7 @@ pub struct S3RequestBuilder {
     inner: http::request::Builder,
     region: String,
     relative_uri: String,
-    content: Vec<u8>,
+    content: Bytes,
     content_sha256: String,
     timestamp: DateTime<Utc>,
 }
@@ -354,7 +354,7 @@ impl S3RequestBuilder {
         bucket: String,
         method: Method,
         relative_uri: String,
-        content: Vec<u8>,
+        content: Bytes,
     ) -> Self {
         let now = Utc::now();
         // let date = format!("{}", now.format("%Y%m%d"));
@@ -450,15 +450,21 @@ impl S3RequestBuilder {
             bucket,
             Method::DELETE,
             format!("/{key}"),
-            Vec::new(),
+            Vec::new().into(),
         )
     }
 
     pub fn get_object(region: String, bucket: String, key: String) -> Self {
-        Self::new(region, bucket, Method::GET, format!("/{key}"), Vec::new())
+        Self::new(
+            region,
+            bucket,
+            Method::GET,
+            format!("/{key}"),
+            Vec::new().into(),
+        )
     }
 
-    pub fn put_object(region: String, bucket: String, key: String, value: Vec<u8>) -> Self {
+    pub fn put_object(region: String, bucket: String, key: String, value: Bytes) -> Self {
         let mut s = Self::new(region, bucket, Method::PUT, format!("/{key}"), value);
 
         s.inner = s

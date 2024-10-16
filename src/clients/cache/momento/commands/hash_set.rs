@@ -35,7 +35,7 @@ pub async fn hash_set(
         let d: Vec<(Vec<u8>, Vec<u8>)> = request
             .data
             .into_iter()
-            .map(|(k, v)| (k.to_vec(), v))
+            .map(|(k, v)| (k.to_vec(), v.into()))
             .collect();
 
         let r = DictionarySetFieldsRequest::new(cache_name, &*request.key, d)
