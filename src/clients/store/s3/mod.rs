@@ -127,7 +127,6 @@ async fn task(
         let work_item = match work_receiver.recv().await {
             Ok(w) => w,
             Err(e) => {
-                error!("error while attempting to receive work item: {e}");
                 continue;
             }
         };
