@@ -257,6 +257,7 @@ fn store_stats(snapshot: &mut MetricsSnapshot) {
     let connect_sr = 100.0 * connect_ok / connect_total;
 
     let response_latency = snapshot.percentiles(STORE_RESPONSE_LATENCY_HISTOGRAM);
+    let response_ttfb = snapshot.percentiles(STORE_RESPONSE_TTFB_HISTOGRAM);
 
     output!(
         "Store Client Connection: Open: {} Success Rate: {:.2} %",
@@ -308,6 +309,15 @@ fn store_stats(snapshot: &mut MetricsSnapshot) {
     let mut latencies = "Store Client Response Latency (us):".to_owned();
 
     for (label, _percentile, nanoseconds) in response_latency {
+        let microseconds = nanoseconds / 1000;
+        latencies.push_str(&format!(" {label}: {microseconds}"))
+    }
+
+    output!("{latencies}");
+
+    let mut latencies = "Store Client Time-to-First-Byte (us):".to_owned();
+
+    for (label, _percentile, nanoseconds) in response_ttfb {
         let microseconds = nanoseconds / 1000;
         latencies.push_str(&format!(" {label}: {microseconds}"))
     }
