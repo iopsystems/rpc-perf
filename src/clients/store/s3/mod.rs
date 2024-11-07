@@ -131,8 +131,7 @@ async fn task(
 
         let work_item = match work_receiver.recv().await {
             Ok(w) => w,
-            Err(e) => {
-                error!("error while attempting to receive work item: {e}");
+            Err(_) => {
                 continue;
             }
         };
@@ -449,7 +448,7 @@ impl S3RequestBuilder {
 
         self.inner
             .header("authorization", authorization)
-            .body(Full::<Bytes>::new(self.content.into()))
+            .body(Full::<Bytes>::new(self.content))
             .unwrap()
     }
 
