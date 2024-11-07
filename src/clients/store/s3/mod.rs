@@ -1,6 +1,6 @@
-use std::fmt::Display;
 use crate::workload::{ClientWorkItemKind, StoreClientRequest};
 use crate::*;
+use std::fmt::Display;
 
 use async_channel::Receiver;
 use bytes::{Bytes, BytesMut};
@@ -383,7 +383,9 @@ impl S3RequestBuilder {
         let inner = http::Request::builder()
             .version(Version::HTTP_11)
             .method(method)
-            .uri(&format!("https://{bucket}.{zone}.amazonaws.com{relative_uri}"))
+            .uri(&format!(
+                "https://{bucket}.{zone}.amazonaws.com{relative_uri}"
+            ))
             .header("host", &format!("{bucket}.s3.amazonaws.com"))
             .header("x-amz-content-sha256", &content_sha256)
             .header("x-amz-date", datetime);
@@ -474,7 +476,13 @@ impl S3RequestBuilder {
         )
     }
 
-    pub fn put_object(region: String, zone: String, bucket: String, key: String, value: Bytes) -> Self {
+    pub fn put_object(
+        region: String,
+        zone: String,
+        bucket: String,
+        key: String,
+        value: Bytes,
+    ) -> Self {
         let class = if zone == "s3" {
             StorageClass::Standard
         } else {
