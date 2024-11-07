@@ -209,7 +209,8 @@ async fn task(
                             }
                         }
                         Err(e) => {
-                            debug!("error: {e}");
+                            info!("error: {e}");
+                            CONNECT_CURR.decrement();
                             continue;
                         }
                     }
