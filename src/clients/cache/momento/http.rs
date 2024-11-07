@@ -273,7 +273,7 @@ async fn task(
 
                     if let Ok((response, mut stream)) = sender.send_request(request, false) {
                         if stream
-                            .send_data(Bytes::from(r.value.clone()), true)
+                            .send_data(r.value.clone(), true)
                             .is_err()
                         {
                             continue;
