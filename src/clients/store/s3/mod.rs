@@ -209,7 +209,7 @@ async fn task(
                             }
                         }
                         Err(e) => {
-                            info!("error: {e}");
+                            error!("error: {e}");
                             CONNECT_CURR.decrement();
                             continue;
                         }
@@ -351,9 +351,7 @@ impl S3RequestBuilder {
         content: Bytes,
     ) -> Self {
         let now = Utc::now();
-        // let date = format!("{}", now.format("%Y%m%d"));
         let datetime = format!("{}", now.format("%Y%m%dT%H%M%SZ"));
-        // let rfc2822 = now.to_rfc2822().to_string();
 
         let content_sha256 = sha256_sum(&content);
 
@@ -394,8 +392,6 @@ impl S3RequestBuilder {
         );
         headers.insert("x-amz-content-sha256", content_sha256.parse().unwrap());
         headers.insert("x-amz-date", datetime.parse().unwrap());
-
-        info!("building request for: {uri}");
 
         let inner = http::Request::builder()
             .version(Version::HTTP_11)
