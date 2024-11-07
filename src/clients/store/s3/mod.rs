@@ -1,6 +1,6 @@
-use http::Uri;
 use crate::workload::{ClientWorkItemKind, StoreClientRequest};
 use crate::*;
+use http::Uri;
 use std::fmt::Display;
 
 use async_channel::Receiver;
@@ -136,11 +136,8 @@ async fn task(
                 StoreClientRequest::Get(r) => {
                     let key = &*r.key;
 
-                    let request = S3RequestBuilder::get_object(
-                        uri.clone(),
-                        key.to_string(),
-                    )
-                    .build(&access_key, &secret_key);
+                    let request = S3RequestBuilder::get_object(uri.clone(), key.to_string())
+                        .build(&access_key, &secret_key);
 
                     let start = Instant::now();
 
@@ -219,12 +216,8 @@ async fn task(
                     let key = &*r.key;
                     let value = r.value.clone();
 
-                    let request = S3RequestBuilder::put_object(
-                        uri.clone(),
-                        key.to_string(),
-                        value,
-                    )
-                    .build(&access_key, &secret_key);
+                    let request = S3RequestBuilder::put_object(uri.clone(), key.to_string(), value)
+                        .build(&access_key, &secret_key);
 
                     let start = Instant::now();
 
@@ -271,11 +264,8 @@ async fn task(
                 StoreClientRequest::Delete(r) => {
                     let key = &*r.key;
 
-                    let request = S3RequestBuilder::delete_object(
-                        uri.clone(),
-                        key.to_string(),
-                    )
-                    .build(&access_key, &secret_key);
+                    let request = S3RequestBuilder::delete_object(uri.clone(), key.to_string())
+                        .build(&access_key, &secret_key);
 
                     let start = Instant::now();
 
@@ -344,12 +334,7 @@ pub struct S3RequestBuilder {
 }
 
 impl S3RequestBuilder {
-    fn new(
-        endpoint: Uri,
-        method: Method,
-        relative_uri: String,
-        content: Bytes,
-    ) -> Self {
+    fn new(endpoint: Uri, method: Method, relative_uri: String, content: Bytes) -> Self {
         let now = Utc::now();
         let datetime = format!("{}", now.format("%Y%m%dT%H%M%SZ"));
 
@@ -475,19 +460,10 @@ impl S3RequestBuilder {
     }
 
     pub fn get_object(endpoint: Uri, key: String) -> Self {
-        Self::new(
-            endpoint,
-            Method::GET,
-            format!("/{key}"),
-            Vec::new().into(),
-        )
+        Self::new(endpoint, Method::GET, format!("/{key}"), Vec::new().into())
     }
 
-    pub fn put_object(
-        endpoint: Uri,
-        key: String,
-        value: Bytes,
-    ) -> Self {
+    pub fn put_object(endpoint: Uri, key: String, value: Bytes) -> Self {
         let parts: Vec<&str> = endpoint.authority().unwrap().host().split('.').collect();
 
         let class = if parts[1] == "s3" {
