@@ -272,10 +272,7 @@ async fn task(
                     let start = Instant::now();
 
                     if let Ok((response, mut stream)) = sender.send_request(request, false) {
-                        if stream
-                            .send_data(r.value.clone(), true)
-                            .is_err()
-                        {
+                        if stream.send_data(r.value.clone(), true).is_err() {
                             continue;
                         }
 
