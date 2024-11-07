@@ -204,7 +204,7 @@ async fn task(
                                     STORE_RESPONSE_EX.increment();
                                     STORE_GET_EX.increment();
 
-                                    debug!("Error Body:\n{}", String::from_utf8_lossy(&body));
+                                    error!("Error Body:\n{}", String::from_utf8_lossy(&body));
                                 }
                             }
                         }
