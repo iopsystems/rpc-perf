@@ -265,7 +265,7 @@ async fn task(
                         &endpoint,
                         cache,
                         std::str::from_utf8(&r.key).unwrap(),
-                        r.ttl,
+                        r.ttl.unwrap_or_else(|| Duration::from_secs(900)),
                     )
                     .build(&token);
 
@@ -297,7 +297,6 @@ async fn task(
 
                         while let Some(chunk) = response.body_mut().data().await {
                             if let Ok(b) = chunk {
-                                // info!("chunk for set: {}", b.len());
                                 buffer.extend_from_slice(&b);
                                 if response
                                     .body_mut()
@@ -480,12 +479,8 @@ impl MomentoRequestBuilder {
         Self::new(endpoint, Method::GET, &uri)
     }
 
-    pub fn set(endpoint: &str, cache: &str, key: &str, ttl: Option<Duration>) -> Self {
-        let uri = if let Some(ttl) = ttl {
-            format!("/cache/{cache}?key={key}&ttl_seconds={}", ttl.as_secs())
-        } else {
-            format!("/cache/{cache}?key={key}")
-        };
+    pub fn set(endpoint: &str, cache: &str, key: &str, ttl: Duration) -> Self {
+        let uri = format!("/cache/{cache}?key={key}&ttl_seconds={}", ttl.as_secs());
 
         Self::new(endpoint, Method::PUT, &uri)
     }
