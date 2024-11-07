@@ -81,10 +81,6 @@ async fn task(
         std::process::exit(1);
     };
 
-    let port = auth.port_u16().unwrap_or(443);
-
-    let _connect_addr = format!("{auth}:{port}");
-
     let root_store =
         rustls::RootCertStore::from_iter(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
 
@@ -397,6 +393,8 @@ impl S3RequestBuilder {
         );
         headers.insert("x-amz-content-sha256", content_sha256.parse().unwrap());
         headers.insert("x-amz-date", datetime.parse().unwrap());
+
+        info!("building request for: {uri}");
 
         let inner = http::Request::builder()
             .version(Version::HTTP_11)
