@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use crate::workload::{ClientWorkItemKind, StoreClientRequest};
 use crate::*;
 
@@ -69,14 +70,18 @@ async fn task(
         })
         .clone();
 
+    // https://[BUCKET_NAME].s3.[REGION].amazonaws.com"
+    // https://[BUCKET_NAME].s3express-usw2-az1.[REGION].amazonaws.com
+
     let parts: Vec<&str> = auth.host().split('.').collect();
 
     if parts.len() != 5 {
-        eprintln!("expected endpoint to be in the form: bucket.region.amazonaws.com");
+        eprintln!("expected endpoint to be in the form: bucket.zone.region.amazonaws.com");
         std::process::exit(1);
     };
 
     let bucket = parts[0].to_string();
+    let zone = parts[1].to_string();
     let region = parts[2].to_string();
 
     let port = auth.port_u16().unwrap_or(443);
@@ -141,6 +146,7 @@ async fn task(
 
                     let request = S3RequestBuilder::get_object(
                         region.clone(),
+                        zone.clone(),
                         bucket.clone(),
                         key.to_string(),
                     )
@@ -224,6 +230,7 @@ async fn task(
 
                     let request = S3RequestBuilder::put_object(
                         region.clone(),
+                        zone.clone(),
                         bucket.clone(),
                         key.to_string(),
                         value,
@@ -277,6 +284,7 @@ async fn task(
 
                     let request = S3RequestBuilder::delete_object(
                         region.clone(),
+                        zone.clone(),
                         bucket.clone(),
                         key.to_string(),
                     )
@@ -351,6 +359,7 @@ pub struct S3RequestBuilder {
 impl S3RequestBuilder {
     fn new(
         region: String,
+        zone: String,
         bucket: String,
         method: Method,
         relative_uri: String,
@@ -367,7 +376,7 @@ impl S3RequestBuilder {
 
         headers.insert(
             "host",
-            format!("{bucket}.s3.amazonaws.com").parse().unwrap(),
+            format!("{bucket}.{zone}.amazonaws.com").parse().unwrap(),
         );
         headers.insert("x-amz-content-sha256", content_sha256.parse().unwrap());
         headers.insert("x-amz-date", datetime.parse().unwrap());
@@ -375,7 +384,7 @@ impl S3RequestBuilder {
         let inner = http::Request::builder()
             .version(Version::HTTP_11)
             .method(method)
-            .uri(&format!("https://{bucket}.s3.amazonaws.com{relative_uri}"))
+            .uri(&format!("https://{bucket}.{zone}.amazonaws.com{relative_uri}"))
             .header("host", &format!("{bucket}.s3.amazonaws.com"))
             .header("x-amz-content-sha256", &content_sha256)
             .header("x-amz-date", datetime);
@@ -444,9 +453,10 @@ impl S3RequestBuilder {
             .unwrap()
     }
 
-    pub fn delete_object(region: String, bucket: String, key: String) -> Self {
+    pub fn delete_object(region: String, zone: String, bucket: String, key: String) -> Self {
         Self::new(
             region,
+            zone,
             bucket,
             Method::DELETE,
             format!("/{key}"),
@@ -454,9 +464,10 @@ impl S3RequestBuilder {
         )
     }
 
-    pub fn get_object(region: String, bucket: String, key: String) -> Self {
+    pub fn get_object(region: String, zone: String, bucket: String, key: String) -> Self {
         Self::new(
             region,
+            zone,
             bucket,
             Method::GET,
             format!("/{key}"),
@@ -464,14 +475,34 @@ impl S3RequestBuilder {
         )
     }
 
-    pub fn put_object(region: String, bucket: String, key: String, value: Bytes) -> Self {
-        let mut s = Self::new(region, bucket, Method::PUT, format!("/{key}"), value);
+    pub fn put_object(region: String, zone: String, bucket: String, key: String, value: Bytes) -> Self {
+        let class = if zone == "s3" {
+            StorageClass::Standard
+        } else {
+            StorageClass::Express
+        };
+
+        let mut s = Self::new(region, zone, bucket, Method::PUT, format!("/{key}"), value);
 
         s.inner = s
             .inner
             .header("date", s.timestamp.to_rfc2822())
-            .header("x-amz-storage-class", "STANDARD");
+            .header("x-amz-storage-class", class.to_string());
 
         s
+    }
+}
+
+enum StorageClass {
+    Standard,
+    Express,
+}
+
+impl Display for StorageClass {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
+        match self {
+            Self::Standard => write!(f, "STANDARD"),
+            Self::Express => write!(f, "EXPRESS_ONEZONE"),
+        }
     }
 }
