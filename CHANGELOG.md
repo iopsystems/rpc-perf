@@ -1,5 +1,17 @@
 ## [Unreleased]
 
+## [5.16.0] - 2024-11-08
+
+### Added
+
+- Storage client Time-to-First-Byte now included in cli output. (#308)
+- S3 Express is now supported. (#309)
+
+### Fixed
+
+- Momento Cache HTTP API now enforces a 15 minute default TTL unless one is set
+  in the workload config. (#310)
+
 ## [5.15.0] - 2024-10-16
 
 ### Changed
