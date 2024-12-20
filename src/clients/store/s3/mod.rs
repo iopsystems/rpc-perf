@@ -18,6 +18,8 @@ mod aws_helpers;
 
 use aws_helpers::*;
 
+const MB: usize = 1024 * 1024;
+
 // launch a pool manager and worker tasks since HTTP/2.0 is mux'ed we prepare
 // senders in the pool manager and pass them over a queue to our worker tasks
 pub fn launch_tasks(
@@ -107,8 +109,9 @@ async fn task(
             }
             CONNECT.increment();
 
-            let c: Client<_, Full<Bytes>> =
-                Client::builder(TokioExecutor::new()).build(connector.clone());
+            let c: Client<_, Full<Bytes>> = Client::builder(TokioExecutor::new())
+                .http1_max_buf_size(16 * MB)
+                .build(connector.clone());
 
             client = Some(c);
 
