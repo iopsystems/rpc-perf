@@ -352,6 +352,14 @@ pub static RESPONSE_LATENCY: AtomicHistogram = AtomicHistogram::new(7, 64);
 pub static RESPONSE_LATENCY_HISTOGRAM: &str = "response_latency";
 
 #[metric(
+    name = RESPONSE_TTFB_HISTOGRAM,
+    description = "Distribution of time-to-first-byte for responses",
+    metadata = { unit = "nanoseconds" }
+)]
+pub static RESPONSE_TTFB: AtomicHistogram = AtomicHistogram::new(7, 64);
+pub static RESPONSE_TTFB_HISTOGRAM: &str = "response_ttfb";
+
+#[metric(
     name = SESSION_LIFECYCLE_REQUESTS_HISTOGRAM,
     description = "Distribution of requests per session lifecycle. Incremented at time of session close.",
     metadata = { unit = "requests" }

@@ -15,6 +15,8 @@ use tokio_rustls::TlsConnector;
 
 use std::time::Instant;
 
+const MB: u32 = 1024 * 1024;
+
 // launch a pool manager and worker tasks since HTTP/2.0 is mux'ed we prepare
 // senders in the pool manager and pass them over a queue to our worker tasks
 pub fn launch_tasks(
@@ -81,7 +83,11 @@ pub async fn pool_manager(endpoint: String, _config: Config, queue: Queue<SendRe
                         .await
                         .unwrap();
 
-                    let client_builder = ::h2::client::Builder::new().handshake(stream);
+                    let client_builder = ::h2::client::Builder::new()
+                        .initial_window_size(8 * MB)
+                        .initial_connection_window_size(8 * MB)
+                        .max_frame_size(2 * MB)
+                        .handshake(stream);
 
                     if let Ok((h2, connection)) = client_builder.await {
                         tokio::spawn(async move {
@@ -144,6 +150,8 @@ async fn task(
         .as_str()
         .to_owned();
 
+    let mut buffer = BytesMut::new();
+
     while RUNNING.load(Ordering::Relaxed) {
         let sender = queue.recv().await;
 
@@ -196,11 +204,18 @@ async fn task(
 
                             // read the response body to completion
 
-                            let mut buffer = BytesMut::new();
+                            buffer.truncate(0);
+
+                            let mut ttfb = None;
 
                             while let Some(chunk) = response.body_mut().data().await {
                                 if let Ok(b) = chunk {
+                                    if ttfb.is_none() {
+                                        ttfb = Some(start.elapsed());
+                                    }
+
                                     buffer.extend_from_slice(&b);
+
                                     if response
                                         .body_mut()
                                         .flow_control()
@@ -235,6 +250,9 @@ async fn task(
                                     RESPONSE_HIT.increment();
 
                                     let _ = RESPONSE_LATENCY.increment(latency.as_nanos() as _);
+
+                                    let ttfb = ttfb.unwrap_or(latency);
+                                    let _ = RESPONSE_TTFB.increment(ttfb.as_nanos() as _);
                                 }
                                 404 => {
                                     GET_OK.increment();
@@ -244,6 +262,9 @@ async fn task(
                                     RESPONSE_MISS.increment();
 
                                     let _ = RESPONSE_LATENCY.increment(latency.as_nanos() as _);
+
+                                    let ttfb = ttfb.unwrap_or(latency);
+                                    let _ = RESPONSE_TTFB.increment(ttfb.as_nanos() as _);
                                 }
                                 429 => {
                                     GET_EX.increment();
@@ -295,11 +316,18 @@ async fn task(
 
                         // read the response body to completion
 
-                        let mut buffer = BytesMut::new();
+                        buffer.truncate(0);
+
+                        let mut ttfb = None;
 
                         while let Some(chunk) = response.body_mut().data().await {
                             if let Ok(b) = chunk {
+                                if ttfb.is_none() {
+                                    ttfb = Some(start.elapsed());
+                                }
+
                                 buffer.extend_from_slice(&b);
+
                                 if response
                                     .body_mut()
                                     .flow_control()
@@ -330,9 +358,11 @@ async fn task(
                                 SET_STORED.increment();
 
                                 RESPONSE_OK.increment();
-                                RESPONSE_HIT.increment();
 
                                 let _ = RESPONSE_LATENCY.increment(latency.as_nanos() as _);
+
+                                let ttfb = ttfb.unwrap_or(latency);
+                                let _ = RESPONSE_TTFB.increment(ttfb.as_nanos() as _);
                             }
                             429 => {
                                 SET_EX.increment();
@@ -376,9 +406,15 @@ async fn task(
 
                             // read the response body to completion
 
-                            let mut buffer = BytesMut::new();
+                            buffer.truncate(0);
+
+                            let mut ttfb = None;
 
                             while let Some(chunk) = response.body_mut().data().await {
+                                if ttfb.is_none() {
+                                    ttfb = Some(start.elapsed());
+                                }
+
                                 if let Ok(b) = chunk {
                                     buffer.extend_from_slice(&b);
                                     if response
@@ -412,12 +448,19 @@ async fn task(
                                     RESPONSE_OK.increment();
 
                                     let _ = RESPONSE_LATENCY.increment(latency.as_nanos() as _);
+
+                                    let ttfb = ttfb.unwrap_or(latency);
+                                    let _ = RESPONSE_TTFB.increment(ttfb.as_nanos() as _);
                                 }
                                 404 => {
                                     DELETE_NOT_FOUND.increment();
 
                                     RESPONSE_OK.increment();
+
                                     let _ = RESPONSE_LATENCY.increment(latency.as_nanos() as _);
+
+                                    let ttfb = ttfb.unwrap_or(latency);
+                                    let _ = RESPONSE_TTFB.increment(ttfb.as_nanos() as _);
                                 }
                                 429 => {
                                     DELETE_EX.increment();
@@ -460,7 +503,7 @@ impl MomentoRequestBuilder {
         let inner = http::request::Builder::new()
             .version(Version::HTTP_2)
             .method(method)
-            .uri(&format!("https://{endpoint}{relative_uri}"));
+            .uri(format!("https://{endpoint}{relative_uri}"));
 
         Self { inner }
     }

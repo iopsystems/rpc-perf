@@ -104,6 +104,7 @@ fn client_stats(snapshot: &mut MetricsSnapshot) {
     let connect_sr = 100.0 * connect_ok / connect_total;
 
     let response_latency = snapshot.percentiles(RESPONSE_LATENCY_HISTOGRAM);
+    let response_ttfb = snapshot.percentiles(RESPONSE_TTFB_HISTOGRAM);
 
     output!(
         "Client Connection: Open: {} Success Rate: {:.2} %",
@@ -155,6 +156,15 @@ fn client_stats(snapshot: &mut MetricsSnapshot) {
     let mut latencies = "Client Response Latency (us):".to_owned();
 
     for (label, _percentile, nanoseconds) in response_latency {
+        let microseconds = nanoseconds / 1000;
+        latencies.push_str(&format!(" {label}: {microseconds}"))
+    }
+
+    output!("{latencies}");
+
+    let mut latencies = "Client Time-to-First-Byte (us):".to_owned();
+
+    for (label, _percentile, nanoseconds) in response_ttfb {
         let microseconds = nanoseconds / 1000;
         latencies.push_str(&format!(" {label}: {microseconds}"))
     }
