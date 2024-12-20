@@ -1,5 +1,16 @@
 ## [Unreleased]
 
+## [5.17.0] - 2024-12-20
+
+### Changed
+
+- Improved the performance of the Momento Cache HTTP client by tuning some HTTP2
+  settings. Results in improved latency for large reads. (#320)
+
+### Fixed
+
+- Removed a noisy log event in the Momento Cache HTTP client. (#319)
+
 ## [5.16.0] - 2024-11-08
 
 ### Added
@@ -250,7 +261,9 @@
 - Support Momento topics.
 - Basic HTTP/1.1 and HTTP/2.0 load generation.
 
-[unreleased]: https://github.com/iopsystems/rpc-perf/compare/v5.15.0...HEAD
+[unreleased]: https://github.com/iopsystems/rpc-perf/compare/v5.17.0...HEAD
+[5.17.0]: https://github.com/iopsystems/rpc-perf/compare/v5.16.0...v5.17.0
+[5.16.0]: https://github.com/iopsystems/rpc-perf/compare/v5.15.0...v5.16.0
 [5.15.0]: https://github.com/iopsystems/rpc-perf/compare/v5.14.1...v5.15.0
 [5.14.1]: https://github.com/iopsystems/rezolus/compare/v5.14.0...v5.14.1
 [5.14.0]: https://github.com/iopsystems/rezolus/compare/v5.13.0...v5.14.0
