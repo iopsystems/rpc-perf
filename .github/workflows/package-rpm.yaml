@@ -58,7 +58,7 @@ jobs:
         shell: bash
         run: |
           dnf install -y --enablerepo=devel protobuf-compiler
-          yum install -y gcc gcc-c++ cmake elfutils-devel clang openssl-devel pkg-config perl-base perl-File-Compare perl-File-Copy perl-FindBin perl-IPC-Cmd
+          yum install -y git gcc gcc-c++ cmake elfutils-devel clang openssl-devel pkg-config perl-base perl-File-Compare perl-File-Copy perl-FindBin perl-IPC-Cmd
 
       - uses: Swatinem/rust-cache@v2
         with:
