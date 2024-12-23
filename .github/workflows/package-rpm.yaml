@@ -58,6 +58,7 @@ jobs:
         shell: bash
         run: |
           yum install -y gcc elfutils-devel clang openssl-devel pkg-config
+          echo "does this trigger now?"
 
       - uses: Swatinem/rust-cache@v2
         with:
