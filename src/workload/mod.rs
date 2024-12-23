@@ -32,6 +32,9 @@ pub use store::StoreClientRequest;
 
 static SEQUENCE_NUMBER: AtomicU64 = AtomicU64::new(0);
 
+// a multiplier for the ratelimiter token bucket capacity
+static BUCKET_CAPACITY: u64 = 64;
+
 pub fn launch_workload(
     generator: Generator,
     config: &Config,
@@ -114,7 +117,7 @@ impl Generator {
 
             Arc::new(
                 Ratelimiter::builder(amount, interval)
-                    .max_tokens(amount * 8)
+                    .max_tokens(amount * BUCKET_CAPACITY)
                     .build()
                     .expect("failed to initialize ratelimiter"),
             )
@@ -993,7 +996,7 @@ pub async fn reconnect<TRequestKind>(
 
         Arc::new(
             Ratelimiter::builder(amount, interval)
-                .max_tokens(amount * 8)
+                .max_tokens(amount * BUCKET_CAPACITY)
                 .build()
                 .expect("failed to initialize ratelimiter"),
         )
