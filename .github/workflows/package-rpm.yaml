@@ -57,7 +57,7 @@ jobs:
       - name: install build dependencies
         shell: bash
         run: |
-          yum install -y gcc gcc-c++ cmake elfutils-devel clang openssl-devel pkg-config protoc-compiler perl-base perl-File-Compare perl-File-Copy perl-FindBin perl-IPC-Cmd
+          yum install -y gcc gcc-c++ cmake elfutils-devel clang openssl-devel pkg-config protobuf-compiler-3.14.0-13 perl-base perl-File-Compare perl-File-Copy perl-FindBin perl-IPC-Cmd
 
       - uses: Swatinem/rust-cache@v2
         with:
