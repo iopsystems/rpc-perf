@@ -138,17 +138,30 @@ fn main() {
         });
     }
 
-    let (client_sender, client_receiver) =
-        bounded(config.client().map(|c| c.threads() * QUEUE_DEPTH).unwrap_or(1));
+    let (client_sender, client_receiver) = bounded(
+        config
+            .client()
+            .map(|c| c.threads() * QUEUE_DEPTH)
+            .unwrap_or(1),
+    );
     let (pubsub_sender, pubsub_receiver) = bounded(
         config
             .pubsub()
             .map(|c| c.publisher_threads() * QUEUE_DEPTH)
             .unwrap_or(1),
     );
-    let (store_sender, store_receiver) =
-        bounded(config.storage().map(|c| c.threads() * QUEUE_DEPTH).unwrap_or(1));
-    let (oltp_sender, oltp_receiver) = bounded(config.oltp().map(|c| c.threads() * QUEUE_DEPTH).unwrap_or(1));
+    let (store_sender, store_receiver) = bounded(
+        config
+            .storage()
+            .map(|c| c.threads() * QUEUE_DEPTH)
+            .unwrap_or(1),
+    );
+    let (oltp_sender, oltp_receiver) = bounded(
+        config
+            .oltp()
+            .map(|c| c.threads() * QUEUE_DEPTH)
+            .unwrap_or(1),
+    );
 
     output!("Protocol: {:?}", config.general().protocol());
 
