@@ -57,6 +57,7 @@ jobs:
         run: |
           curl -sSf https://sh.rustup.rs | sh /dev/stdin -y
           echo "PATH=$HOME/.cargo/bin:$PATH" >> "$GITHUB_ENV"
+          echo "this is just a test"
 
       - name: install build dependencies
         shell: bash
