@@ -100,3 +100,8 @@ debug-assertions = false
 debug = true
 opt-level = 0
 
+[package.metadata.generate-rpm]
+auto_req = "builtin"
+assets = [
+    { source = "target/release/rpc-perf", dest = "/usr/bin/", mode = "755" },
+]
