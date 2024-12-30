@@ -1,5 +1,17 @@
 ## [Unreleased]
 
+## [5.18.0] - 2024-12-30
+
+### Changed
+
+- Increased S3 HTTP1 client buffer size. (#324)
+- Increased client work queue depth and ratelimiter token bucket capacity.
+  (#326)
+
+### Added
+
+- RPM packaging workflow. (#327)
+
 ## [5.17.0] - 2024-12-20
 
 ### Changed
@@ -261,7 +273,8 @@
 - Support Momento topics.
 - Basic HTTP/1.1 and HTTP/2.0 load generation.
 
-[unreleased]: https://github.com/iopsystems/rpc-perf/compare/v5.17.0...HEAD
+[unreleased]: https://github.com/iopsystems/rpc-perf/compare/v5.18.0...HEAD
+[5.18.0]: https://github.com/iopsystems/rpc-perf/compare/v5.17.0...v5.18.0
 [5.17.0]: https://github.com/iopsystems/rpc-perf/compare/v5.16.0...v5.17.0
 [5.16.0]: https://github.com/iopsystems/rpc-perf/compare/v5.15.0...v5.16.0
 [5.15.0]: https://github.com/iopsystems/rpc-perf/compare/v5.14.1...v5.15.0
