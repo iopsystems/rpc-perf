@@ -15,7 +15,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ ubuntu-latest, macos-latest ]
+        os: [ ubuntu-24.04, ubuntu-24.04-arm, macos-13 ]
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-rust
@@ -107,7 +107,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ ubuntu-latest, macos-latest ]
+        os: [ ubuntu-24.04, ubuntu-24.04-arm, macos-13 ]
         profile: [ release, debug ]
     steps:
       - uses: actions/checkout@v3
@@ -154,7 +154,7 @@ jobs:
   # Smoke tests are even more expensive, so they run last.
   smoketest-cache:
     name: smoketest-cache
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v3
       - uses: ./.github/actions/setup-rust
@@ -178,7 +178,7 @@ jobs:
 
   smoketest-oltp:
     name: smoketest-oltp
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v3
       - uses: ./.github/actions/setup-rust
