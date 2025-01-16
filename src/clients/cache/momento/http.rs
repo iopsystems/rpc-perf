@@ -200,40 +200,44 @@ async fn task(
                                 }
                             };
 
+                            // ttfb based on the headers being received
+
+                            let ttfb = start.elapsed();
+
                             let status = response.status().as_u16();
 
                             // read the response body to completion
 
                             buffer.truncate(0);
 
-                            let mut ttfb = None;
+                            let body = response.body_mut();
 
-                            while let Some(chunk) = response.body_mut().data().await {
-                                if let Ok(b) = chunk {
-                                    if ttfb.is_none() {
-                                        ttfb = Some(start.elapsed());
-                                    }
+                            if !body.is_end_stream() {
+                                // get the flow control handle
+                                let mut flow_control = body.flow_control().clone();
 
-                                    buffer.extend_from_slice(&b);
+                                // release all capacity that we can release
+                                let used = flow_control.used_capacity();
+                                if flow_control.release_capacity(used).is_err() {
+                                    GET_EX.increment();
 
-                                    if response
-                                        .body_mut()
-                                        .flow_control()
-                                        .release_capacity(b.len())
-                                        .is_err()
-                                    {
+                                    RESPONSE_EX.increment();
+
+                                    continue;
+                                }
+
+                                // loop to read all the data
+                                while let Some(chunk) = body.data().await {
+                                    if chunk.is_err() {
                                         GET_EX.increment();
 
                                         RESPONSE_EX.increment();
 
                                         continue;
                                     }
-                                } else {
-                                    GET_EX.increment();
 
-                                    RESPONSE_EX.increment();
-
-                                    continue;
+                                    // Let the server send more data.
+                                    let _ = flow_control.release_capacity(chunk.unwrap().len());
                                 }
                             }
 
@@ -250,8 +254,6 @@ async fn task(
                                     RESPONSE_HIT.increment();
 
                                     let _ = RESPONSE_LATENCY.increment(latency.as_nanos() as _);
-
-                                    let ttfb = ttfb.unwrap_or(latency);
                                     let _ = RESPONSE_TTFB.increment(ttfb.as_nanos() as _);
                                 }
                                 404 => {
@@ -262,8 +264,6 @@ async fn task(
                                     RESPONSE_MISS.increment();
 
                                     let _ = RESPONSE_LATENCY.increment(latency.as_nanos() as _);
-
-                                    let ttfb = ttfb.unwrap_or(latency);
                                     let _ = RESPONSE_TTFB.increment(ttfb.as_nanos() as _);
                                 }
                                 429 => {
@@ -295,59 +295,70 @@ async fn task(
                     let start = Instant::now();
 
                     if let Ok((response, mut stream)) = sender.send_request(request, false) {
-                        if stream.send_data(r.value.clone(), true).is_err() {
-                            continue;
+                        let value = &r.value;
+
+                        let mut idx = 0;
+
+                        while idx < value.len() {
+                            stream.reserve_capacity(value.len() - idx);
+                            let mut available = stream.capacity();
+
+                            // default minimum of a 16KB frame...
+                            if available == 0 {
+                                available = 16384;
+                            }
+
+                            let end = idx + available;
+
+                            if end >= value.len() {
+                                stream
+                                    .send_data(value.slice(idx..value.len()), true)
+                                    .unwrap();
+                                break;
+                            } else {
+                                stream.send_data(value.slice(idx..end), false).unwrap();
+                                idx = end;
+                            }
                         }
+
+                        // reduce the stream capacity
+                        stream.reserve_capacity(1024);
 
                         let response = response.await;
 
-                        let mut response = match response {
-                            Ok(r) => r,
-                            Err(_e) => {
-                                SET_EX.increment();
+                        if response.is_err() {
+                            SET_EX.increment();
 
-                                RESPONSE_EX.increment();
+                            RESPONSE_EX.increment();
 
-                                continue;
-                            }
-                        };
+                            continue;
+                        }
 
-                        let status = response.status().as_u16();
+                        let ttfb = start.elapsed();
 
-                        // read the response body to completion
+                        let mut response = response.unwrap();
+                        let body = response.body_mut();
 
-                        buffer.truncate(0);
+                        if !body.is_end_stream() {
+                            // get the flow control handle
+                            let mut flow_control = body.flow_control().clone();
 
-                        let mut ttfb = None;
-
-                        while let Some(chunk) = response.body_mut().data().await {
-                            if let Ok(b) = chunk {
-                                if ttfb.is_none() {
-                                    ttfb = Some(start.elapsed());
-                                }
-
-                                buffer.extend_from_slice(&b);
-
-                                if response
-                                    .body_mut()
-                                    .flow_control()
-                                    .release_capacity(b.len())
-                                    .is_err()
-                                {
+                            // loop to read all the response
+                            while let Some(chunk) = body.data().await {
+                                if chunk.is_err() {
                                     SET_EX.increment();
 
                                     RESPONSE_EX.increment();
 
                                     continue;
                                 }
-                            } else {
-                                SET_EX.increment();
 
-                                RESPONSE_EX.increment();
-
-                                continue;
+                                // Let the server send more data.
+                                let _ = flow_control.release_capacity(chunk.unwrap().len());
                             }
-                        }
+                        };
+
+                        let status = response.status().as_u16();
 
                         let latency = start.elapsed();
 
@@ -360,8 +371,6 @@ async fn task(
                                 RESPONSE_OK.increment();
 
                                 let _ = RESPONSE_LATENCY.increment(latency.as_nanos() as _);
-
-                                let ttfb = ttfb.unwrap_or(latency);
                                 let _ = RESPONSE_TTFB.increment(ttfb.as_nanos() as _);
                             }
                             429 => {
@@ -394,7 +403,7 @@ async fn task(
                             let mut response = match response {
                                 Ok(r) => r,
                                 Err(_e) => {
-                                    GET_EX.increment();
+                                    DELETE_EX.increment();
 
                                     RESPONSE_EX.increment();
 
@@ -402,38 +411,44 @@ async fn task(
                                 }
                             };
 
+                            // ttfb based on the headers being received
+
+                            let ttfb = start.elapsed();
+
                             let status = response.status().as_u16();
 
                             // read the response body to completion
 
                             buffer.truncate(0);
 
-                            let mut ttfb = None;
+                            let body = response.body_mut();
 
-                            while let Some(chunk) = response.body_mut().data().await {
-                                if ttfb.is_none() {
-                                    ttfb = Some(start.elapsed());
-                                }
+                            if !body.is_end_stream() {
+                                // get the flow control handle
+                                let mut flow_control = body.flow_control().clone();
 
-                                if let Ok(b) = chunk {
-                                    buffer.extend_from_slice(&b);
-                                    if response
-                                        .body_mut()
-                                        .flow_control()
-                                        .release_capacity(b.len())
-                                        .is_err()
-                                    {
-                                        DELETE_EX.increment();
-                                        RESPONSE_EX.increment();
-
-                                        continue;
-                                    }
-                                } else {
+                                // release all capacity that we can release
+                                let used = flow_control.used_capacity();
+                                if flow_control.release_capacity(used).is_err() {
                                     DELETE_EX.increment();
 
                                     RESPONSE_EX.increment();
 
                                     continue;
+                                }
+
+                                // loop to read all the data
+                                while let Some(chunk) = body.data().await {
+                                    if chunk.is_err() {
+                                        DELETE_EX.increment();
+
+                                        RESPONSE_EX.increment();
+
+                                        continue;
+                                    }
+
+                                    // Let the server send more data.
+                                    let _ = flow_control.release_capacity(chunk.unwrap().len());
                                 }
                             }
 
@@ -448,8 +463,6 @@ async fn task(
                                     RESPONSE_OK.increment();
 
                                     let _ = RESPONSE_LATENCY.increment(latency.as_nanos() as _);
-
-                                    let ttfb = ttfb.unwrap_or(latency);
                                     let _ = RESPONSE_TTFB.increment(ttfb.as_nanos() as _);
                                 }
                                 404 => {
@@ -458,8 +471,6 @@ async fn task(
                                     RESPONSE_OK.increment();
 
                                     let _ = RESPONSE_LATENCY.increment(latency.as_nanos() as _);
-
-                                    let ttfb = ttfb.unwrap_or(latency);
                                     let _ = RESPONSE_TTFB.increment(ttfb.as_nanos() as _);
                                 }
                                 429 => {
