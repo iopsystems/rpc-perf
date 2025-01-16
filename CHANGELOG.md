@@ -1,5 +1,12 @@
 ## [Unreleased]
 
+## [5.19.0] - 2025-01-16
+
+### Changed
+
+- Changes to the Momento Cache HTTP client to fix some issues where PUT requests
+  saw unexpectedly high latency. (#344)
+
 ## [5.18.0] - 2024-12-30
 
 ### Changed
@@ -273,7 +280,8 @@
 - Support Momento topics.
 - Basic HTTP/1.1 and HTTP/2.0 load generation.
 
-[unreleased]: https://github.com/iopsystems/rpc-perf/compare/v5.18.0...HEAD
+[unreleased]: https://github.com/iopsystems/rpc-perf/compare/v5.19.0...HEAD
+[5.19.0]: https://github.com/iopsystems/rpc-perf/compare/v5.18.0...v5.19.0
 [5.18.0]: https://github.com/iopsystems/rpc-perf/compare/v5.17.0...v5.18.0
 [5.17.0]: https://github.com/iopsystems/rpc-perf/compare/v5.16.0...v5.17.0
 [5.16.0]: https://github.com/iopsystems/rpc-perf/compare/v5.15.0...v5.16.0
