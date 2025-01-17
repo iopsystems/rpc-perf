@@ -794,7 +794,12 @@ impl Keyspace {
         let len = 100 * 1024 * 1024;
         let mut vbuf = BytesMut::zeroed(len);
         rng.fill_bytes(&mut vbuf[0..value_random_bytes]);
-        vbuf.shuffle(&mut rng);
+
+        // if we have compressible values, we need to distribute the remaining
+        // zeros evenly across the value buffer
+        if vbuf.len() > value_random_bytes {
+            vbuf.shuffle(&mut rng);
+        }
 
         let command_dist = WeightedAliasIndex::new(command_weights).unwrap();
 
