@@ -4,6 +4,7 @@ use momento::MomentoErrorCode;
 pub mod common;
 
 pub mod cache;
+pub mod leaderboard;
 pub mod oltp;
 pub mod ping;
 pub mod pubsub;

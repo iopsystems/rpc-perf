@@ -732,6 +732,92 @@ counter!(STORE_PUT_STORED, "store_put/stored");
 request!(STORE_DELETE, "store_delete");
 
 /*
+ * LEADERBOARD CLIENT
+ */
+#[metric(
+    name = LEADERBOARD_RESPONSE_LATENCY_HISTOGRAM,
+    description = "Distribution of leaderboard client response latencies",
+    metadata = { unit = "nanoseconds" }
+)]
+pub static LEADERBOARD_RESPONSE_LATENCY: AtomicHistogram = AtomicHistogram::new(7, 64);
+pub static LEADERBOARD_RESPONSE_LATENCY_HISTOGRAM: &str = "leaderboard_response_latency";
+
+#[metric(
+    name = LEADERBOARD_RESPONSE_TTFB_HISTOGRAM,
+    description = "Distribution of leaderboard client response time-to-first-byte for read operations",
+    metadata = { unit = "nanoseconds" }
+)]
+pub static LEADERBOARD_RESPONSE_TTFB: AtomicHistogram = AtomicHistogram::new(7, 64);
+pub static LEADERBOARD_RESPONSE_TTFB_HISTOGRAM: &str = "leaderboard_response_ttfb";
+
+counter!(LEADERBOARD_CONNECT, "leaderboard_client/connect/total");
+gauge!(
+    LEADERBOARD_CONNECT_CURR,
+    "leaderboard_client/connections/current"
+);
+counter!(
+    LEADERBOARD_REQUEST,
+    "leaderboard_client/request/total",
+    "total requests dequeued"
+);
+counter!(
+    LEADERBOARD_REQUEST_DROPPED,
+    "leaderboard_client/request/dropped",
+    "number of requests dropped due to a full work queue"
+);
+counter!(
+    LEADERBOARD_REQUEST_OK,
+    "leaderboard_client/request/ok",
+    "requests that were successfully generated and sent"
+);
+
+counter!(
+    LEADERBOARD_REQUEST_UNSUPPORTED,
+    "leaderboard_client/request/unsupported",
+    "skipped requests due to protocol incompatibility"
+);
+
+counter!(
+    LEADERBOARD_RESPONSE_EX,
+    "leaderboard_client/response/exception",
+    "responses which encountered some exception while processing"
+);
+
+counter!(
+    LEADERBOARD_RESPONSE_RATELIMITED,
+    "leaderboard_client/response/ratelimited",
+    "backend indicated that we were ratelimited"
+);
+
+counter!(
+    LEADERBOARD_RESPONSE_BACKEND_TIMEOUT,
+    "leaderboard_client/response/backend_timeout",
+    "responses indicating the backend timedout"
+);
+
+counter!(
+    LEADERBOARD_RESPONSE_OK,
+    "leaderboard_client/response/ok",
+    "responses which were successful"
+);
+
+counter!(
+    LEADERBOARD_RESPONSE_TIMEOUT,
+    "leaderboard_client/response/timeout",
+    "responses not received due to timeout"
+);
+
+/*
+ * LEADERBOARD COMMANDS
+ */
+request!(LEADERBOARD_UPSERT, "leaderboard_upsert");
+
+request!(
+    LEADERBOARD_GET_COMPETITION_RANK,
+    "leaderboard_get_competition_rank"
+);
+
+/*
  * OLTP CLIENT
  */
 #[metric(

@@ -11,6 +11,8 @@ pub struct Workload {
     #[serde(default)]
     stores: Vec<Store>,
     #[serde(default)]
+    leaderboards: Vec<Leaderboard>,
+    #[serde(default)]
     topics: Vec<Topics>,
     #[serde(default)]
     oltp: Option<Oltp>,
@@ -32,6 +34,10 @@ impl Workload {
 
     pub fn stores(&self) -> &[Store] {
         &self.stores
+    }
+
+    pub fn leaderboards(&self) -> &[Leaderboard] {
+        &self.leaderboards
     }
 
     pub fn topics(&self) -> &[Topics] {
@@ -101,6 +107,42 @@ impl Store {
 
     pub fn compression_ratio(&self) -> f64 {
         self.compression_ratio.unwrap_or(1.0)
+    }
+}
+
+#[derive(Clone, Deserialize)]
+pub struct Leaderboard {
+    #[serde(default)]
+    nleaderboards: usize,
+    #[serde(default)]
+    leaderboard_len: usize,
+    #[serde(default)]
+    nids: usize,
+    #[serde(default = "one")]
+    weight: usize,
+
+    commands: Vec<LeaderboardCommand>,
+}
+
+impl Leaderboard {
+    pub fn nleaderboards(&self) -> usize {
+        self.nleaderboards
+    }
+
+    pub fn leaderboard_len(&self) -> usize {
+        self.leaderboard_len
+    }
+
+    pub fn nids(&self) -> usize {
+        self.nids
+    }
+
+    pub fn weight(&self) -> usize {
+        self.weight
+    }
+
+    pub fn commands(&self) -> &[LeaderboardCommand] {
+        &self.commands
     }
 }
 
@@ -709,4 +751,42 @@ pub enum StoreVerb {
     /// * Momento: `delete`
     #[serde(alias = "del")]
     Delete,
+}
+
+#[derive(Clone, Copy, Deserialize)]
+pub struct LeaderboardCommand {
+    verb: LeaderboardVerb,
+    #[serde(default = "one")]
+    cardinality: usize,
+    #[serde(default = "one")]
+    weight: usize,
+}
+
+impl LeaderboardCommand {
+    pub fn verb(&self) -> LeaderboardVerb {
+        self.verb
+    }
+
+    pub fn cardinality(&self) -> usize {
+        self.cardinality
+    }
+
+    pub fn weight(&self) -> usize {
+        self.weight
+    }
+}
+
+#[derive(Clone, Deserialize, Copy, Debug, Ord, Eq, PartialOrd, PartialEq, Hash)]
+#[serde(rename_all = "snake_case")]
+pub enum LeaderboardVerb {
+    /// Insert or update entries in a leaderboard.
+    Upsert,
+    /// Retrieve the comptition rank of members in a leaderboard.
+    GetCompetitionRank,
+}
+
+impl LeaderboardVerb {
+    pub fn supports_cardinality(&self) -> bool {
+        matches!(self, Self::Upsert | Self::GetCompetitionRank)
+    }
 }
