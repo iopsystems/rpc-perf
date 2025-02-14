@@ -751,10 +751,19 @@ pub static LEADERBOARD_RESPONSE_TTFB: AtomicHistogram = AtomicHistogram::new(7, 
 pub static LEADERBOARD_RESPONSE_TTFB_HISTOGRAM: &str = "leaderboard_response_ttfb";
 
 counter!(LEADERBOARD_CONNECT, "leaderboard_client/connect/total");
+counter!(LEADERBOARD_CONNECT_OK, "store_client/connect/ok");
+counter!(LEADERBOARD_CONNECT_EX, "store_client/connect/exception");
+counter!(LEADERBOARD_CONNECT_TIMEOUT, "store_client/connect/timeout");
 gauge!(
     LEADERBOARD_CONNECT_CURR,
     "leaderboard_client/connections/current"
 );
+counter!(
+    LEADERBOARD_REQUEST_RECONNECT,
+    "leaderboard_client/connect/reconnect",
+    "requests to reconnect"
+);
+
 counter!(
     LEADERBOARD_REQUEST,
     "leaderboard_client/request/total",

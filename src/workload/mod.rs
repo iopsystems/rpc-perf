@@ -305,23 +305,23 @@ impl Generator {
 
     fn generate_leaderboard_request(
         &self,
-        leaderboard: &Leaderboard,
+        leaderboard_workload: &Leaderboard,
         rng: &mut dyn RngCore,
     ) -> ClientWorkItemKind<LeaderboardClientRequest> {
-        let command = &leaderboard.commands[leaderboard.command_dist.sample(rng)];
         let sequence = SEQUENCE_NUMBER.fetch_add(1, Ordering::Relaxed);
 
-        let leaderboard_name = leaderboard.sample_leaderboard(rng);
+        let command = leaderboard_workload.sample_command(rng);
+        let leaderboard_name = leaderboard_workload.sample_leaderboard(rng);
         let request = match command.verb() {
             LeaderboardVerb::GetCompetitionRank => {
                 LeaderboardClientRequest::GetCompetitionRank(leaderboard::GetCompetitionRank {
-                    leaderboard: leaderboard_name.clone(),
-                    ids: leaderboard.sample_ids(command.cardinality(), rng),
+                    leaderboard: leaderboard_name,
+                    ids: leaderboard_workload.sample_ids(command.cardinality(), rng),
                 })
             }
             LeaderboardVerb::Upsert => LeaderboardClientRequest::Upsert(leaderboard::Upsert {
-                leaderboard: leaderboard.sample_leaderboard(rng).into(),
-                elements: leaderboard.generate_elements(command.cardinality(), rng),
+                leaderboard: leaderboard_name,
+                elements: leaderboard_workload.generate_elements(command.cardinality(), rng),
             }),
         };
 
@@ -1108,6 +1108,11 @@ impl Leaderboard {
             );
             std::process::exit(2);
         }
+    }
+
+    pub fn sample_command(&self, rng: &mut dyn RngCore) -> &LeaderboardCommand {
+        let index = self.command_dist.sample(rng);
+        &self.commands[index]
     }
 
     pub fn sample_leaderboard(&self, rng: &mut dyn RngCore) -> Arc<String> {

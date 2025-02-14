@@ -11,7 +11,7 @@ pub struct Workload {
     #[serde(default)]
     stores: Vec<Store>,
     #[serde(default)]
-    leaderboards: Vec<Leaderboard>,
+    leaderboard: Vec<Leaderboard>,
     #[serde(default)]
     topics: Vec<Topics>,
     #[serde(default)]
@@ -37,7 +37,7 @@ impl Workload {
     }
 
     pub fn leaderboards(&self) -> &[Leaderboard] {
-        &self.leaderboards
+        &self.leaderboard
     }
 
     pub fn topics(&self) -> &[Topics] {
@@ -115,8 +115,6 @@ pub struct Leaderboard {
     #[serde(default)]
     nleaderboards: usize,
     #[serde(default)]
-    leaderboard_len: usize,
-    #[serde(default)]
     nids: usize,
     #[serde(default = "one")]
     weight: usize,
@@ -129,8 +127,9 @@ impl Leaderboard {
         self.nleaderboards
     }
 
+    /// Length of the leaderboard name
     pub fn leaderboard_len(&self) -> usize {
-        self.leaderboard_len
+        8
     }
 
     pub fn nids(&self) -> usize {
