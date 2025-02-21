@@ -1,5 +1,16 @@
 ## [Unreleased]
 
+## [5.20.0] - 2025-02-21
+
+### Added
+
+- Added support for Momento Leaderboards. (#355)
+
+### Fixed
+
+- Improved startup time when workload is non-compressible. (#350)
+- Updated dependencies to pull-in bugfixes and improvements. (#357)
+
 ## [5.19.0] - 2025-01-16
 
 ### Changed
@@ -280,7 +291,8 @@
 - Support Momento topics.
 - Basic HTTP/1.1 and HTTP/2.0 load generation.
 
-[unreleased]: https://github.com/iopsystems/rpc-perf/compare/v5.19.0...HEAD
+[unreleased]: https://github.com/iopsystems/rpc-perf/compare/v5.20.0...HEAD
+[5.20.0]: https://github.com/iopsystems/rpc-perf/compare/v5.19.0...v5.20.0
 [5.19.0]: https://github.com/iopsystems/rpc-perf/compare/v5.18.0...v5.19.0
 [5.18.0]: https://github.com/iopsystems/rpc-perf/compare/v5.17.0...v5.18.0
 [5.17.0]: https://github.com/iopsystems/rpc-perf/compare/v5.16.0...v5.17.0
