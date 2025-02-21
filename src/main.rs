@@ -156,6 +156,12 @@ fn main() {
             .map(|c| c.threads() * QUEUE_DEPTH)
             .unwrap_or(1),
     );
+    let (leaderboard_sender, leaderboard_receiver) = bounded(
+        config
+            .leaderboard()
+            .map(|c| c.threads() * QUEUE_DEPTH)
+            .unwrap_or(1),
+    );
     let (oltp_sender, oltp_receiver) = bounded(
         config
             .oltp()
@@ -189,6 +195,7 @@ fn main() {
         client_sender,
         pubsub_sender,
         store_sender,
+        leaderboard_sender,
         oltp_sender,
     );
 
@@ -198,6 +205,9 @@ fn main() {
 
     // start store client(s)
     let store_runtime = clients::store::launch(&config, store_receiver);
+
+    // start leaderboard client(s)
+    let leaderboard_runtime = clients::leaderboard::launch(&config, leaderboard_receiver);
 
     // start OLTP clients
     let oltp_runtime = clients::oltp::launch(&config, oltp_receiver);
@@ -236,6 +246,10 @@ fn main() {
 
     if let Some(store_runtime) = store_runtime {
         store_runtime.shutdown_timeout(std::time::Duration::from_millis(100));
+    }
+
+    if let Some(leaderboard_runtime) = leaderboard_runtime {
+        leaderboard_runtime.shutdown_timeout(std::time::Duration::from_millis(100));
     }
 
     if let Some(rt) = oltp_runtime {

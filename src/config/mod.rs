@@ -6,6 +6,7 @@ use std::time::Duration;
 mod client;
 mod debug;
 mod general;
+mod leaderboard;
 mod metrics;
 mod oltp;
 mod protocol;
@@ -18,6 +19,7 @@ mod workload;
 pub use client::Client;
 pub use debug::Debug;
 pub use general::General;
+pub use leaderboard::Leaderboard as LeaderboardConfig;
 pub use metrics::{Format as MetricsFormat, Metrics};
 pub use oltp::Oltp as OltpConfig;
 pub use protocol::Protocol;
@@ -26,8 +28,9 @@ pub use storage::Storage;
 pub use target::Target;
 pub use tls::Tls;
 pub use workload::{
-    Command, Distribution, Keyspace, Oltp, RampCompletionAction, RampType, Store, StoreCommand,
-    StoreVerb, Topics, ValueKind, Verb, Workload,
+    Command, Distribution, Keyspace, Leaderboard, LeaderboardCommand, LeaderboardVerb, Oltp,
+    RampCompletionAction, RampType, Store, StoreCommand, StoreVerb, Topics, ValueKind, Verb,
+    Workload,
 };
 
 pub const PAGESIZE: usize = 4096;
@@ -49,6 +52,7 @@ pub struct Config {
     workload: Workload,
     metrics: Option<Metrics>,
     storage: Option<Storage>,
+    leaderboard: Option<LeaderboardConfig>,
 }
 
 impl Config {
@@ -123,5 +127,9 @@ impl Config {
 
     pub fn storage(&self) -> Option<&Storage> {
         self.storage.as_ref()
+    }
+
+    pub fn leaderboard(&self) -> Option<&LeaderboardConfig> {
+        self.leaderboard.as_ref()
     }
 }

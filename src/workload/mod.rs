@@ -13,6 +13,7 @@ use rand_xoshiro::{Seed512, Xoshiro512PlusPlus};
 use ratelimit::Ratelimiter;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
+use std::hash::Hash;
 use std::io::{Result, Write};
 use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
@@ -30,6 +31,9 @@ pub use publisher::PublisherWorkItem;
 pub mod store;
 pub use store::StoreClientRequest;
 
+pub mod leaderboard;
+pub use leaderboard::LeaderboardClientRequest;
+
 static SEQUENCE_NUMBER: AtomicU64 = AtomicU64::new(0);
 
 // a multiplier for the ratelimiter token bucket capacity
@@ -41,6 +45,7 @@ pub fn launch_workload(
     client_sender: Sender<ClientWorkItemKind<ClientRequest>>,
     pubsub_sender: Sender<PublisherWorkItem>,
     store_sender: Sender<ClientWorkItemKind<StoreClientRequest>>,
+    leaderboard_sender: Sender<ClientWorkItemKind<LeaderboardClientRequest>>,
     oltp_sender: Sender<ClientWorkItemKind<OltpRequest>>,
 ) -> Runtime {
     debug!("Launching workload...");
@@ -62,6 +67,7 @@ pub fn launch_workload(
         let client_sender = client_sender.clone();
         let pubsub_sender = pubsub_sender.clone();
         let store_sender = store_sender.clone();
+        let leaderboard_sender = leaderboard_sender.clone();
         let oltp_sender = oltp_sender.clone();
         let generator = generator.clone();
 
@@ -80,6 +86,7 @@ pub fn launch_workload(
                         &client_sender,
                         &pubsub_sender,
                         &store_sender,
+                        &leaderboard_sender,
                         &oltp_sender,
                         &mut rng,
                     )
@@ -141,6 +148,14 @@ impl Generator {
             component_weights.push(store.weight());
         }
 
+        for leaderboard in config.workload().leaderboards() {
+            components.push(Component::Leaderboard(Leaderboard::new(
+                config,
+                leaderboard,
+            )));
+            component_weights.push(leaderboard.weight());
+        }
+
         if let Some(oltp) = config.workload().oltp() {
             components.push(Component::Oltp(Oltp::new(config, oltp)));
             component_weights.push(oltp.weight());
@@ -167,6 +182,7 @@ impl Generator {
         client_sender: &Sender<ClientWorkItemKind<ClientRequest>>,
         pubsub_sender: &Sender<PublisherWorkItem>,
         store_sender: &Sender<ClientWorkItemKind<StoreClientRequest>>,
+        leaderboard_sender: &Sender<ClientWorkItemKind<LeaderboardClientRequest>>,
         oltp_sender: &Sender<ClientWorkItemKind<OltpRequest>>,
         rng: &mut Xoshiro512PlusPlus,
     ) {
@@ -204,6 +220,15 @@ impl Generator {
             Component::Store(store) => {
                 if store_sender
                     .send(self.generate_store_request(store, rng))
+                    .await
+                    .is_err()
+                {
+                    REQUEST_DROPPED.increment();
+                }
+            }
+            Component::Leaderboard(leaderboard) => {
+                if leaderboard_sender
+                    .send(self.generate_leaderboard_request(leaderboard, rng))
                     .await
                     .is_err()
                 {
@@ -275,6 +300,31 @@ impl Generator {
             }),
             StoreVerb::Ping => StoreClientRequest::Ping(store::Ping {}),
         };
+        ClientWorkItemKind::Request { request, sequence }
+    }
+
+    fn generate_leaderboard_request(
+        &self,
+        leaderboard_workload: &Leaderboard,
+        rng: &mut dyn RngCore,
+    ) -> ClientWorkItemKind<LeaderboardClientRequest> {
+        let sequence = SEQUENCE_NUMBER.fetch_add(1, Ordering::Relaxed);
+
+        let command = leaderboard_workload.sample_command(rng);
+        let leaderboard_name = leaderboard_workload.sample_leaderboard(rng);
+        let request = match command.verb() {
+            LeaderboardVerb::GetCompetitionRank => {
+                LeaderboardClientRequest::GetCompetitionRank(leaderboard::GetCompetitionRank {
+                    leaderboard: leaderboard_name,
+                    ids: leaderboard_workload.sample_ids(command.cardinality(), rng),
+                })
+            }
+            LeaderboardVerb::Upsert => LeaderboardClientRequest::Upsert(leaderboard::Upsert {
+                leaderboard: leaderboard_name,
+                elements: leaderboard_workload.generate_elements(command.cardinality(), rng),
+            }),
+        };
+
         ClientWorkItemKind::Request { request, sequence }
     }
 
@@ -513,6 +563,7 @@ pub enum Component {
     Keyspace(Keyspace),
     Topics(Topics),
     Store(Store),
+    Leaderboard(Leaderboard),
     Oltp(Oltp),
 }
 
@@ -959,6 +1010,142 @@ impl Store {
 }
 
 #[derive(Clone)]
+pub struct Leaderboard {
+    leaderboards: Vec<Arc<[u8]>>,
+    leaderboard_dist: Distribution,
+    ids: Vec<Arc<u32>>,
+    id_dist: Distribution,
+    commands: Vec<LeaderboardCommand>,
+    command_dist: WeightedAliasIndex<usize>,
+}
+
+// Data generation is as follows:
+// 1. Leaderboard names
+// - We define the set of leaderboards: L = {L_1, L_2, ..., L_{nleaderboards}}
+// - Each leaderboard name L_i is a randomly generated alphanumeric string of length `leaderboard_len`:
+//      L_i ~ Uniform(Alphanumeric, leaderboard_len)
+//
+// 2 .IDs
+// - We define the set of IDs: I = {I_1, I_2, ..., I_{nids}}
+// - Each ID I_i sampled without replacement: I_i ~ Uniform({0, 1, ..., 2^32 -1}, nids)
+//
+// 3. Commands
+// For each command we first sample a leaderboard name uniformly at random fro L.
+//
+// i. Upsert
+//  - Produce `cardinality` id-score pairs to upsert.
+//  - Sample `cardinality` ids uniformly at random from I without replacement.
+//  - For each id, sample a f64 score uniformly at random from the unit interval.
+//
+// ii. GetCompetitionRank
+// - Sample `cardinality` ids uniformly at random from I without replacement.
+impl Leaderboard {
+    pub fn new(config: &Config, leaderboard: &config::Leaderboard) -> Self {
+        let nleaderboards = leaderboard.nleaderboards();
+        let leadboard_len = leaderboard.leaderboard_len();
+        let nids = leaderboard.nids();
+
+        // initialize a PRNG with the default initial seed
+        let mut rng = Xoshiro512PlusPlus::from_seed(config.general().initial_seed());
+
+        // generate the seed for leaderboard PRNG
+        let mut raw_seed = [0_u8; 64];
+        rng.fill_bytes(&mut raw_seed);
+        let leaderboard_seed = Seed512(raw_seed);
+
+        // generate the seed for id PRNG
+        let mut raw_seed = [0_u8; 64];
+        rng.fill_bytes(&mut raw_seed);
+        let id_seed = Seed512(raw_seed);
+
+        // generate leaderboards
+        let mut rng = Xoshiro512PlusPlus::from_seed(leaderboard_seed);
+        let leaderboards = sample_unique(nleaderboards, &mut rng, |rng| {
+            rng.sample_iter(&Alphanumeric)
+                .take(leadboard_len)
+                .collect::<Vec<u8>>()
+        })
+        .into_iter()
+        .map(|l| l.into())
+        .collect();
+        let leaderboard_dist = Distribution::Uniform(Uniform::new(0, nleaderboards));
+
+        // generate ids
+        let mut rng = Xoshiro512PlusPlus::from_seed(id_seed);
+        let ids = sample_unique(nids, &mut rng, |rng| Arc::new(rng.gen()));
+        let id_dist = Distribution::Uniform(Uniform::new(0, nids));
+
+        let mut commands = Vec::new();
+        let mut command_weights = Vec::new();
+
+        for command in leaderboard.commands() {
+            Leaderboard::validate_command(command);
+
+            commands.push(*command);
+            command_weights.push(command.weight());
+        }
+
+        let command_dist = WeightedAliasIndex::new(command_weights).unwrap();
+
+        Self {
+            leaderboards,
+            leaderboard_dist,
+            ids,
+            id_dist,
+            commands,
+            command_dist,
+        }
+    }
+
+    fn validate_command(command: &LeaderboardCommand) {
+        if command.cardinality() == 0 {
+            eprintln!("cardinality must not be zero");
+            std::process::exit(2);
+        } else if !command.verb().supports_cardinality() && command.cardinality() > 1 {
+            eprintln!(
+                "verb: {:?} requires that `cardinality` is set to `1`",
+                command.verb()
+            );
+            std::process::exit(2);
+        }
+    }
+
+    pub fn sample_command(&self, rng: &mut dyn RngCore) -> &LeaderboardCommand {
+        let index = self.command_dist.sample(rng);
+        &self.commands[index]
+    }
+
+    pub fn sample_leaderboard(&self, rng: &mut dyn RngCore) -> Arc<String> {
+        let index = self.leaderboard_dist.sample(rng);
+        Arc::new(String::from_utf8_lossy(&self.leaderboards[index]).into_owned())
+    }
+
+    pub fn sample_ids(&self, num_ids: usize, rng: &mut dyn RngCore) -> Arc<[u32]> {
+        let sample: Vec<u32> = sample_unique(num_ids, rng, |rng| {
+            let index = self.id_dist.sample(rng);
+            *self.ids[index].as_ref()
+        });
+        Arc::from(sample.into_boxed_slice())
+    }
+
+    /// Generate a score in the unit interval [0, 1)
+    pub fn generate_score(&self, rng: &mut dyn RngCore) -> f64 {
+        rng.gen()
+    }
+
+    /// Generate a set of id-score pairs to upsert into a leaderboard.
+    /// Samples the ids uniformly at random from the set of ids and generates
+    /// a score in the unit interval [0, 1) for each id.
+    pub fn generate_elements(&self, num_elements: usize, rng: &mut dyn RngCore) -> Vec<(u32, f64)> {
+        let ids = self.sample_ids(num_elements, rng);
+
+        ids.into_iter()
+            .map(|id| (*id, self.generate_score(rng)))
+            .collect()
+    }
+}
+
+#[derive(Clone)]
 pub struct Oltp {
     tables: u8,
     keys: i32,
@@ -1148,4 +1335,24 @@ fn estimate_random_bytes_needed(length: usize, compression_ratio: f64) -> usize 
     }
 
     best
+}
+
+/// Samples `n` distinct items from a distribution using the given random number generator
+/// and generator function.
+///
+/// Be careful when using this that the domain of values generated by the generator function
+/// is large enough to support the number of unique items requested. This could take a long
+/// time to complete if the domain is close enough to the number of unique items requested.
+fn sample_unique<T, F, R>(n: usize, mut rng: R, mut generator_fn: F) -> Vec<T>
+where
+    T: Eq + Hash,
+    F: FnMut(&mut R) -> T,
+    R: RngCore,
+{
+    let mut unique_items = HashSet::with_capacity(n);
+    while unique_items.len() < n {
+        let item = generator_fn(&mut rng);
+        unique_items.insert(item);
+    }
+    unique_items.into_iter().collect()
 }
