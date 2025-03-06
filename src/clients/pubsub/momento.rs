@@ -34,11 +34,21 @@ pub fn launch_subscribers(
         if let Component::Topics(topics) = component {
             let poolsize = topics.subscriber_poolsize();
             let concurrency = topics.subscriber_concurrency();
-
+            if concurrency > 100 {
+                eprintln!("Momento sdk does not support concurrency values greater than 100.");
+                std::process::exit(1);
+            }
+            let num_topics = topics.topics().len();
+            let subscribers_per_topic = topics
+                .momento_subscribers_per_topic()
+                .unwrap_or(poolsize * concurrency);
+            if num_topics * subscribers_per_topic > poolsize * concurrency {
+                eprintln!("Not enough Momento clients to support the workload - adjust momento_subscribers_per_topic or increase subscriber_poolsize/subscriber_concurrency.");
+                std::process::exit(1);
+            }
+            let mut clients = Vec::<Arc<TopicClient>>::with_capacity(poolsize);
             for _ in 0..poolsize {
                 let client = {
-                    let _guard = runtime.enter();
-
                     // initialize the Momento topic client
                     if std::env::var("MOMENTO_API_KEY").is_err() {
                         eprintln!("environment variable `MOMENTO_API_KEY` is not set");
@@ -53,7 +63,7 @@ pub fn launch_subscribers(
                                 std::process::exit(1);
                             }
                         };
-
+                    let _guard = runtime.enter();
                     match TopicClient::builder()
                         .configuration(LowLatency::v1())
                         .credential_provider(credential_provider)
@@ -66,15 +76,20 @@ pub fn launch_subscribers(
                         }
                     }
                 };
-
-                for _ in 0..concurrency {
-                    for topic in topics.topics() {
-                        runtime.spawn(subscriber_task(
-                            client.clone(),
-                            cache_name.clone(),
-                            topic.to_string(),
-                        ));
-                    }
+                clients.push(client);
+            }
+            let mut client_index = 0;
+            for topic in topics.topics() {
+                for _ in 0..subscribers_per_topic {
+                    // Round-robin over the clients to pick one
+                    let client = &clients[client_index];
+                    client_index = (client_index + 1) % clients.len();
+                    let _guard = runtime.enter();
+                    runtime.spawn(subscriber_task(
+                        client.clone(),
+                        cache_name.clone(),
+                        topic.to_string(),
+                    ));
                 }
             }
         }

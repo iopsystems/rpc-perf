@@ -579,6 +579,7 @@ pub struct Topics {
     subscriber_poolsize: usize,
     subscriber_concurrency: usize,
     kafka_single_subscriber_group: bool,
+    momento_subscribers_per_topic: Option<usize>,
 }
 
 impl Topics {
@@ -643,6 +644,7 @@ impl Topics {
             subscriber_poolsize,
             subscriber_concurrency,
             kafka_single_subscriber_group: topics.kafka_single_subscriber_group(),
+            momento_subscribers_per_topic: topics.momento_subscribers_per_topic(),
         }
     }
 
@@ -668,6 +670,10 @@ impl Topics {
 
     pub fn kafka_single_subscriber_group(&self) -> bool {
         self.kafka_single_subscriber_group
+    }
+
+    pub fn momento_subscribers_per_topic(&self) -> Option<usize> {
+        self.momento_subscribers_per_topic
     }
 }
 
