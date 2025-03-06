@@ -168,6 +168,8 @@ pub struct Topics {
     topic_distribution: Distribution,
     #[serde(default)]
     kafka_single_subscriber_group: bool,
+    #[serde(default)]
+    momento_subscribers_per_topic: Option<usize>,
 }
 
 impl Topics {
@@ -221,6 +223,10 @@ impl Topics {
 
     pub fn kafka_single_subscriber_group(&self) -> bool {
         self.kafka_single_subscriber_group
+    }
+
+    pub fn momento_subscribers_per_topic(&self) -> Option<usize> {
+        self.momento_subscribers_per_topic
     }
 }
 
