@@ -1,4 +1,3 @@
-use rand_distr::{Alphanumeric, Uniform, Zipf};
 use super::*;
 use bytes::Bytes;
 use bytes::BytesMut;
@@ -7,8 +6,9 @@ use flate2::write::GzEncoder;
 use flate2::Compression;
 use rand::seq::SliceRandom;
 use rand::{rng, Rng, RngCore, SeedableRng};
-use rand_distr::Distribution as RandomDistribution;
 use rand_distr::weighted::WeightedAliasIndex;
+use rand_distr::Distribution as RandomDistribution;
+use rand_distr::{Alphanumeric, Uniform, Zipf};
 use rand_xoshiro::{Seed512, Xoshiro512PlusPlus};
 use ratelimit::Ratelimiter;
 use std::collections::{HashMap, HashSet};
@@ -595,7 +595,9 @@ impl Topics {
         let subscriber_poolsize = topics.subscriber_poolsize();
         let subscriber_concurrency = topics.subscriber_concurrency();
         let topic_dist = match topics.topic_distribution() {
-            config::Distribution::Uniform => Distribution::Uniform(Uniform::new(0, ntopics).unwrap()),
+            config::Distribution::Uniform => {
+                Distribution::Uniform(Uniform::new(0, ntopics).unwrap())
+            }
             config::Distribution::Zipf => {
                 Distribution::Zipf(Zipf::new(ntopics as f64, 1.0).unwrap())
             }
@@ -742,9 +744,7 @@ impl Keyspace {
         let keys = keys.drain().map(|k| k.into()).collect();
         let key_dist = match keyspace.key_distribution() {
             config::Distribution::Uniform => Distribution::Uniform(Uniform::new(0, nkeys).unwrap()),
-            config::Distribution::Zipf => {
-                Distribution::Zipf(Zipf::new(nkeys as f64, 1.0).unwrap())
-            }
+            config::Distribution::Zipf => Distribution::Zipf(Zipf::new(nkeys as f64, 1.0).unwrap()),
         };
 
         let nkeys = keyspace.inner_keys_nkeys().unwrap_or(1);
@@ -945,9 +945,7 @@ impl Store {
         let keys = keys.drain().map(|k| k.into()).collect();
         let key_dist = match store.key_distribution() {
             config::Distribution::Uniform => Distribution::Uniform(Uniform::new(0, nkeys).unwrap()),
-            config::Distribution::Zipf => {
-                Distribution::Zipf(Zipf::new(nkeys as f64, 1.0).unwrap())
-            }
+            config::Distribution::Zipf => Distribution::Zipf(Zipf::new(nkeys as f64, 1.0).unwrap()),
         };
 
         let mut commands = Vec::new();
