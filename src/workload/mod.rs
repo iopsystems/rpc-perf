@@ -1,14 +1,14 @@
+use rand_distr::{Alphanumeric, Uniform, Zipf};
 use super::*;
 use bytes::Bytes;
 use bytes::BytesMut;
 use config::{Command, RampCompletionAction, RampType, ValueKind, Verb};
 use flate2::write::GzEncoder;
 use flate2::Compression;
-use rand::distributions::{Alphanumeric, Uniform};
 use rand::seq::SliceRandom;
-use rand::{thread_rng, Rng, RngCore, SeedableRng};
+use rand::{rng, Rng, RngCore, SeedableRng};
 use rand_distr::Distribution as RandomDistribution;
-use rand_distr::WeightedAliasIndex;
+use rand_distr::weighted::WeightedAliasIndex;
 use rand_xoshiro::{Seed512, Xoshiro512PlusPlus};
 use ratelimit::Ratelimiter;
 use std::collections::{HashMap, HashSet};
@@ -18,7 +18,6 @@ use std::io::{Result, Write};
 use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
-use zipf::ZipfDistribution;
 
 pub mod client;
 mod oltp;
@@ -333,8 +332,8 @@ impl Generator {
         oltp: &Oltp,
         rng: &mut dyn RngCore,
     ) -> ClientWorkItemKind<OltpRequest> {
-        let id = rng.gen_range(1..=oltp.keys);
-        let table = rng.gen_range(1..=oltp.tables) as i32;
+        let id = rng.random_range(1..=oltp.keys);
+        let table = rng.random_range(1..=oltp.tables) as i32;
         let sequence = SEQUENCE_NUMBER.fetch_add(1, Ordering::Relaxed);
 
         let request = OltpRequest::PointSelect(oltp::PointSelect {
@@ -410,7 +409,7 @@ impl Generator {
             Verb::HashIncrement => ClientRequest::HashIncrement(client::HashIncrement {
                 key: keyspace.sample(rng),
                 field: keyspace.sample_inner(rng),
-                amount: rng.gen(),
+                amount: rng.random(),
                 ttl: keyspace.ttl(),
             }),
             Verb::HashSet => {
@@ -501,7 +500,7 @@ impl Generator {
                 while members.len() < command.cardinality() {
                     members.insert(keyspace.sample_inner(rng));
                 }
-                let members = members.drain().map(|m| (m, rng.gen())).collect();
+                let members = members.drain().map(|m| (m, rng.random())).collect();
                 ClientRequest::SortedSetAdd(client::SortedSetAdd {
                     key: keyspace.sample(rng),
                     members,
@@ -529,7 +528,7 @@ impl Generator {
                 ClientRequest::SortedSetIncrement(client::SortedSetIncrement {
                     key: keyspace.sample(rng),
                     member: keyspace.sample_inner(rng),
-                    amount: rng.gen(),
+                    amount: rng.random(),
                     ttl: keyspace.ttl(),
                 })
             }
@@ -596,9 +595,9 @@ impl Topics {
         let subscriber_poolsize = topics.subscriber_poolsize();
         let subscriber_concurrency = topics.subscriber_concurrency();
         let topic_dist = match topics.topic_distribution() {
-            config::Distribution::Uniform => Distribution::Uniform(Uniform::new(0, ntopics)),
+            config::Distribution::Uniform => Distribution::Uniform(Uniform::new(0, ntopics).unwrap()),
             config::Distribution::Zipf => {
-                Distribution::Zipf(ZipfDistribution::new(ntopics, 1.0).unwrap())
+                Distribution::Zipf(Zipf::new(ntopics as f64, 1.0).unwrap())
             }
         };
         let topic_names: Vec<Arc<String>>;
@@ -693,15 +692,15 @@ pub struct Keyspace {
 
 #[derive(Clone)]
 pub enum Distribution {
-    Uniform(rand::distributions::Uniform<usize>),
-    Zipf(zipf::ZipfDistribution),
+    Uniform(Uniform<usize>),
+    Zipf(Zipf<f64>),
 }
 
 impl Distribution {
     pub fn sample(&self, rng: &mut dyn RngCore) -> usize {
         match self {
             Self::Uniform(dist) => dist.sample(rng),
-            Self::Zipf(dist) => dist.sample(rng),
+            Self::Zipf(dist) => dist.sample(rng) as usize,
         }
     }
 }
@@ -742,9 +741,9 @@ impl Keyspace {
         }
         let keys = keys.drain().map(|k| k.into()).collect();
         let key_dist = match keyspace.key_distribution() {
-            config::Distribution::Uniform => Distribution::Uniform(Uniform::new(0, nkeys)),
+            config::Distribution::Uniform => Distribution::Uniform(Uniform::new(0, nkeys).unwrap()),
             config::Distribution::Zipf => {
-                Distribution::Zipf(ZipfDistribution::new(nkeys, 1.0).unwrap())
+                Distribution::Zipf(Zipf::new(nkeys as f64, 1.0).unwrap())
             }
         };
 
@@ -762,7 +761,7 @@ impl Keyspace {
             let _ = inner_keys.insert(key);
         }
         let inner_keys: Vec<Arc<[u8]>> = inner_keys.drain().map(|k| k.into()).collect();
-        let inner_key_dist = Distribution::Uniform(Uniform::new(0, nkeys));
+        let inner_key_dist = Distribution::Uniform(Uniform::new(0, nkeys).unwrap());
 
         let mut commands = Vec::new();
         let mut command_weights = Vec::new();
@@ -886,7 +885,7 @@ impl Keyspace {
 
     pub fn gen_value(&self, sequence: usize, rng: &mut dyn RngCore) -> Bytes {
         match self.vkind {
-            ValueKind::I64 => format!("{}", rng.gen::<i64>()).into_bytes().into(),
+            ValueKind::I64 => format!("{}", rng.random::<i64>()).into_bytes().into(),
             ValueKind::Bytes => {
                 let start = sequence % (self.vbuf.len() - self.vlen);
                 let end = start + self.vlen;
@@ -945,9 +944,9 @@ impl Store {
         }
         let keys = keys.drain().map(|k| k.into()).collect();
         let key_dist = match store.key_distribution() {
-            config::Distribution::Uniform => Distribution::Uniform(Uniform::new(0, nkeys)),
+            config::Distribution::Uniform => Distribution::Uniform(Uniform::new(0, nkeys).unwrap()),
             config::Distribution::Zipf => {
-                Distribution::Zipf(ZipfDistribution::new(nkeys, 1.0).unwrap())
+                Distribution::Zipf(Zipf::new(nkeys as f64, 1.0).unwrap())
             }
         };
 
@@ -1004,7 +1003,7 @@ impl Store {
 
     pub fn gen_value(&self, sequence: usize, rng: &mut dyn RngCore) -> Bytes {
         match self.vkind {
-            ValueKind::I64 => format!("{}", rng.gen::<i64>()).into_bytes().into(),
+            ValueKind::I64 => format!("{}", rng.random::<i64>()).into_bytes().into(),
             ValueKind::Bytes => {
                 let start = sequence % (self.vbuf.len() - self.vlen);
                 let end = start + self.vlen;
@@ -1074,12 +1073,12 @@ impl Leaderboard {
         .into_iter()
         .map(|l| l.into())
         .collect();
-        let leaderboard_dist = Distribution::Uniform(Uniform::new(0, nleaderboards));
+        let leaderboard_dist = Distribution::Uniform(Uniform::new(0, nleaderboards).unwrap());
 
         // generate ids
         let mut rng = Xoshiro512PlusPlus::from_seed(id_seed);
-        let ids = sample_unique(nids, &mut rng, |rng| Arc::new(rng.gen()));
-        let id_dist = Distribution::Uniform(Uniform::new(0, nids));
+        let ids = sample_unique(nids, &mut rng, |rng| Arc::new(rng.random()));
+        let id_dist = Distribution::Uniform(Uniform::new(0, nids).unwrap());
 
         let mut commands = Vec::new();
         let mut command_weights = Vec::new();
@@ -1136,7 +1135,7 @@ impl Leaderboard {
 
     /// Generate a score in the unit interval [0, 1)
     pub fn generate_score(&self, rng: &mut dyn RngCore) -> f64 {
-        rng.gen()
+        rng.random()
     }
 
     /// Generate a set of id-score pairs to upsert into a leaderboard.
@@ -1254,7 +1253,7 @@ impl Ratelimit {
 
         // Shuffle the order of ratelimits if specified
         if ramp_type == RampType::Shuffled {
-            limits.shuffle(&mut thread_rng());
+            limits.shuffle(&mut rng());
         }
 
         // If the test is to be mirrored, store the ratelimits in reverse

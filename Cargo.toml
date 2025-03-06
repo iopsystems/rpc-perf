@@ -9,73 +9,72 @@ repository = "https://github.com/iopsystems/rpc-perf"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-ahash = "0.8.3"
+ahash = "0.8.11"
 async-channel = "2.3.1"
-backtrace = "0.3.69"
+backtrace = "0.3.74"
 boring = { version = "3.1.0", optional = true }
 boring-sys = { version = "3.1.0", optional = true }
-bytes = "1.5.0"
-chrono = "0.4.31"
-clap = "4.4.6"
-flate2 = "1.0.28"
+bytes = "1.10.1"
+chrono = "0.4.39"
+clap = "4.5.13"
+flate2 = "1.1.0"
 foreign-types-shared = "0.3.1"
-futures = "0.3.28"
-h2 = "0.4.6"
+futures = "0.3.31"
+h2 = "0.4.8"
 h3 = "0.0.6"
 h3-quinn = "0.0.7"
 hex = "0.4.3"
-histogram = "0.11.0"
+histogram = "0.11.3"
 hmac = "0.12.1"
-http = "1.1.0"
-http-body-util = "0.1.0-rc.3"
+http = "1.2.0"
+http-body-util = "0.1.2"
 humantime = "2.1.0"
-hyper = { version = "1.0.0-rc.4", features = ["http1", "http2", "client"]}
-hyper-rustls = "0.27.3"
-hyper-util = { version = "0.1.8", features = ["full"] }
+hyper = { version = "1.6.0", features = ["http1", "http2", "client"]}
+hyper-rustls = "0.27.5"
+hyper-util = { version = "0.1.10", features = ["full"] }
 metriken = "0.7.0"
-metriken-exposition = { version = "0.11.1", features = ["json", "parquet-conversion"] }
+metriken-exposition = { version = "0.12.2", features = ["json", "parquet-conversion"] }
 mio = "1.0.3"
 momento = "0.49.0"
-once_cell = "1.18.0"
+once_cell = "1.20.3"
 openssl = { version = "0.10.71", optional = true }
-openssl-src = "300.3.1"
-openssl-sys = { version = "0.9.103", optional = true }
-paste = "1.0.14"
+openssl-src = "300.4.2"
+openssl-sys = { version = "0.9.106", optional = true }
+paste = "1.0.15"
 pelikan-net = { version = "0.4.1", default-features = false }
-pin-project = "1.1.5"
-prost = "0.13"
+pin-project = "1.1.10"
+prost = "0.13.5"
 protocol-memcache = { git = "https://github.com/pelikan-io/pelikan" }
 protocol-ping = { git = "https://github.com/pelikan-io/pelikan" }
-quinn = "0.11.3"
-rand = "0.8.5"
-rand_distr = "0.4.3"
-rand_xoshiro = "0.6.0"
-ratelimit = "0.9.0"
+quinn = "0.11.6"
+rand = "0.9.0"
+rand_distr = "0.5.1"
+rand_xoshiro = "0.7.0"
+ratelimit = "0.10.0"
 rdkafka = { version = "0.37.0", features = ["cmake-build", "ssl", "libz", "zstd-pkg-config"] }
 redis = { version = "0.23.3", features = ["tokio-comp"] }
-ringlog = "0.7.0"
-rustls = "0.23.13"
-rustls-native-certs = "0.7.1"
-serde = { version = "1.0.185", features = ["derive"] }
+ringlog = "0.8.0"
+rustls = "0.23.23"
+rustls-native-certs = "0.8.1"
+serde = { version = "1.0.218", features = ["derive"] }
 session = { git = "https://github.com/pelikan-io/pelikan" }
 sha1 = "0.10.6"
 sha2 = "0.10.8"
 slab = "0.4.9"
-sqlx = { version = "0.8", features = [ "runtime-tokio", "tls-native-tls", "mysql" ] }
-tempfile = "3.10.1"
-tokio = { version = "1.33.0", features = ["full"] }
+sqlx = { version = "0.8.3", features = [ "runtime-tokio", "tls-native-tls", "mysql" ] }
+tempfile = "3.17.1"
+tokio = { version = "1.43.0", features = ["full"] }
 tokio-boring = { version = "3.1.0", optional = true }
-tokio-openssl = { version = "0.6.4", optional = true }
-tokio-rustls = "0.26.0"
-toml = "0.8.2"
-tonic = "0.12"
+tokio-openssl = { version = "0.6.5", optional = true }
+tokio-rustls = "0.26.2"
+toml = "0.8.20"
+tonic = "0.12.3"
 url-escape = "0.1.1"
-warp = "0.3.6"
-webpki-roots = "0.26.5"
-zipf = "7.0.1"
+warp = "0.3.7"
+webpki-roots = "0.26.8"
 
 [build-dependencies]
-tonic-build = "0.12"
+tonic-build = "0.12.3"
 
 [features]
 default = ["openssl"]

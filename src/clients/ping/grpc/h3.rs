@@ -76,18 +76,21 @@ async fn resolve(uri: &str) -> Result<(std::net::SocketAddr, Authority), std::io
 fn root_cert_store(config: &Config) -> rustls::RootCertStore {
     // load system CA certs
     let mut roots = rustls::RootCertStore::empty();
-    match rustls_native_certs::load_native_certs() {
-        Ok(certs) => {
-            for cert in certs {
-                if let Err(e) = roots.add(cert) {
-                    eprintln!("failed to parse trust anchor: {}", e);
-                }
-            }
+
+    let r = rustls_native_certs::load_native_certs();
+
+    if r.certs.is_empty() {
+        eprintln!("couldn't load any default trust roots:");
+        for error in r.errors {
+            eprintln!("{error}");
         }
-        Err(e) => {
-            eprintln!("couldn't load any default trust roots: {}", e);
+    }
+
+    for cert in r.certs {
+        if let Err(e) = roots.add(cert) {
+            eprintln!("failed to parse trust anchor: {}", e);
         }
-    };
+    }
 
     if let Some(Some(ca_file)) = config.tls().map(|c| c.ca_file()) {
         if let Err(e) = roots.add(CertificateDer::from(std::fs::read(ca_file).unwrap())) {
