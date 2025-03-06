@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+## [5.21.0] - 2025-02-21
+
+### Added
+
+- Configures subscribers per topic for Momento Topics. (#363)
+
 ## [5.20.0] - 2025-02-21
 
 ### Added
@@ -291,7 +297,8 @@
 - Support Momento topics.
 - Basic HTTP/1.1 and HTTP/2.0 load generation.
 
-[unreleased]: https://github.com/iopsystems/rpc-perf/compare/v5.20.0...HEAD
+[unreleased]: https://github.com/iopsystems/rpc-perf/compare/v5.21.0...HEAD
+[5.21.0]: https://github.com/iopsystems/rpc-perf/compare/v5.20.0...v5.21.0
 [5.20.0]: https://github.com/iopsystems/rpc-perf/compare/v5.19.0...v5.20.0
 [5.19.0]: https://github.com/iopsystems/rpc-perf/compare/v5.18.0...v5.19.0
 [5.18.0]: https://github.com/iopsystems/rpc-perf/compare/v5.17.0...v5.18.0
