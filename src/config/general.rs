@@ -69,7 +69,7 @@ impl General {
             hasher.update(initial_seed.as_bytes());
             Seed512(hasher.finalize().into())
         } else {
-            let mut rng = rand::thread_rng();
+            let mut rng = rand::rng();
             let mut seed = [0_u8; 64];
             rng.fill(&mut seed);
             Seed512(seed)
