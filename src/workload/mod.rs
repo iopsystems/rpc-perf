@@ -673,7 +673,7 @@ impl Topics {
     }
 
     pub fn momento_subscribers_per_topic(&self) -> Option<usize> {
-         self.momento_subscribers_per_topic
+        self.momento_subscribers_per_topic
     }
 }
 

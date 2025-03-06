@@ -39,7 +39,9 @@ pub fn launch_subscribers(
                 std::process::exit(1);
             }
             let num_topics = topics.topics().len();
-            let subscribers_per_topic = topics.momento_subscribers_per_topic().unwrap_or(poolsize * concurrency );
+            let subscribers_per_topic = topics
+                .momento_subscribers_per_topic()
+                .unwrap_or(poolsize * concurrency);
             if num_topics * subscribers_per_topic > poolsize * concurrency {
                 eprintln!("Not enough Momento clients to support the workload - adjust momento_subscribers_per_topic or increase subscriber_poolsize/subscriber_concurrency.");
                 std::process::exit(1);
@@ -88,8 +90,8 @@ pub fn launch_subscribers(
                         cache_name.clone(),
                         topic.to_string(),
                     ));
-                 }
-             }
+                }
+            }
         }
     }
 }
