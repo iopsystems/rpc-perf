@@ -1,6 +1,7 @@
 use crate::clients::pubsub::*;
 use crate::clients::*;
 use crate::workload::*;
+use ::momento::topics::Subscription;
 use async_channel::Receiver;
 use tokio::runtime::Runtime;
 
@@ -97,17 +98,28 @@ pub fn launch_subscribers(
 }
 
 async fn subscriber_task(client: Arc<TopicClient>, cache_name: String, topic: String) {
-    PUBSUB_SUBSCRIBE.increment();
-    if let Ok(mut subscription) = client
-        .subscribe(cache_name.clone(), topic.to_string())
-        .await
-    {
-        PUBSUB_SUBSCRIBER_CURR.add(1);
-        PUBSUB_SUBSCRIBE_OK.increment();
-
-        let validator = MessageValidator::new();
-
-        while RUNNING.load(Ordering::Relaxed) {
+    let mut subscription_wrapper: Option<Subscription> = None;
+    let validator = MessageValidator::new();
+    while RUNNING.load(Ordering::Relaxed) {
+        if subscription_wrapper.is_none() {
+            PUBSUB_SUBSCRIBE.increment();
+            match client
+                .subscribe(cache_name.clone(), topic.to_string())
+                .await
+            {
+                Ok(subscription) => {
+                    subscription_wrapper = Some(subscription);
+                    PUBSUB_SUBSCRIBER_CURR.add(1);
+                    PUBSUB_SUBSCRIBE_OK.increment();
+                }
+                Err(_) => {
+                    PUBSUB_SUBSCRIBE_EX.increment();
+                    tokio::time::sleep(Duration::from_millis(100)).await;
+                    continue;
+                }
+            }
+        }
+        if let Some(ref mut subscription) = subscription_wrapper {
             match subscription.next().await {
                 Some(v) => {
                     if let ValueKind::Binary(mut v) = v.kind {
@@ -127,8 +139,6 @@ async fn subscriber_task(client: Arc<TopicClient>, cache_name: String, topic: St
                 }
             }
         }
-    } else {
-        PUBSUB_SUBSCRIBE_EX.increment();
     }
 }
 
