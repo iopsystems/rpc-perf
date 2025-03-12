@@ -56,7 +56,7 @@ pub fn launch_subscribers(
                         std::process::exit(1);
                     }
 
-                    let credential_provider =
+                    let mut credential_provider =
                         match CredentialProvider::from_env_var("MOMENTO_API_KEY".to_string()) {
                             Ok(v) => v,
                             Err(e) => {
@@ -64,6 +64,9 @@ pub fn launch_subscribers(
                                 std::process::exit(1);
                             }
                         };
+                    if let Ok(endpoint) = std::env::var("MOMENTO_ENDPOINT_OVERRIDE") {
+                        credential_provider = credential_provider.base_endpoint(&endpoint);
+                    }
                     let _guard = runtime.enter();
                     match TopicClient::builder()
                         .configuration(LowLatency::v1())
@@ -156,7 +159,7 @@ pub fn launch_publishers(runtime: &mut Runtime, config: Config, work_receiver: R
                 std::process::exit(1);
             }
 
-            let credential_provider =
+            let mut credential_provider =
                 match CredentialProvider::from_env_var("MOMENTO_API_KEY".to_string()) {
                     Ok(v) => v,
                     Err(e) => {
@@ -164,7 +167,9 @@ pub fn launch_publishers(runtime: &mut Runtime, config: Config, work_receiver: R
                         std::process::exit(1);
                     }
                 };
-
+            if let Ok(endpoint) = std::env::var("MOMENTO_ENDPOINT_OVERRIDE") {
+                credential_provider = credential_provider.base_endpoint(&endpoint);
+            }
             match TopicClient::builder()
                 .configuration(LowLatency::v1())
                 .credential_provider(credential_provider)

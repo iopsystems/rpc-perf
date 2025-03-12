@@ -28,7 +28,7 @@ pub fn launch_tasks(
                 std::process::exit(1);
             }
 
-            let credential_provider =
+            let mut credential_provider =
                 match CredentialProvider::from_env_var("MOMENTO_API_KEY".to_string()) {
                     Ok(v) => v,
                     Err(e) => {
@@ -36,6 +36,10 @@ pub fn launch_tasks(
                         std::process::exit(1);
                     }
                 };
+            if let Ok(endpoint) = std::env::var("MOMENTO_ENDPOINT_OVERRIDE") {
+                credential_provider = credential_provider.base_endpoint(&endpoint);
+            }
+
             match CacheClient::builder()
                 .default_ttl(Duration::from_secs(900))
                 .configuration(LowLatency::v1())
