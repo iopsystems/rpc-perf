@@ -370,6 +370,10 @@ impl Generator {
             Verb::Delete => ClientRequest::Delete(client::Delete {
                 key: keyspace.sample(rng),
             }),
+            Verb::SetIfAbsent => ClientRequest::SetIfAbsent(client::SetIfAbsent {
+                key: keyspace.sample(rng),
+                value: keyspace.gen_value(sequence as _, rng),
+            }),
             Verb::Replace => ClientRequest::Replace(client::Replace {
                 key: keyspace.sample(rng),
                 value: keyspace.gen_value(sequence as _, rng),

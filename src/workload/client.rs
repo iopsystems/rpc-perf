@@ -42,6 +42,12 @@ pub struct Set {
     pub ttl: Option<Duration>,
 }
 
+#[derive(Debug, PartialEq)]
+pub struct SetIfAbsent {
+    pub key: Arc<[u8]>,
+    pub value: Bytes,
+}
+
 // Hash
 
 #[derive(Debug, PartialEq)]
@@ -212,6 +218,7 @@ pub enum ClientRequest {
     MultiGet(MultiGet),
     Replace(Replace),
     Set(Set),
+    SetIfAbsent(SetIfAbsent),
 
     // Hash Commands
     HashExists(HashExists),

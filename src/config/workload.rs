@@ -427,6 +427,9 @@ pub enum Verb {
     /// * Momento: unsupported
     /// * RESP: `SET` with `XX` option
     Replace,
+    /// Set the value for a key only if it already exists.
+    /// * RESP: `STORED` or `NOT_STORED`
+    SetIfAbsent,
 
     /*
      * HASHES (DICTIONARIES)
