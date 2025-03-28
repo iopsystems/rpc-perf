@@ -526,6 +526,10 @@ counter!(
 
 request!(SET_IF_ABSENT, "set_if_absent");
 
+request!(SET_IF_PRESENT_AND_NOT_EQUAL, "set_if_present_and_not_equal");
+
+request!(ITEM_GET_TYPE, "item_get_type");
+
 request!(HASH_GET, "hash_get");
 counter!(HASH_GET_FIELD_HIT, "hash_get/field_hit");
 counter!(HASH_GET_FIELD_MISS, "hash_get/field_miss");

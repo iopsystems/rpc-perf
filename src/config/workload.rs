@@ -427,9 +427,18 @@ pub enum Verb {
     /// * Momento: unsupported
     /// * RESP: `SET` with `XX` option
     Replace,
-    /// Set the value for a key only if it already exists.
-    /// * RESP: `STORED` or `NOT_STORED`
+    /// Set the value for a key only if it does not exists.
+    /// * Momento: `set_if_absent`
+    /// * RESP: `SET` with `XX` option
     SetIfAbsent,
+    /// Set the value for a key only if it already exists.
+    /// * Momento: `set_if_present_and_not_equal`
+    /// * RESP: Raw `SET` with cached value comparison
+    SetIfPresentAndNotEqual,
+    /// Set the value for a key only if it already exists.
+    /// * Momento: `item_get_type`
+    /// * RESP: `TYPE`
+    ItemGetType,
 
     /*
      * HASHES (DICTIONARIES)

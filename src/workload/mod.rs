@@ -374,6 +374,15 @@ impl Generator {
                 key: keyspace.sample(rng),
                 value: keyspace.gen_value(sequence as _, rng),
             }),
+            Verb::SetIfPresentAndNotEqual => {
+                ClientRequest::SetIfPresentAndNotEqual(client::SetIfPresentAndNotEqual {
+                    key: keyspace.sample(rng),
+                    value: keyspace.gen_value(sequence as _, rng),
+                })
+            }
+            Verb::ItemGetType => ClientRequest::ItemGetType(client::ItemGetType {
+                key: keyspace.sample(rng),
+            }),
             Verb::Replace => ClientRequest::Replace(client::Replace {
                 key: keyspace.sample(rng),
                 value: keyspace.gen_value(sequence as _, rng),
