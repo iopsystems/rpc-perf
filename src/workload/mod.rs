@@ -377,7 +377,8 @@ impl Generator {
             Verb::SetIfPresentAndNotEqual => {
                 ClientRequest::SetIfPresentAndNotEqual(client::SetIfPresentAndNotEqual {
                     key: keyspace.sample(rng),
-                    value: keyspace.gen_value(sequence as _, rng),
+                    new_value: keyspace.gen_value(sequence as _, rng),
+                    old_value: keyspace.gen_value(sequence as _, rng),
                 })
             }
             Verb::ItemGetType => ClientRequest::ItemGetType(client::ItemGetType {

@@ -51,7 +51,8 @@ pub struct SetIfAbsent {
 #[derive(Debug, PartialEq)]
 pub struct SetIfPresentAndNotEqual {
     pub key: Arc<[u8]>,
-    pub value: Bytes,
+    pub new_value: Bytes,
+    pub old_value: Bytes,
 }
 
 #[derive(Debug, PartialEq)]
