@@ -1,7 +1,10 @@
+use crate::config::Config;
+use std::path::PathBuf;
+use clap::value_parser;
 use crate::workload::{launch_workload, Generator, Ratelimit};
 use async_channel::{bounded, Sender};
 use backtrace::Backtrace;
-use clap::{Arg, Command};
+use clap::Command;
 use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use once_cell::sync::Lazy;
 use ringlog::*;
@@ -18,6 +21,7 @@ mod config;
 mod metrics;
 mod net;
 mod output;
+mod viewer;
 mod workload;
 
 use config::*;
@@ -47,28 +51,40 @@ fn main() {
     .expect("rustls _why_");
 
     // parse command line options
-    let matches = Command::new(env!("CARGO_BIN_NAME"))
+    let cli = Command::new(env!("CARGO_BIN_NAME"))
         .version(env!("CARGO_PKG_VERSION"))
-        .long_about(
-            "A benchmarking, load generation, and traffic replay tool for RPC \
-            services.",
-        )
+        .long_about("Rezolus provides high-resolution systems performance telemetry.")
+        .subcommand_negates_reqs(true)
         .arg(
-            Arg::new("CONFIG")
-                .help("Server configuration file")
+            clap::Arg::new("CONFIG")
+                .help("Configuration file")
+                .value_parser(value_parser!(PathBuf))
                 .action(clap::ArgAction::Set)
+                .required(true)
                 .index(1),
         )
+        .subcommand(viewer::command())
         .get_matches();
 
-    // load config from file
-    let config = if let Some(file) = matches.get_one::<String>("CONFIG") {
-        Config::new(file)
-    } else {
-        eprintln!("configuration file not provided");
-        std::process::exit(1);
-    };
+    match cli.subcommand() {
+        None => {
+            let config: PathBuf = cli.get_one::<PathBuf>("CONFIG").unwrap().to_path_buf();
+            let config = Config::new(&config);
 
+            run(config)
+        }
+        Some(("view", args)) => {
+            let config = viewer::Config::try_from(args.clone()).expect("failed to configure");
+
+            viewer::run(config)
+        }
+        _ => {
+            unreachable!()
+        }
+    }
+}
+
+fn run(config: Config) {
     // configure debug log
     let debug_output: Box<dyn Output> = if let Some(file) = config.debug().log_file() {
         let backup = config

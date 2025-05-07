@@ -10,13 +10,16 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 ahash = "0.8.11"
+arrow = "55.0.0"
 async-channel = "2.3.1"
+axum = "0.8.4"
 backtrace = "0.3.74"
 boring = { version = "3.1.0", optional = true }
 boring-sys = { version = "3.1.0", optional = true }
 bytes = "1.10.1"
 chrono = "0.4.39"
 clap = "4.5.13"
+ctrlc = { version = "3.4.5", features = ["termination"] }
 flate2 = "1.1.0"
 foreign-types-shared = "0.3.1"
 futures = "0.3.31"
@@ -36,10 +39,12 @@ metriken = "0.7.0"
 metriken-exposition = { version = "0.12.2", features = ["json", "parquet-conversion"] }
 mio = "1.0.3"
 momento = "0.49.0"
+notify = "8.0.0"
 once_cell = "1.20.3"
 openssl = { version = "0.10.71", optional = true }
 openssl-src = "300.4.2"
 openssl-sys = { version = "0.9.106", optional = true }
+parquet = "55.0.0"
 paste = "1.0.15"
 pelikan-net = { version = "0.4.1", default-features = false }
 pin-project = "1.1.10"
@@ -57,6 +62,7 @@ ringlog = "0.8.0"
 rustls = "0.23.23"
 rustls-native-certs = "0.8.1"
 serde = { version = "1.0.218", features = ["derive"] }
+serde_json = "1.0.140"
 session = { git = "https://github.com/pelikan-io/pelikan" }
 sha1 = "0.10.6"
 sha2 = "0.10.8"
@@ -69,6 +75,9 @@ tokio-openssl = { version = "0.6.5", optional = true }
 tokio-rustls = "0.26.2"
 toml = "0.8.20"
 tonic = "0.12.3"
+tower = { version = "0.5.0", features = ["tokio"] }
+tower-http = { version = "0.5.2", features = ["compression-full", "decompression-full", "fs"] }
+tower-livereload = "0.9.6"
 url-escape = "0.1.1"
 warp = "0.3.7"
 webpki-roots = "0.26.8"

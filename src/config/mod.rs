@@ -1,3 +1,4 @@
+use std::path::Path;
 use core::num::NonZeroU64;
 use serde::Deserialize;
 use std::io::Read;
@@ -56,11 +57,11 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn new(filename: &str) -> Self {
+    pub fn new(filename: &Path) -> Self {
         let mut file = match std::fs::File::open(filename) {
             Ok(c) => c,
             Err(error) => {
-                eprintln!("error loading config file: {filename}\n{error}");
+                eprintln!("error loading config file: {:?}\n{error}", filename);
                 std::process::exit(1);
             }
         };
@@ -68,13 +69,13 @@ impl Config {
         match file.read_to_string(&mut content) {
             Ok(_) => {}
             Err(error) => {
-                eprintln!("error reading config file: {filename}\n{error}");
+                eprintln!("error reading config file: {:?}\n{error}", filename);
                 std::process::exit(1);
             }
         }
         let mut config: Config = toml::from_str(&content)
-            .map_err(|e| {
-                eprintln!("Failed to parse TOML config: {filename}\n{e}");
+            .map_err(|error| {
+                eprintln!("Failed to parse TOML config: {:?}\n{error}", filename);
                 std::process::exit(1);
             })
             .unwrap();
