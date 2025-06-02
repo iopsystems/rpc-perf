@@ -20,7 +20,7 @@ mod net;
 mod output;
 mod workload;
 
-use config::*;
+use config::{Protocol, *};
 use metrics::*;
 
 static RUNNING: AtomicBool = AtomicBool::new(true);
