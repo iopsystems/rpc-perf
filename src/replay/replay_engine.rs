@@ -1,8 +1,10 @@
 use async_channel::Sender;
 use momento::IntoBytes;
+use ringlog::info;
 use std::{
     io::{BufRead, BufReader},
     str::FromStr,
+    sync::atomic::Ordering,
     time::Duration,
 };
 use tokio::runtime::{Builder, Runtime};
@@ -15,6 +17,7 @@ use crate::{
         client::{Delete, Get, Set},
         ClientRequest, ClientWorkItemKind,
     },
+    RUNNING,
 };
 
 #[derive(Clone)]
@@ -39,7 +42,7 @@ impl ReplayEngine {
         if let Some(first_line) = lines_iterator.next() {
             // Read first line to get initial timestamp first
             let first_command = CommandLogLine::from_str(&first_line).unwrap();
-            let first_timestamp = first_command.timestamp();
+            let mut prev_timestamp = first_command.timestamp();
 
             // Execute command in first line
             if replay_sender
@@ -54,11 +57,12 @@ impl ReplayEngine {
             for line in lines_iterator {
                 let command = CommandLogLine::from_str(&line).unwrap();
 
-                // insert timing here
-                let delay_time = command.timestamp() - first_timestamp;
+                let delay_time = command.timestamp() - prev_timestamp;
                 std::thread::sleep(Duration::from_millis(
                     delay_time.abs().num_milliseconds() as u64
                 ));
+
+                prev_timestamp = command.timestamp();
 
                 if replay_sender
                     .send(self.generate_cache_request(command))
@@ -72,6 +76,9 @@ impl ReplayEngine {
             eprintln!("No lines in command log file");
             std::process::exit(1);
         }
+
+        info!("replay workload complete, ending replay");
+        RUNNING.store(false, Ordering::Relaxed);
     }
 
     fn generate_cache_request(
