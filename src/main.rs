@@ -144,21 +144,21 @@ fn main() {
         });
     }
 
-    // launch metrics file output
-    control_runtime.spawn(output::metrics(config.clone()));
-
-    // begin cli output
-    control_runtime.spawn(output::log(config.clone()));
-
     // switch into replay mode if the replay subcommand is provided
     if matches.subcommand_matches("replay").is_some() {
-        debug!("Starting replay mode");
+        info!("Starting replay mode");
         let (replay_sender, replay_receiver) = bounded(
             config
                 .client()
                 .map(|c| c.threads() * QUEUE_DEPTH)
                 .unwrap_or(1),
         );
+
+        // launch metrics file output
+        control_runtime.spawn(output::metrics(config.clone()));
+
+        // begin cli output
+        control_runtime.spawn(output::log(config.clone()));
 
         debug!("Launching replay clients");
         let replay_runtime = clients::cache::launch(&config, replay_receiver);
@@ -220,7 +220,7 @@ fn main() {
             .unwrap_or(1),
     );
 
-    debug!("Initializing workload generator");
+    info!("Initializing workload generator");
     let workload_generator = Generator::new(&config);
 
     let workload_ratelimit = workload_generator.ratelimiter();
@@ -229,7 +229,12 @@ fn main() {
 
     // spawn the admin thread
     control_runtime.spawn(admin::http(config.clone(), workload_ratelimit.clone()));
-    debug!("Admin thread initialized");
+
+    // launch metrics file output
+    control_runtime.spawn(output::metrics(config.clone()));
+
+    // begin cli output
+    control_runtime.spawn(output::log(config.clone()));
 
     debug!("Running workload generator");
     // start the workload generator(s)
