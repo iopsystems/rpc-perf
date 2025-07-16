@@ -1,11 +1,12 @@
 # Replay load from a [momento-proxy](https://github.com/momentohq/momento-proxy command log
 
 [general]
-# specify the protocol to be used
+# specify the protocol to be used (currently only "momento" is supported)
 protocol = "momento"
 # the interval for stats integration and reporting
 interval = 60
-# the number of intervals to run the test for (should be at least as long as the duration of the command log)
+# the upper bound on the number of intervals to run the test for
+# (should be at least as long as the duration of the command log or the replay will be cut short)
 duration = 300
 # run the admin thread with a HTTP listener at the address provided, this allows
 # stats exposition via HTTP
@@ -70,4 +71,9 @@ start = 50
 [replay]
 # where to find the command log
 command_log = "momento-proxy.cmd"
-# TODO: timing controllers: a multiple of realtime or a specific requests per second rate
+# replay command log at this multiple of realtime (use 1.0 for realtime)
+speed = 1.0
+
+# or replay command log at the specified rate of requests per second
+# [replay.ratelimit]
+# start = 100

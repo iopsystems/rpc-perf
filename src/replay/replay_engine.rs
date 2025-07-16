@@ -12,7 +12,10 @@ use tokio::runtime::{Builder, Runtime};
 use crate::{
     config::{Config, Replay},
     metrics::REQUEST_DROPPED,
-    replay::parser::CommandLogLine,
+    replay::{
+        parser::CommandLogLine,
+        replay_speed::{RateController, SpeedController, TimingController},
+    },
     workload::{
         client::{Delete, Get, Set},
         ClientRequest, ClientWorkItemKind,
@@ -20,20 +23,32 @@ use crate::{
     RUNNING,
 };
 
-#[derive(Clone)]
 pub struct ReplayEngine {
-    // TODO: timing controllers: a multiple of realtime or a specific requests per second rate
     command_log_path: String,
+    timing_controller: TimingController,
 }
 
 impl ReplayEngine {
     pub fn new(replay: &Replay) -> Self {
+        let timing_controller = match (replay.speed(), replay.ratelimit()) {
+            (Some(speed), None) => TimingController::Speed(SpeedController::new(speed)),
+            (None, Some(ratelimit)) => TimingController::Rate(RateController::new(ratelimit)),
+            (Some(_), Some(_)) => {
+                eprintln!("speed and ratelimit cannot be specified at the same time");
+                std::process::exit(1);
+            }
+            (None, None) => {
+                eprintln!("neither speed or ratelimit are specified, defaulting to realtime speed");
+                TimingController::Speed(SpeedController::new(1.0))
+            }
+        };
         Self {
             command_log_path: replay.command_log().clone(),
+            timing_controller,
         }
     }
 
-    pub async fn generate(&self, replay_sender: &Sender<ClientWorkItemKind<ClientRequest>>) {
+    pub async fn generate(&mut self, replay_sender: &Sender<ClientWorkItemKind<ClientRequest>>) {
         let command_log =
             std::fs::File::open(&self.command_log_path).expect("failed to open command log file");
         let reader = BufReader::new(command_log);
@@ -42,7 +57,7 @@ impl ReplayEngine {
         if let Some(first_line) = lines_iterator.next() {
             // Read first line to get initial timestamp first
             let first_command = CommandLogLine::from_str(&first_line).unwrap();
-            let mut prev_timestamp = first_command.timestamp();
+            let first_timestamp = first_command.timestamp();
 
             // Execute command in first line
             if replay_sender
@@ -57,12 +72,10 @@ impl ReplayEngine {
             for line in lines_iterator {
                 let command = CommandLogLine::from_str(&line).unwrap();
 
-                let delay_time = command.timestamp() - prev_timestamp;
-                std::thread::sleep(Duration::from_millis(
-                    delay_time.abs().num_milliseconds() as u64
-                ));
-
-                prev_timestamp = command.timestamp();
+                // Apply delay as needed to match the specified speed or rate of replay
+                let delay_time = command.timestamp() - first_timestamp;
+                self.timing_controller
+                    .delay(delay_time.abs().num_seconds() as u64);
 
                 if replay_sender
                     .send(self.generate_cache_request(command))
@@ -85,6 +98,7 @@ impl ReplayEngine {
         &self,
         command_log_line: CommandLogLine,
     ) -> ClientWorkItemKind<ClientRequest> {
+        info!("replaying command: {}", command_log_line.operation());
         let command = match command_log_line.operation() {
             "get" => ClientRequest::Get(Get {
                 key: command_log_line.key().into_bytes().into(),
@@ -117,7 +131,6 @@ impl ReplayEngine {
 }
 
 pub fn launch_replay_workload(
-    replay_engine: ReplayEngine,
     config: Config,
     replay_sender: Sender<ClientWorkItemKind<ClientRequest>>,
 ) -> Runtime {
@@ -133,7 +146,10 @@ pub fn launch_replay_workload(
     // Note: each thread will replay the same command log
     for _ in 0..config.workload().threads() {
         let replay_sender = replay_sender.clone();
-        let replay_engine = replay_engine.clone();
+
+        // ReplayEngine does not implement Clone due to the TimingController,
+        // so we need to create a new instance for each thread.
+        let mut replay_engine = ReplayEngine::new(config.replay().unwrap());
         rt.spawn(async move {
             replay_engine.generate(&replay_sender).await;
         });

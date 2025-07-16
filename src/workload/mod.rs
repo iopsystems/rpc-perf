@@ -36,7 +36,7 @@ pub use leaderboard::LeaderboardClientRequest;
 static SEQUENCE_NUMBER: AtomicU64 = AtomicU64::new(0);
 
 // a multiplier for the ratelimiter token bucket capacity
-static BUCKET_CAPACITY: u64 = 64;
+pub(crate) static BUCKET_CAPACITY: u64 = 64;
 
 pub fn launch_workload(
     generator: Generator,

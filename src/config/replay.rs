@@ -1,14 +1,17 @@
 use serde::Deserialize;
 
-use crate::config::{Config, Protocol};
+use crate::config::{workload::Ratelimit, Config, Protocol};
 
 #[derive(Clone, Deserialize)]
 pub struct Replay {
     #[serde(default)]
     command_log: String,
-    // TODO: timing controllers: a multiple of realtime or a specific requests per second rate
-    // #[serde(default)]
-    // ratelimit: Ratelimit,
+
+    #[serde(default)]
+    speed: Option<f64>,
+
+    #[serde(default)]
+    ratelimit: Option<Ratelimit>,
 }
 
 impl Replay {
@@ -37,9 +40,26 @@ impl Replay {
             eprintln!("error loading command log file: {}", error);
             std::process::exit(1);
         }
+
+        if self.speed.is_some() && self.ratelimit.is_some() {
+            eprintln!("speed and ratelimit cannot be specified at the same time");
+            std::process::exit(1);
+        }
+
+        if let Some(ratelimit) = self.ratelimit() {
+            ratelimit.validate();
+        }
     }
 
     pub fn command_log(&self) -> &String {
         &self.command_log
+    }
+
+    pub fn speed(&self) -> Option<f64> {
+        self.speed
+    }
+
+    pub fn ratelimit(&self) -> Option<&Ratelimit> {
+        self.ratelimit.as_ref()
     }
 }

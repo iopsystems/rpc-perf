@@ -15,7 +15,7 @@ mod replay;
 mod storage;
 mod target;
 mod tls;
-mod workload;
+pub(crate) mod workload;
 
 pub use client::Client;
 pub use debug::Debug;

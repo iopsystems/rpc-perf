@@ -1,5 +1,5 @@
 use crate::{
-    replay::replay_engine::{launch_replay_workload, ReplayEngine},
+    replay::replay_engine::launch_replay_workload,
     workload::{launch_workload, Generator, Ratelimit},
 };
 use async_channel::{bounded, Sender};
@@ -164,9 +164,7 @@ fn main() {
         let replay_runtime = clients::cache::launch(&config, replay_receiver);
 
         debug!("Launching replay workload");
-        let replay_engine = ReplayEngine::new(config.replay().unwrap());
-        let replay_workload_runtime =
-            launch_replay_workload(replay_engine, config.clone(), replay_sender);
+        let replay_workload_runtime = launch_replay_workload(config.clone(), replay_sender);
 
         debug!("Waiting for test to complete");
         while RUNNING.load(Ordering::Relaxed) {
