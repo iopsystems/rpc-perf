@@ -1,7 +1,7 @@
 use std::time::{Duration, Instant};
 
 use ratelimit::Ratelimiter;
-use ringlog::{warn};
+use ringlog::warn;
 
 use crate::{config::workload::Ratelimit, metrics::RATELIMIT_CURR, workload::BUCKET_CAPACITY};
 

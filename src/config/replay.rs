@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use crate::config::{workload::Ratelimit, Config, Protocol};
+use crate::config::{workload::Ratelimit, Config};
 
 #[derive(Clone, Deserialize)]
 pub struct Replay {
@@ -16,11 +16,6 @@ pub struct Replay {
 
 impl Replay {
     pub fn validate(&self, config: &Config) {
-        if config.general().protocol() != Protocol::Momento {
-            eprintln!("replay is currently only supported for momento protocol");
-            std::process::exit(1);
-        }
-
         if config.target().cache_name().is_none() {
             eprintln!("cache name is required for replay against momento");
             std::process::exit(1);

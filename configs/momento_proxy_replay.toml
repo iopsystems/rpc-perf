@@ -1,7 +1,7 @@
 # Replay load from a [momento-proxy](https://github.com/momentohq/momento-proxy command log
 
 [general]
-# specify the protocol to be used (currently only "momento" is supported)
+# specify the protocol to be used
 protocol = "momento"
 # the interval for stats integration and reporting
 interval = 60
