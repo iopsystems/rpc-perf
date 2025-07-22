@@ -1,13 +1,14 @@
 # Replay load from a [momento-proxy](https://github.com/momentohq/momento-proxy command log
+# against a Momento Proxy instance using the memcached protocol
 
 [general]
 # specify the protocol to be used
-protocol = "momento"
+protocol = "memcache"
 # the interval for stats integration and reporting
-interval = 60
+interval = 10
 # the upper bound on the number of intervals to run the test for
 # (should be at least as long as the duration of the command log or the replay will be cut short)
-duration = 300
+duration = 60
 # run the admin thread with a HTTP listener at the address provided, this allows
 # stats exposition via HTTP
 admin = "127.0.0.1:9090"
@@ -15,11 +16,11 @@ admin = "127.0.0.1:9090"
 # The default is to intialize from the OS entropy pool.
 #initial_seed = "0"
 
-#[metrics]
+# [metrics]
 # output file for detailed stats during the run
-#output = "stats.json"
+# output = "stats.json"
 # format of the output file (possible values are json, msgpack, parquet)
-#format = "json"
+# format = "json"
 # optionally specify batch size for parquet row groups
 # only valid for parquet output
 #batch_size = 100_000
@@ -28,7 +29,7 @@ admin = "127.0.0.1:9090"
 #histogram = "sparse"
 # optionally, specify the sampling interval for metrics. Input is a string
 # with the unit attached; for example "100ms" or "1s". Defaults to 1s.
-#interval = "1s"
+# interval = "100ms"
 
 [debug]
 # choose from: error, warn, info, debug, trace
@@ -43,17 +44,15 @@ log_max_size = 1073741824
 
 [target]
 # we don't need to specify any endpoints for momento
-endpoints = []
-# specify the name of the target cache
-cache_name = "preview-cache"
+endpoints = [
+  "127.0.0.1:11211",
+]
 
 [client]
 # number of threads used to drive client requests
 threads = 4
-# number of gRPC clients to initialize, each maintains at least one TCP stream
-poolsize = 1
-# an upper limit on the number of concurrent requests per gRPC client
-concurrency = 20
+# the total number of connections to each endpoint
+poolsize = 20
 # the connect timeout in milliseconds
 connect_timeout = 10000
 # set the timeout in milliseconds
@@ -61,12 +60,12 @@ request_timeout = 1000
 
 [workload]
 # the number of threads that will be used to generate the workload
-# where each thread will replay the provided command log
 threads = 1
 
+# Note: this is ignored by replay engine
 [workload.ratelimit]
 # set a global ratelimit for the workload
-start = 50
+start = 10_000
 
 [replay]
 # where to find the command log
@@ -76,4 +75,5 @@ speed = 1.0
 
 # or replay command log at the specified rate of requests per second
 # [replay.ratelimit]
-# start = 100
+# start = 20
+

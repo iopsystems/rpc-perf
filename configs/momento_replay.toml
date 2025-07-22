@@ -1,0 +1,81 @@
+# Replay load from a [momento-proxy](https://github.com/momentohq/momento-proxy command log
+# against the Momento Cache service directly
+
+[general]
+# specify the protocol to be used
+protocol = "momento"
+# the interval for stats integration and reporting
+interval = 60
+# the upper bound on the number of intervals to run the test for
+# (should be at least as long as the duration of the command log or the replay will be cut short)
+duration = 300
+# run the admin thread with a HTTP listener at the address provided, this allows
+# stats exposition via HTTP
+admin = "127.0.0.1:9090"
+# optionally, set an initial seed for the PRNGs used to generate the workload.
+# The default is to intialize from the OS entropy pool.
+#initial_seed = "0"
+
+#[metrics]
+# output file for detailed stats during the run
+#output = "stats.json"
+# format of the output file (possible values are json, msgpack, parquet)
+#format = "json"
+# optionally specify batch size for parquet row groups
+# only valid for parquet output
+#batch_size = 100_000
+# optionally specify histogram type (can be standard (default) or sparse)
+# only valid for parquet output
+#histogram = "sparse"
+# optionally, specify the sampling interval for metrics. Input is a string
+# with the unit attached; for example "100ms" or "1s". Defaults to 1s.
+#interval = "1s"
+
+[debug]
+# choose from: error, warn, info, debug, trace
+log_level = "info"
+# optionally, log to the file below instead of standard out
+# log_file = "rpc-perf.log"
+# backup file name for use with log rotation
+log_backup = "rpc-perf.log.old"
+# trigger log rotation when the file grows beyond this size (in bytes). Set this
+# option to '0' to disable log rotation.
+log_max_size = 1073741824
+
+[target]
+# we don't need to specify any endpoints for momento
+endpoints = []
+# specify the name of the target cache
+cache_name = "preview-cache"
+
+[client]
+# number of threads used to drive client requests
+threads = 4
+# number of gRPC clients to initialize, each maintains at least one TCP stream
+poolsize = 1
+# an upper limit on the number of concurrent requests per gRPC client
+concurrency = 20
+# the connect timeout in milliseconds
+connect_timeout = 10000
+# set the timeout in milliseconds
+request_timeout = 1000
+
+[workload]
+# the number of threads that will be used to generate the workload
+# where each thread will replay the provided command log
+threads = 1
+
+# Note: this is ignored by replay engine
+[workload.ratelimit]
+# set a global ratelimit for the workload
+start = 50
+
+[replay]
+# where to find the command log
+command_log = "momento-proxy.cmd"
+# replay command log at this multiple of realtime (use 1.0 for realtime)
+speed = 1.0
+
+# or replay command log at the specified rate of requests per second
+# [replay.ratelimit]
+# start = 100
