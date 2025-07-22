@@ -1,14 +1,14 @@
-# Replay load from a [momento-proxy](https://github.com/momentohq/momento-proxy command log
+# Replay load from a [momento-proxy](https://github.com/momentohq/momento-proxy) command log
 # against a Momento Proxy instance using the memcached protocol
 
 [general]
 # specify the protocol to be used
 protocol = "memcache"
 # the interval for stats integration and reporting
-interval = 10
+interval = 60
 # the upper bound on the number of intervals to run the test for
 # (should be at least as long as the duration of the command log or the replay will be cut short)
-duration = 60
+duration = 300
 # run the admin thread with a HTTP listener at the address provided, this allows
 # stats exposition via HTTP
 admin = "127.0.0.1:9090"

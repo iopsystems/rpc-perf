@@ -1,4 +1,4 @@
-# Replay load from a [momento-proxy](https://github.com/momentohq/momento-proxy command log
+# Replay load from a [momento-proxy](https://github.com/momentohq/momento-proxy) command log
 # against the Momento Cache service directly
 
 [general]
