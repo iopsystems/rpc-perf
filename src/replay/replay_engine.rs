@@ -98,7 +98,6 @@ impl ReplayEngine {
         &self,
         command_log_line: CommandLogLine,
     ) -> ClientWorkItemKind<ClientRequest> {
-        info!("replaying command: {}", command_log_line.operation());
         let command = match command_log_line.operation() {
             "get" => ClientRequest::Get(Get {
                 key: command_log_line.key().into_bytes().into(),
