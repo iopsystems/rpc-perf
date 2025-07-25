@@ -6,7 +6,7 @@
 protocol = "memcache"
 # the interval for stats integration and reporting
 interval = 60
-# the upper bound on the number of intervals to run the test for
+# the upper bound on the number of seconds to run the test for
 # (should be at least as long as the duration of the command log or the replay will be cut short)
 duration = 300
 # run the admin thread with a HTTP listener at the address provided, this allows
