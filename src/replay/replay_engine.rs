@@ -1,4 +1,5 @@
 use async_channel::Sender;
+use chrono::TimeDelta;
 use momento::IntoBytes;
 use ringlog::info;
 use std::{
@@ -61,7 +62,7 @@ impl ReplayEngine {
 
             // Execute command in first line
             if replay_sender
-                .send(self.generate_cache_request(first_command))
+                .send(self.generate_cache_request(&first_command))
                 .await
                 .is_err()
             {
@@ -69,20 +70,36 @@ impl ReplayEngine {
                 std::process::exit(1);
             }
 
+            // While next lines are within 100 microseconds of the current timestamp, collect and
+            // send them out as a batch to avoid unnecessary delays and "falling behind" warnings
+            let mut current_timestamp = first_timestamp;
+            let mut batch_commands = Vec::new();
+
             for line in lines_iterator {
                 let command = CommandLogLine::from_str(&line).unwrap();
+                if command.timestamp() - current_timestamp < TimeDelta::microseconds(100) {
+                    batch_commands.push(command);
+                } else {
+                    // Apply delay as needed to match the specified speed or rate of replay
+                    let delay_time = command.timestamp() - first_timestamp;
+                    self.timing_controller
+                        .delay(delay_time.abs().num_seconds() as u64);
 
-                // Apply delay as needed to match the specified speed or rate of replay
-                let delay_time = command.timestamp() - first_timestamp;
-                self.timing_controller
-                    .delay(delay_time.abs().num_seconds() as u64);
+                    // Send out the batch
+                    for command in batch_commands.iter() {
+                        if replay_sender
+                            .send(self.generate_cache_request(command))
+                            .await
+                            .is_err()
+                        {
+                            REQUEST_DROPPED.increment();
+                        }
+                    }
 
-                if replay_sender
-                    .send(self.generate_cache_request(command))
-                    .await
-                    .is_err()
-                {
-                    REQUEST_DROPPED.increment();
+                    // reset
+                    batch_commands.clear();
+                    current_timestamp = command.timestamp();
+                    batch_commands.push(command);
                 }
             }
         } else {
@@ -96,7 +113,7 @@ impl ReplayEngine {
 
     fn generate_cache_request(
         &self,
-        command_log_line: CommandLogLine,
+        command_log_line: &CommandLogLine,
     ) -> ClientWorkItemKind<ClientRequest> {
         let command = match command_log_line.operation() {
             "get" => ClientRequest::Get(Get {

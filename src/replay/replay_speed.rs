@@ -93,7 +93,7 @@ impl SpeedController {
             self.ts_sec = ts;
             // delay if needed
             while now < self.next {
-                std::thread::sleep(core::time::Duration::from_micros(10));
+                std::thread::sleep(core::time::Duration::from_micros(100));
                 now = Instant::now();
             }
         }
