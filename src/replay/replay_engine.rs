@@ -1,6 +1,9 @@
 use async_channel::Sender;
+use bytes::{Bytes, BytesMut};
 use chrono::TimeDelta;
 use momento::IntoBytes;
+use rand::{RngCore, SeedableRng};
+use rand_xoshiro::Xoshiro512PlusPlus;
 use ringlog::info;
 use std::{
     io::{BufRead, BufReader},
@@ -27,6 +30,7 @@ use crate::{
 pub struct ReplayEngine {
     command_log_path: String,
     timing_controller: TimingController,
+    rng: Xoshiro512PlusPlus,
 }
 
 impl ReplayEngine {
@@ -46,6 +50,7 @@ impl ReplayEngine {
         Self {
             command_log_path: replay.command_log().clone(),
             timing_controller,
+            rng: Xoshiro512PlusPlus::seed_from_u64(0),
         }
     }
 
@@ -112,7 +117,7 @@ impl ReplayEngine {
     }
 
     fn generate_cache_request(
-        &self,
+        &mut self,
         command_log_line: &CommandLogLine,
     ) -> ClientWorkItemKind<ClientRequest> {
         let command = match command_log_line.operation() {
@@ -123,13 +128,11 @@ impl ReplayEngine {
                 key: command_log_line.key().into_bytes().into(),
             }),
             "set" => {
-                // generate string of 'X's to set value of same size as current command
-                let value =
-                    String::from_utf8(vec![b'X'; command_log_line.value_size().unwrap() as usize])
-                        .unwrap();
+                // generate a random value of same size as current command
+                let len = command_log_line.value_size().unwrap() as usize;
                 ClientRequest::Set(Set {
                     key: command_log_line.key().into_bytes().into(),
-                    value: value.into_bytes().into(),
+                    value: self.gen_value(len),
                     ttl: command_log_line.ttl().map(Duration::from_secs),
                 })
             }
@@ -143,6 +146,12 @@ impl ReplayEngine {
             request: command,
             sequence: 0,
         }
+    }
+
+    fn gen_value(&mut self, len: usize) -> Bytes {
+        let mut buf = BytesMut::zeroed(len);
+        self.rng.fill_bytes(&mut buf[0..len]);
+        buf.into_bytes().into()
     }
 }
 
