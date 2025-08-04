@@ -34,7 +34,7 @@ impl Replay {
         }
 
         if let Err(error) = std::fs::File::open(&self.command_log) {
-            eprintln!("error loading command log file: {}", error);
+            eprintln!("error loading command log file: {error}");
             std::process::exit(1);
         }
 
