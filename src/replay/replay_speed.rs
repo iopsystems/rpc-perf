@@ -87,7 +87,7 @@ impl SpeedController {
                 );
                 self.next += log_dur;
                 if now > self.next {
-                    warn!("falling behind... try reducing replay rate");
+                    warn!("falling behind... try reducing replay speed");
                 }
             }
             self.ts_sec = ts;
