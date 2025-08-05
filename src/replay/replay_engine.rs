@@ -58,6 +58,7 @@ impl ReplayEngine {
         let command_log =
             std::fs::File::open(&self.command_log_path).expect("failed to open command log file");
         let reader = BufReader::new(command_log);
+        info!("replaying from file: {}", self.command_log_path);
 
         let mut lines_iterator = reader.lines().map_while(Result::ok);
         if let Some(first_line) = lines_iterator.next() {
@@ -77,18 +78,17 @@ impl ReplayEngine {
 
             // While next lines are within 1 millisecond of the current timestamp, collect and
             // send them out as a batch to avoid unnecessary delays and "falling behind" warnings
-            let mut current_timestamp = first_timestamp;
             let mut last_timestamp_in_batch = first_timestamp;
             let mut batch_commands = Vec::new();
 
             for line in lines_iterator {
                 let command = CommandLogLine::from_str(&line).unwrap();
-                if command.timestamp() - current_timestamp < TimeDelta::milliseconds(1) {
+                if command.timestamp() - last_timestamp_in_batch < TimeDelta::microseconds(100) {
                     last_timestamp_in_batch = command.timestamp();
                     batch_commands.push(command);
                 } else {
                     // Apply delay as needed to match the specified speed or rate of replay
-                    let delay_time = command.timestamp() - last_timestamp_in_batch;
+                    let delay_time = last_timestamp_in_batch - first_timestamp;
                     self.timing_controller
                         .delay(delay_time.abs().num_seconds() as u64);
 
@@ -105,7 +105,6 @@ impl ReplayEngine {
 
                     // reset
                     batch_commands.clear();
-                    current_timestamp = command.timestamp();
                     last_timestamp_in_batch = command.timestamp();
                     batch_commands.push(command);
                 }
