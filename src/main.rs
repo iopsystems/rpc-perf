@@ -150,7 +150,7 @@ fn main() {
         let (replay_sender, replay_receiver) = bounded(
             config
                 .client()
-                .map(|c| c.threads() * QUEUE_DEPTH)
+                .map(|c| c.threads() * QUEUE_DEPTH * 16)
                 .unwrap_or(1),
         );
 
