@@ -69,9 +69,11 @@ impl Default for SpeedController {
 
 impl SpeedController {
     pub fn new(speed: f64) -> Self {
+        let next = Instant::now();
+        warn!("Created next: {:?}", next);
         Self {
             ts_ms: 0,
-            next: Instant::now(),
+            next: next,
             speed,
         }
     }
@@ -87,8 +89,12 @@ impl SpeedController {
                 self.next += log_dur;
                 // we probably don't care if the replay engine is falling behind
                 // by milliseconds, warn only if it exceeds 1 second
-                if now - self.next > Duration::from_secs(1) {
-                    warn!("falling behind... try reducing replay speed");
+                let diff = now - self.next;
+                if diff > Duration::from_secs(1) {
+                    warn!("falling behind by {:?} milliseconds ... try reducing replay speed", diff.as_millis());
+                    // reset next to now so that we don't continue to fall behind
+                    // by an increasing amount
+                    self.next = now;
                 }
             }
             self.ts_ms = ts;
