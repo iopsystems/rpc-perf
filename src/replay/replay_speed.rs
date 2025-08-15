@@ -1,7 +1,7 @@
 use std::time::{Duration, Instant};
 
 use ratelimit::Ratelimiter;
-use ringlog::warn;
+use ringlog::{warn};
 
 use crate::{config::workload::Ratelimit, metrics::RATELIMIT_CURR, workload::BUCKET_CAPACITY};
 
@@ -56,7 +56,7 @@ impl RateController {
 }
 
 pub struct SpeedController {
-    ts_sec: u64,
+    ts_ms: u64,
     next: Instant,
     speed: f64,
 }
@@ -70,7 +70,7 @@ impl Default for SpeedController {
 impl SpeedController {
     pub fn new(speed: f64) -> Self {
         Self {
-            ts_sec: 0,
+            ts_ms: 0,
             next: Instant::now(),
             speed,
         }
@@ -78,19 +78,20 @@ impl SpeedController {
 
     pub fn delay(&mut self, ts: u64) {
         // handle new timestamp in log
-        if ts > self.ts_sec {
+        if ts > self.ts_ms {
             let mut now = Instant::now();
-            // info!("ts: {} sent: {} skip: {}", ts, sent, skip);
-            if self.ts_sec != 0 {
+            if self.ts_ms != 0 {
                 let log_dur = Duration::from_nanos(
-                    (((ts - self.ts_sec) * 1_000_000_000) as f64 / self.speed) as u64,
+                    (((ts - self.ts_ms) * 1_000_000) as f64 / self.speed) as u64,
                 );
                 self.next += log_dur;
-                if now > self.next {
+                // we probably don't care if the replay engine is falling behind
+                // by milliseconds, warn only if it exceeds 1 second
+                if now - self.next > Duration::from_secs(1) {
                     warn!("falling behind... try reducing replay speed");
                 }
             }
-            self.ts_sec = ts;
+            self.ts_ms = ts;
             // delay if needed
             while now < self.next {
                 std::thread::sleep(core::time::Duration::from_micros(100));

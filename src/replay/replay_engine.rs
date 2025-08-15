@@ -1,6 +1,5 @@
 use async_channel::Sender;
 use bytes::{Bytes, BytesMut};
-use chrono::TimeDelta;
 use momento::IntoBytes;
 use rand::{RngCore, SeedableRng};
 use rand_xoshiro::Xoshiro512PlusPlus;
@@ -76,37 +75,17 @@ impl ReplayEngine {
                 std::process::exit(1);
             }
 
-            // While next lines are within 1 millisecond of the current timestamp, collect and
-            // send them out as a batch to avoid unnecessary delays and "falling behind" warnings
-            let mut last_timestamp_in_batch = first_timestamp;
-            let mut batch_commands = Vec::new();
-
             for line in lines_iterator {
-                let command = CommandLogLine::from_str(&line).unwrap();
-                if command.timestamp() - last_timestamp_in_batch < TimeDelta::microseconds(100) {
-                    last_timestamp_in_batch = command.timestamp();
-                    batch_commands.push(command);
-                } else {
-                    // Apply delay as needed to match the specified speed or rate of replay
-                    let delay_time = last_timestamp_in_batch - first_timestamp;
-                    self.timing_controller
-                        .delay(delay_time.abs().num_seconds() as u64);
-
-                    // Send out the batch
-                    for command in batch_commands.iter() {
-                        if replay_sender
-                            .send(self.generate_cache_request(command))
-                            .await
-                            .is_err()
-                        {
-                            REQUEST_DROPPED.increment();
-                        }
-                    }
-
-                    // reset
-                    batch_commands.clear();
-                    last_timestamp_in_batch = command.timestamp();
-                    batch_commands.push(command);
+                let command: CommandLogLine = CommandLogLine::from_str(&line).unwrap();
+                let delay_time = command.timestamp() - first_timestamp;
+                self.timing_controller
+                    .delay(delay_time.num_milliseconds() as u64);
+                if replay_sender
+                    .send(self.generate_cache_request(&command))
+                    .await
+                    .is_err()
+                {
+                    REQUEST_DROPPED.increment();
                 }
             }
         } else {
