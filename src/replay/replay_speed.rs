@@ -1,7 +1,7 @@
 use std::time::{Duration, Instant};
 
 use ratelimit::Ratelimiter;
-use ringlog::{warn};
+use ringlog::warn;
 
 use crate::{config::workload::Ratelimit, metrics::RATELIMIT_CURR, workload::BUCKET_CAPACITY};
 
@@ -70,10 +70,9 @@ impl Default for SpeedController {
 impl SpeedController {
     pub fn new(speed: f64) -> Self {
         let next = Instant::now();
-        warn!("Created next: {:?}", next);
         Self {
             ts_ms: 0,
-            next: next,
+            next,
             speed,
         }
     }
@@ -91,7 +90,10 @@ impl SpeedController {
                 // by milliseconds, warn only if it exceeds 1 second
                 let diff = now - self.next;
                 if diff > Duration::from_secs(1) {
-                    warn!("falling behind by {:?} milliseconds ... try reducing replay speed", diff.as_millis());
+                    warn!(
+                        "falling behind by {:?} milliseconds ... try reducing replay speed",
+                        diff.as_millis()
+                    );
                     // reset next to now so that we don't continue to fall behind
                     // by an increasing amount
                     self.next = now;

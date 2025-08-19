@@ -105,10 +105,10 @@ impl FromStr for CommandLogLine {
                     .map_err(|e| Error::new(ErrorKind::InvalidData, e))?,
             })
         } else {
-            return Err(Error::new(
+            Err(Error::new(
                 ErrorKind::InvalidData,
                 "Invalid command log line",
-            ));
+            ))
         }
     }
 }
