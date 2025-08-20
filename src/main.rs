@@ -1,4 +1,7 @@
-use crate::workload::{launch_workload, Generator, Ratelimit};
+use crate::{
+    replay::replay_engine::launch_replay_workload,
+    workload::{launch_workload, Generator, Ratelimit},
+};
 use async_channel::{bounded, Sender};
 use backtrace::Backtrace;
 use clap::{Arg, Command};
@@ -18,6 +21,7 @@ mod config;
 mod metrics;
 mod net;
 mod output;
+mod replay;
 mod workload;
 
 use config::{Protocol, *};
@@ -59,6 +63,7 @@ fn main() {
                 .action(clap::ArgAction::Set)
                 .index(1),
         )
+        .subcommand(Command::new("replay").about("Replay a command log to generate load"))
         .get_matches();
 
     // load config from file
@@ -68,6 +73,9 @@ fn main() {
         eprintln!("configuration file not provided");
         std::process::exit(1);
     };
+
+    output!("Protocol: {:?}", config.general().protocol());
+    output!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
 
     // configure debug log
     let debug_output: Box<dyn Output> = if let Some(file) = config.debug().log_file() {
@@ -103,8 +111,6 @@ fn main() {
         .build()
         .start();
 
-    output!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
-
     // initialize async runtime for control plane
     let control_runtime = Builder::new_multi_thread()
         .enable_all()
@@ -138,6 +144,49 @@ fn main() {
         });
     }
 
+    // switch into replay mode if the replay subcommand is provided
+    if matches.subcommand_matches("replay").is_some() {
+        info!("Starting replay mode");
+        let (replay_sender, replay_receiver) = bounded(
+            config
+                .client()
+                .map(|c| c.threads() * QUEUE_DEPTH * 16)
+                .unwrap_or(1),
+        );
+
+        // launch metrics file output
+        control_runtime.spawn(output::metrics(config.clone()));
+
+        // begin cli output
+        control_runtime.spawn(output::log(config.clone()));
+
+        debug!("Launching replay clients");
+        let replay_runtime = clients::cache::launch(&config, replay_receiver);
+
+        debug!("Launching replay workload");
+        let replay_workload_runtime = launch_replay_workload(config.clone(), replay_sender);
+
+        debug!("Waiting for test to complete");
+        while RUNNING.load(Ordering::Relaxed) {
+            std::thread::sleep(Duration::from_secs(1));
+        }
+
+        if let Some(replay_runtime) = replay_runtime {
+            replay_runtime.shutdown_timeout(std::time::Duration::from_millis(100));
+        }
+        replay_workload_runtime.shutdown_timeout(std::time::Duration::from_millis(100));
+        info!("Shutdown replay workload and runtime");
+
+        // delay before exiting
+        while WAIT.load(Ordering::Relaxed) > 0 {
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+        return;
+    }
+
+    // otherwise continue onwards with the normal workload generator
+
     let (client_sender, client_receiver) = bounded(
         config
             .client()
@@ -169,9 +218,7 @@ fn main() {
             .unwrap_or(1),
     );
 
-    output!("Protocol: {:?}", config.general().protocol());
-
-    debug!("Initializing workload generator");
+    info!("Initializing workload generator");
     let workload_generator = Generator::new(&config);
 
     let workload_ratelimit = workload_generator.ratelimiter();

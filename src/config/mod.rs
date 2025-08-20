@@ -11,10 +11,11 @@ mod metrics;
 mod oltp;
 mod protocol;
 mod pubsub;
+mod replay;
 mod storage;
 mod target;
 mod tls;
-mod workload;
+pub(crate) mod workload;
 
 pub use client::Client;
 pub use debug::Debug;
@@ -24,6 +25,7 @@ pub use metrics::{Format as MetricsFormat, Metrics};
 pub use oltp::Oltp as OltpConfig;
 pub use protocol::Protocol;
 pub use pubsub::Pubsub;
+pub use replay::Replay;
 pub use storage::Storage;
 pub use target::Target;
 pub use tls::Tls;
@@ -53,6 +55,7 @@ pub struct Config {
     metrics: Option<Metrics>,
     storage: Option<Storage>,
     leaderboard: Option<LeaderboardConfig>,
+    replay: Option<Replay>,
 }
 
 impl Config {
@@ -85,6 +88,10 @@ impl Config {
         }
         if let Some(x) = config.metrics.as_ref() {
             x.validate(&config.general);
+        }
+
+        if let Some(replay) = &config.replay {
+            replay.validate(&config);
         }
         config
     }
@@ -131,5 +138,9 @@ impl Config {
 
     pub fn leaderboard(&self) -> Option<&LeaderboardConfig> {
         self.leaderboard.as_ref()
+    }
+
+    pub fn replay(&self) -> Option<&Replay> {
+        self.replay.as_ref()
     }
 }

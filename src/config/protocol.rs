@@ -1,6 +1,6 @@
 use super::*;
 
-#[derive(Clone, Copy, Deserialize, Debug)]
+#[derive(Clone, Copy, Deserialize, Debug, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum Protocol {
     Blabber,
