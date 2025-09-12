@@ -16,7 +16,9 @@ pub struct Replay {
 
 impl Replay {
     pub fn validate(&self, config: &Config) {
-        if config.general().protocol() == Protocol::Momento {
+        if config.general().protocol() == Protocol::Momento
+            || config.general().protocol() == Protocol::MomentoProtosocket
+        {
             if config.target().cache_name().is_none() {
                 eprintln!("cache name is required for replay against momento");
                 std::process::exit(1);

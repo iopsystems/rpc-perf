@@ -6,6 +6,7 @@ pub enum Protocol {
     Blabber,
     Memcache,
     Momento,
+    MomentoProtosocket,
     MomentoHttp,
     Mysql,
     Ping,
