@@ -154,6 +154,9 @@ fn main() {
                 .unwrap_or(1),
         );
 
+        // spawn the admin thread
+        control_runtime.spawn(admin::http(config.clone(), None));
+
         // launch metrics file output
         control_runtime.spawn(output::metrics(config.clone()));
 
