@@ -166,7 +166,16 @@ async fn task(
         match response {
             Ok(response) => {
                 let latency_ns = stop.duration_since(start).as_nanos() as u64;
-
+                let mut latency_histograms = vec![&RESPONSE_LATENCY];
+                match &response {
+                    Response::Values(_) | Response::NotFound(_) => {
+                        latency_histograms.push(&KVGET_RESPONSE_LATENCY);
+                    }
+                    Response::Stored(_) | Response::NotStored(_) => {
+                        latency_histograms.push(&KVSET_RESPONSE_LATENCY);
+                    }
+                    _ => {}
+                }
                 // check if the response is valid
                 if (request.validator)(response).is_err() {
                     // increment error stats, connection will be dropped
@@ -175,9 +184,9 @@ async fn task(
                 } else {
                     // increment success stats and latency
                     RESPONSE_OK.increment();
-
-                    let _ = RESPONSE_LATENCY.increment(latency_ns);
-
+                    for hist in latency_histograms {
+                        let _ = hist.increment(latency_ns);
+                    }
                     // preserve the connection for the next request
                     stream = Some(s);
                 }

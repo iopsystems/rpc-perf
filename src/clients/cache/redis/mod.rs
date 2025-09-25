@@ -120,6 +120,7 @@ async fn task(
 
         REQUEST.increment();
         let start = Instant::now();
+        let mut latency_histograms = vec![&RESPONSE_LATENCY];
         let result = match work_item {
             ClientWorkItemKind::Request { request, .. } => match request {
                 /*
@@ -132,9 +133,15 @@ async fn task(
                  */
                 ClientRequest::Add(r) => add(&mut con, &config, r).await,
                 ClientRequest::Delete(r) => delete(&mut con, &config, r).await,
-                ClientRequest::Get(r) => get(&mut con, &config, r).await,
+                ClientRequest::Get(r) => {
+                    latency_histograms.push(&KVGET_RESPONSE_LATENCY);
+                    get(&mut con, &config, r).await
+                }
                 ClientRequest::Replace(r) => replace(&mut con, &config, r).await,
-                ClientRequest::Set(r) => set(&mut con, &config, r).await,
+                ClientRequest::Set(r) => {
+                    latency_histograms.push(&KVSET_RESPONSE_LATENCY);
+                    set(&mut con, &config, r).await
+                }
 
                 /*
                  * HASHES (DICTIONARIES)
@@ -202,8 +209,9 @@ async fn task(
             Ok(_) => {
                 connection = Some(con);
                 RESPONSE_OK.increment();
-
-                let _ = RESPONSE_LATENCY.increment(latency_ns);
+                for hist in latency_histograms {
+                    let _ = hist.increment(latency_ns);
+                }
             }
             Err(ResponseError::Exception) => {
                 RESPONSE_EX.increment();
