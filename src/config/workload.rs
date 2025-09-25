@@ -738,22 +738,14 @@ impl StoreCommand {
 #[derive(Clone, Deserialize, Copy, Debug, Ord, Eq, PartialOrd, PartialEq, Hash)]
 #[serde(rename_all = "snake_case")]
 pub enum StoreVerb {
-    /// Sends a `PING` to the server and expects a `PONG`
-    /// * Ping: `PING`
-    /// * RESP: `PING`
-    Ping,
-
     /*
      * KEY-VALUE
      */
-    /// Read the value for one a key.
-    /// * Momento: `get`
+    /// Read the value for a key.
     Get,
     /// Put the value for a key.
-    /// * Momento: `put`
     Put,
     /// Remove a key.
-    /// * Momento: `delete`
     #[serde(alias = "del")]
     Delete,
 }

@@ -297,7 +297,6 @@ impl Generator {
             StoreVerb::Delete => StoreClientRequest::Delete(store::Delete {
                 key: store.sample_string(rng),
             }),
-            StoreVerb::Ping => StoreClientRequest::Ping(store::Ping {}),
         };
         ClientWorkItemKind::Request { request, sequence }
     }
