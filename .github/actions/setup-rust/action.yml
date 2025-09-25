@@ -7,4 +7,4 @@ runs:
     - uses: ./.github/actions/setup-protoc
     - uses: dtolnay/rust-toolchain@stable
       with:
-        components: clippy
+        components: clippy,rustfmt
