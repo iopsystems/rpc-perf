@@ -146,6 +146,11 @@ fn main() {
 
     // switch into replay mode if the replay subcommand is provided
     if matches.subcommand_matches("replay").is_some() {
+        if config.replay().is_none() {
+            eprintln!("replay configuration section is required for replay mode");
+            std::process::exit(1);
+        }
+
         info!("Starting replay mode");
         let (replay_sender, replay_receiver) = bounded(
             config
