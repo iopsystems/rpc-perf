@@ -103,6 +103,16 @@ async fn task(
 
         let request = request.unwrap();
 
+        let mut latency_histograms = vec![&RESPONSE_LATENCY];
+        match &request.request {
+            Request::Get(_) => {
+                latency_histograms.push(&KVGET_RESPONSE_LATENCY);
+            }
+            Request::Set(_) => {
+                latency_histograms.push(&KVSET_RESPONSE_LATENCY);
+            }
+            _ => {}
+        }
         // compose request
         REQUEST_OK.increment();
         let _ = protocol.compose_request(&request.request, &mut write_buffer);
@@ -166,16 +176,6 @@ async fn task(
         match response {
             Ok(response) => {
                 let latency_ns = stop.duration_since(start).as_nanos() as u64;
-                let mut latency_histograms = vec![&RESPONSE_LATENCY];
-                match &response {
-                    Response::Values(_) | Response::NotFound(_) => {
-                        latency_histograms.push(&KVGET_RESPONSE_LATENCY);
-                    }
-                    Response::Stored(_) | Response::NotStored(_) => {
-                        latency_histograms.push(&KVSET_RESPONSE_LATENCY);
-                    }
-                    _ => {}
-                }
                 // check if the response is valid
                 if (request.validator)(response).is_err() {
                     // increment error stats, connection will be dropped
