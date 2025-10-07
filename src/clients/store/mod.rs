@@ -12,7 +12,6 @@ use async_channel::Receiver;
 use tokio::runtime::Runtime;
 use workload::{ClientWorkItemKind, StoreClientRequest};
 
-mod momento;
 mod s3;
 
 pub fn launch(
@@ -35,7 +34,6 @@ pub fn launch(
         .expect("failed to initialize tokio runtime");
 
     match config.general().protocol() {
-        Protocol::Momento => momento::launch_tasks(&mut client_rt, config.clone(), work_receiver),
         Protocol::S3 => s3::launch_tasks(&mut client_rt, config.clone(), work_receiver),
         protocol => {
             eprintln!(
