@@ -1,6 +1,8 @@
 use super::*;
 
-use ::momento::cache::{SortedSetFetchByRankRequest, SortedSetFetchByScoreRequest, SortedSetOrder};
+use ::momento::cache::{
+    ScoreBound, SortedSetFetchByRankRequest, SortedSetFetchByScoreRequest, SortedSetOrder,
+};
 
 /// Performs a range query on a sorted set, returning the specified range of
 /// elements. Supports selecting a range of keys by index (rank).
@@ -25,8 +27,8 @@ pub async fn sorted_set_range(
         .await
     } else {
         let r = SortedSetFetchByScoreRequest::new(cache_name, &*request.key)
-            .min_score(request.start.map(|v| v.into()))
-            .max_score(request.end.map(|v| v.into()))
+            .min_score(request.start.map(|v| ScoreBound::Inclusive(v.into())))
+            .max_score(request.end.map(|v| ScoreBound::Inclusive(v.into())))
             .order(SortedSetOrder::Ascending);
 
         timeout(
