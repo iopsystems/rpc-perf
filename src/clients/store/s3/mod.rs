@@ -28,10 +28,6 @@ pub fn launch_tasks(
 ) {
     debug!("launching s3 protocol tasks");
 
-    if config.storage().unwrap().concurrency() > 1 {
-        error!("S3 uses HTTP/1.1 which does not support multiplexing sessions onto single streams. Ignoring the concurrency parameter.");
-    }
-
     for _ in 0..config.storage().unwrap().poolsize() {
         for endpoint in config.target().endpoints() {
             runtime.spawn(task(

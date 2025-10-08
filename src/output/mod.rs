@@ -19,7 +19,7 @@ macro_rules! output {
     }};
 }
 
-pub async fn log(config: Config) {
+pub async fn log(config: Config, is_replay_mode: bool) {
     WAIT.fetch_add(1, Ordering::Relaxed);
 
     let mut window_id = 0;
@@ -28,7 +28,7 @@ pub async fn log(config: Config) {
     tokio::time::sleep(Duration::from_secs(1)).await;
     snapshot.update();
 
-    let client = !config.workload().keyspaces().is_empty();
+    let client = !config.workload().keyspaces().is_empty() || is_replay_mode;
     let pubsub = !config.workload().topics().is_empty();
     let store = !config.workload().stores().is_empty();
     let leaderboard = !config.workload().leaderboards().is_empty();
@@ -110,6 +110,8 @@ fn client_stats(snapshot: &mut MetricsSnapshot) {
     let connect_sr = 100.0 * connect_ok / connect_total;
 
     let response_latency = snapshot.percentiles(RESPONSE_LATENCY_HISTOGRAM);
+    let kvset_response_latency = snapshot.percentiles(KVSET_RESPONSE_LATENCY_HISTOGRAM);
+    let kvget_response_latency = snapshot.percentiles(KVGET_RESPONSE_LATENCY_HISTOGRAM);
     let response_ttfb = snapshot.percentiles(RESPONSE_TTFB_HISTOGRAM);
 
     output!(
@@ -167,6 +169,24 @@ fn client_stats(snapshot: &mut MetricsSnapshot) {
     }
 
     output!("{latencies}");
+
+    let mut kvset_latencies = "Client Key-Value SET Response Latency (us):".to_owned();
+
+    for (label, _percentile, nanoseconds) in kvset_response_latency {
+        let microseconds = nanoseconds / 1000;
+        kvset_latencies.push_str(&format!(" {label}: {microseconds}"))
+    }
+
+    output!("{kvset_latencies}");
+
+    let mut kvget_latencies = "Client Key-Value GET Response Latency (us):".to_owned();
+
+    for (label, _percentile, nanoseconds) in kvget_response_latency {
+        let microseconds = nanoseconds / 1000;
+        kvget_latencies.push_str(&format!(" {label}: {microseconds}"))
+    }
+
+    output!("{kvget_latencies}");
 
     let mut latencies = "Client Time-to-First-Byte (us):".to_owned();
 

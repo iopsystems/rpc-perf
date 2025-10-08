@@ -14,6 +14,5 @@ pub enum Protocol {
     PingGrpcH2,
     PingGrpcH3,
     Resp,
-    Kafka,
     S3,
 }
