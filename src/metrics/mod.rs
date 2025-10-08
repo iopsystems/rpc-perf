@@ -352,6 +352,22 @@ pub static RESPONSE_LATENCY: AtomicHistogram = AtomicHistogram::new(7, 64);
 pub static RESPONSE_LATENCY_HISTOGRAM: &str = "response_latency";
 
 #[metric(
+    name = KVGET_RESPONSE_LATENCY_HISTOGRAM,
+    description = "Distribution of response latencies for key-value GET requests",
+    metadata = { unit = "nanoseconds" }
+)]
+pub static KVGET_RESPONSE_LATENCY: AtomicHistogram = AtomicHistogram::new(7, 64);
+pub static KVGET_RESPONSE_LATENCY_HISTOGRAM: &str = "kvget_response_latency";
+
+#[metric(
+    name = KVSET_RESPONSE_LATENCY_HISTOGRAM,
+    description = "Distribution of response latencies for key-value SET requests",
+    metadata = { unit = "nanoseconds" }
+)]
+pub static KVSET_RESPONSE_LATENCY: AtomicHistogram = AtomicHistogram::new(7, 64);
+pub static KVSET_RESPONSE_LATENCY_HISTOGRAM: &str = "kvset_response_latency";
+
+#[metric(
     name = RESPONSE_TTFB_HISTOGRAM,
     description = "Distribution of time-to-first-byte for responses",
     metadata = { unit = "nanoseconds" }
