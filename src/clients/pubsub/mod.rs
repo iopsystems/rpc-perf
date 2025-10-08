@@ -16,10 +16,9 @@ use async_channel::Receiver;
 use tokio::runtime::Runtime;
 
 use std::io::{Error, ErrorKind, Result};
-use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 mod blabber;
-mod kafka;
 mod momento;
 
 pub fn hasher() -> RandomState {
@@ -133,7 +132,7 @@ pub fn launch(
 fn launch_publishers(
     config: &Config,
     work_receiver: Receiver<WorkItem>,
-    workload_components: &[Component],
+    _workload_components: &[Component],
 ) -> Option<Runtime> {
     if config.pubsub().is_none() {
         debug!("No pubsub configuration specified");
@@ -155,10 +154,6 @@ fn launch_publishers(
         }
         Protocol::Momento => {
             momento::launch_publishers(&mut publisher_rt, config.clone(), work_receiver);
-        }
-        Protocol::Kafka => {
-            kafka::create_topics(&mut publisher_rt, config.clone(), workload_components);
-            kafka::launch_publishers(&mut publisher_rt, config.clone(), work_receiver);
         }
         protocol => {
             error!(
@@ -193,9 +188,6 @@ fn launch_subscribers(config: &Config, workload_components: &[Component]) -> Opt
         }
         Protocol::Momento => {
             momento::launch_subscribers(&mut subscriber_rt, config.clone(), workload_components);
-        }
-        Protocol::Kafka => {
-            kafka::launch_subscribers(&mut subscriber_rt, config.clone(), workload_components);
         }
         _ => {
             eprintln!("pubsub is not supported for the selected protocol");
