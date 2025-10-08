@@ -146,6 +146,11 @@ fn main() {
 
     // switch into replay mode if the replay subcommand is provided
     if matches.subcommand_matches("replay").is_some() {
+        if config.replay().is_none() {
+            eprintln!("replay configuration section is required for replay mode");
+            std::process::exit(1);
+        }
+
         info!("Starting replay mode");
         let (replay_sender, replay_receiver) = bounded(
             config
@@ -154,11 +159,14 @@ fn main() {
                 .unwrap_or(1),
         );
 
+        // spawn the admin thread
+        control_runtime.spawn(admin::http(config.clone(), None));
+
         // launch metrics file output
         control_runtime.spawn(output::metrics(config.clone()));
 
         // begin cli output
-        control_runtime.spawn(output::log(config.clone()));
+        control_runtime.spawn(output::log(config.clone(), true));
 
         debug!("Launching replay clients");
         let replay_runtime = clients::cache::launch(&config, replay_receiver);
@@ -232,7 +240,7 @@ fn main() {
     control_runtime.spawn(output::metrics(config.clone()));
 
     // begin cli output
-    control_runtime.spawn(output::log(config.clone()));
+    control_runtime.spawn(output::log(config.clone(), false));
 
     debug!("Running workload generator");
     // start the workload generator(s)

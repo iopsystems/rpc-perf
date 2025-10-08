@@ -19,7 +19,7 @@ macro_rules! output {
     }};
 }
 
-pub async fn log(config: Config) {
+pub async fn log(config: Config, is_replay_mode: bool) {
     WAIT.fetch_add(1, Ordering::Relaxed);
 
     let mut window_id = 0;
@@ -28,7 +28,7 @@ pub async fn log(config: Config) {
     tokio::time::sleep(Duration::from_secs(1)).await;
     snapshot.update();
 
-    let client = !config.workload().keyspaces().is_empty();
+    let client = !config.workload().keyspaces().is_empty() || is_replay_mode;
     let pubsub = !config.workload().topics().is_empty();
     let store = !config.workload().stores().is_empty();
     let leaderboard = !config.workload().leaderboards().is_empty();
