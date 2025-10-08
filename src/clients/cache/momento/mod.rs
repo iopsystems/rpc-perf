@@ -9,6 +9,8 @@ mod commands;
 use commands::*;
 
 pub mod http;
+pub mod protosocket;
+mod protosocket_commands;
 
 /// Launch tasks with one channel per task as gRPC is mux-enabled.
 pub fn launch_tasks(
