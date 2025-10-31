@@ -48,7 +48,10 @@ pub fn launch(
         Protocol::Memcache => memcache::launch_tasks(&mut client_rt, config.clone(), work_receiver),
         Protocol::Momento => momento::launch_tasks(&mut client_rt, config.clone(), work_receiver),
         Protocol::MomentoProtosocket => {
-            momento::protosocket::launch_tasks(&mut client_rt, config.clone(), work_receiver)
+            momento::protosocket::launch_tasks(&mut client_rt, config.clone(), work_receiver, false)
+        }
+        Protocol::MomentoProtosocketPrivate => {
+            momento::protosocket::launch_tasks(&mut client_rt, config.clone(), work_receiver, true)
         }
         Protocol::MomentoHttp => {
             momento::http::launch_tasks(&mut client_rt, config.clone(), work_receiver)

@@ -8,6 +8,7 @@ pub enum Protocol {
     Momento,
     MomentoHttp,
     MomentoProtosocket,
+    MomentoProtosocketPrivate,
     Mysql,
     Ping,
     PingGrpc,
