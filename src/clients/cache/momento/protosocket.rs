@@ -17,11 +17,18 @@ pub fn launch_tasks(
     runtime: &mut Runtime,
     config: Config,
     work_receiver: Receiver<ClientWorkItemKind<ClientRequest>>,
+    use_private_endpoints: bool,
 ) {
     debug!("launching momento-protosocket protocol tasks");
 
     let credential_provider = match CredentialProvider::from_env_var("MOMENTO_API_KEY") {
-        Ok(v) => v,
+        Ok(v) => {
+            if use_private_endpoints {
+                v.with_private_endpoints()
+            } else {
+                v
+            }
+        }
         Err(e) => {
             eprintln!("MOMENTO_API_KEY environment error: {e:?}");
             std::process::exit(1);
