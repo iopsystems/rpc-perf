@@ -28,13 +28,11 @@ pub fn launch_tasks(
         }
     };
 
-    for _connection_number in 0..config.client().unwrap().poolsize() {
-        runtime.spawn(launch_protosocket_task(
-            config.clone(),
-            credential_provider.clone(),
-            work_receiver.clone(),
-        ));
-    }
+    runtime.spawn(launch_protosocket_task(
+        config.clone(),
+        credential_provider.clone(),
+        work_receiver.clone(),
+    ));
 }
 
 async fn launch_protosocket_task(
@@ -42,12 +40,17 @@ async fn launch_protosocket_task(
     credential_provider: CredentialProvider,
     work_receiver: Receiver<ClientWorkItemKind<ClientRequest>>,
 ) {
+    let poolsize = config.client().unwrap().poolsize();
+    let concurrency = config.client().unwrap().concurrency();
+
+    // Make just one protosocket client (and underlying connection manager) using
+    // poolsize in the connection_count configuration.
     let client = match ProtosocketCacheClient::builder()
         .default_ttl(Duration::from_secs(900))
         .configuration(
             Configuration::builder()
                 .timeout(Duration::from_secs(10))
-                .connection_count(1)
+                .connection_count(poolsize as u32)
                 .az_id(None)
                 .build(),
         )
@@ -63,17 +66,22 @@ async fn launch_protosocket_task(
         }
     };
 
-    CONNECT.increment();
-    CONNECT_CURR.increment();
+    // Make sure to increment the metrics for each connection in the pool.
+    // Also make sure to preserve the same number of protosocket tasks as
+    // would have been created when we made more than one client.
+    for _ in 0..poolsize {
+        CONNECT.increment();
+        CONNECT_CURR.increment();
 
-    let result = protosocket_task(
-        config.clone(),
-        client.clone(),
-        work_receiver.clone(),
-        config.client().unwrap().concurrency(),
-    )
-    .await;
-    eprintln!("protosocket driver task exited: {result:?}");
+        let client = client.clone();
+        let config = config.clone();
+        let work_receiver = work_receiver.clone();
+
+        tokio::spawn(async move {
+            let result = protosocket_task(config, client, work_receiver, concurrency).await;
+            eprintln!("protosocket driver task exited: {result:?}");
+        });
+    }
 }
 
 async fn protosocket_task(
