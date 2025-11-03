@@ -17,14 +17,28 @@ pub fn launch_tasks(
     runtime: &mut Runtime,
     config: Config,
     work_receiver: Receiver<ClientWorkItemKind<ClientRequest>>,
-    use_private_endpoints: bool,
 ) {
     debug!("launching momento-protosocket protocol tasks");
 
     let credential_provider = match CredentialProvider::from_env_var("MOMENTO_API_KEY") {
         Ok(v) => {
-            if use_private_endpoints {
-                v.with_private_endpoints()
+            if config.target().endpoint_override().is_some()
+                && config.target().use_private_endpoints().is_some()
+            {
+                warn!("Both `endpoint_override` and `use_private_endpoints` are set in the target configuration. `endpoint_override` will take precedence.");
+            }
+            if let Some(override_endpoint) = config.target().endpoint_override() {
+                debug!(
+                    "Using endpoint override for protosocket client: {}",
+                    override_endpoint
+                );
+                v.secure_endpoint_override(override_endpoint)
+            } else if let Some(use_private_endpoints) = config.target().use_private_endpoints() {
+                if use_private_endpoints {
+                    v.with_private_endpoints()
+                } else {
+                    v
+                }
             } else {
                 v
             }
