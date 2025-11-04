@@ -29,13 +29,16 @@ hmac = "0.12.1"
 http = "1.2.0"
 http-body-util = "0.1.2"
 humantime = "2.1.0"
-hyper = { version = "1.6.0", features = ["http1", "http2", "client"]}
+hyper = { version = "1.6.0", features = ["http1", "http2", "client"] }
 hyper-rustls = "0.27.5"
 hyper-util = { version = "0.1.10", features = ["full"] }
 metriken = "0.7.0"
-metriken-exposition = { version = "0.12.2", features = ["json", "parquet-conversion"] }
+metriken-exposition = { version = "0.12.2", features = [
+    "json",
+    "parquet-conversion",
+] }
 mio = "1.0.3"
-momento = "0.54.2"
+momento = "0.57.0"
 once_cell = "1.20.3"
 openssl = { version = "0.10.71", optional = true }
 openssl-src = "300.4.2"
@@ -51,7 +54,11 @@ rand = "0.9.0"
 rand_distr = "0.5.1"
 rand_xoshiro = "0.7.0"
 ratelimit = "0.10.0"
-redis = { version = "0.23.3", features = ["tokio-comp", "tls-native-tls", "tokio-native-tls-comp"] }
+redis = { version = "0.23.3", features = [
+    "tokio-comp",
+    "tls-native-tls",
+    "tokio-native-tls-comp",
+] }
 ringlog = "0.8.0"
 rustls = "0.23.23"
 rustls-native-certs = "0.8.1"
@@ -60,7 +67,11 @@ session = { git = "https://github.com/pelikan-io/pelikan" }
 sha1 = "0.10.6"
 sha2 = "0.10.8"
 slab = "0.4.9"
-sqlx = { version = "0.8.3", features = [ "runtime-tokio", "tls-native-tls", "mysql" ] }
+sqlx = { version = "0.8.3", features = [
+    "runtime-tokio",
+    "tls-native-tls",
+    "mysql",
+] }
 tempfile = "3.17.1"
 tokio = { version = "1.43.0", features = ["full"] }
 tokio-boring = { version = "3.1.0", optional = true }
@@ -77,8 +88,19 @@ tonic-build = "0.12.3"
 
 [features]
 default = ["openssl"]
-boringssl = ["dep:boring", "boring-sys", "tokio-boring", "pelikan-net/boringssl"]
-openssl = ["dep:openssl", "openssl-sys", "openssl/vendored", "tokio-openssl", "pelikan-net/openssl"]
+boringssl = [
+    "dep:boring",
+    "boring-sys",
+    "tokio-boring",
+    "pelikan-net/boringssl",
+]
+openssl = [
+    "dep:openssl",
+    "openssl-sys",
+    "openssl/vendored",
+    "tokio-openssl",
+    "pelikan-net/openssl",
+]
 
 [profile.release]
 opt-level = 3

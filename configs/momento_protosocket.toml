@@ -52,6 +52,10 @@ log_max_size = 1073741824
 endpoints = []
 # specify the name of the target cache
 cache_name = "developer"
+# optionally, specify whether protosocket clients should use private endpoints
+# use_private_endpoints = true
+# optionally, specify an endpoint override for protosocket clients
+# endpoint_override = "hostname:port"
 
 [client]
 # number of threads used to drive client requests
