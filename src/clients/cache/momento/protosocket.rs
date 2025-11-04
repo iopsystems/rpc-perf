@@ -69,6 +69,7 @@ async fn launch_protosocket_task(
     // Make sure to increment the metrics for each connection in the pool.
     // Also make sure to preserve the same number of protosocket tasks as
     // would have been created when we made more than one client.
+    let mut join_handles = vec![];
     for _ in 0..poolsize {
         CONNECT.increment();
         CONNECT_CURR.increment();
@@ -77,11 +78,12 @@ async fn launch_protosocket_task(
         let config = config.clone();
         let work_receiver = work_receiver.clone();
 
-        tokio::spawn(async move {
+        join_handles.push(tokio::spawn(async move {
             let result = protosocket_task(config, client, work_receiver, concurrency).await;
             eprintln!("protosocket driver task exited: {result:?}");
-        });
+        }));
     }
+    futures::future::join_all(join_handles).await;
 }
 
 async fn protosocket_task(
