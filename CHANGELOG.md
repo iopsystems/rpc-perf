@@ -1,5 +1,19 @@
 ## [Unreleased]
 
+## [5.22.0] - 2025-11-14
+
+### Changed
+
+- Removed support for Momento Store. (#392)
+- Removed support for Kafka. (#394)
+
+### Added
+
+- Replay engine for playing back cache traces. (#387)
+- Protosocket support for Momento Cache. (#393)
+- TLS support for Redis. (#400)
+- Ability to override Momento endpoints. (#403)
+
 ## [5.21.0] - 2025-02-21
 
 ### Added
