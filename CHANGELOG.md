@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+## [5.23.0] - 2025-11-24
+
+### Added
+
+- Added GET/SET latencies for Momento. (#409)
+
 ## [5.22.0] - 2025-11-14
 
 ### Changed
@@ -311,7 +317,9 @@
 - Support Momento topics.
 - Basic HTTP/1.1 and HTTP/2.0 load generation.
 
-[unreleased]: https://github.com/iopsystems/rpc-perf/compare/v5.21.0...HEAD
+[unreleased]: https://github.com/iopsystems/rpc-perf/compare/v5.23.0...HEAD
+[5.23.0]: https://github.com/iopsystems/rpc-perf/compare/v5.22.0...v5.23.0
+[5.22.0]: https://github.com/iopsystems/rpc-perf/compare/v5.21.0...v5.22.0
 [5.21.0]: https://github.com/iopsystems/rpc-perf/compare/v5.20.0...v5.21.0
 [5.20.0]: https://github.com/iopsystems/rpc-perf/compare/v5.19.0...v5.20.0
 [5.19.0]: https://github.com/iopsystems/rpc-perf/compare/v5.18.0...v5.19.0
