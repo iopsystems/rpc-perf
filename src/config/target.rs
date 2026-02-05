@@ -6,6 +6,7 @@ pub struct Target {
     endpoints: Vec<String>,
     /// A cache name
     cache_name: Option<String>,
+    object_store_name: Option<String>,
     /// Manual endpoint override for protosocket clients
     endpoint_override: Option<String>,
     /// Configure protosocket clients to use private endpoints
@@ -19,6 +20,10 @@ impl Target {
 
     pub fn cache_name(&self) -> Option<&str> {
         self.cache_name.as_deref()
+    }
+
+    pub fn object_store_name(&self) -> Option<&str> {
+        self.object_store_name.as_deref()
     }
 
     pub fn endpoint_override(&self) -> Option<&str> {

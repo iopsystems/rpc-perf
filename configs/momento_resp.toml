@@ -1,0 +1,67 @@
+[general]
+# specify the protocol to be used
+protocol = "resp"
+# the interval for stats integration and reporting
+interval = 2
+# the number of seconds to run the test for
+duration = 1800
+# optionally, we can write some detailed stats to a file during the run
+#json_output = "stats.json"
+# run the admin thread with a RESP listener at the address provided, this allows
+# stats exposition via RESP commands
+admin = "127.0.0.1:4444"
+
+[debug]
+# choose from: error, warn, info, debug, trace
+log_level = "info"
+# optionally, log to the file below instead of standard out
+# log_file = "rpc-perf.log"
+# backup file name for use with log rotation
+log_backup = "rpc-perf.log.old"
+# trigger log rotation when the file grows beyond this size (in bytes). Set this
+# option to '0' to disable log rotation.
+log_max_size = 1073741824
+
+[target]
+# we don't need to specify any endpoints for momento
+endpoints = [
+    "rediss://vir-cluster:eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ2aXJAbW9tZW50b2hxLmNvbSIsInZlciI6MSwicCI6IiJ9.hj0H1gb5DBsmvMtEu_cA8G95tQeAoq3KRA8wV52Oeew@cache.developer-vir-dev.preprod.a.momentohq.com:6379",
+]
+
+[client]
+# number of threads used to drive client requests
+threads = 14
+# number of gRPC clients to initialize, each maintains at least one TCP stream
+poolsize = 7
+# an upper limit on the number of concurrent requests per gRPC client
+concurrency = 20
+# the connect timeout in milliseconds
+connect_timeout = 1000
+# set the timeout in milliseconds
+request_timeout = 1000
+
+[workload]
+# the number of threads that will be used to generate the workload
+threads = 1
+
+[workload.ratelimit]
+# flat load
+start = 1
+
+# Note that we can constrain the number of keys in the keyspace and specify that
+# the generated values are random bytes with 128B values.
+[[workload.keyspace]]
+# sets the relative weight of this keyspace: defaults to 1
+weight = 1
+# sets the length of the key, in bytes
+klen = 100
+# sets the number of keys that will be generated
+nkeys = 10_000
+# sets the value length, in bytes
+vlen = 1024
+# use random bytes for the values
+vkind = "bytes"
+# controls what commands will be used in this keyspace
+commands = [{ verb = "get", weight = 1 }, { verb = "set", weight = 1 }]
+# 12 hour ttl
+ttl = "12h"

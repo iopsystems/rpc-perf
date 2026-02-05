@@ -290,6 +290,7 @@ impl Generator {
             StoreVerb::Put => StoreClientRequest::Put(store::Put {
                 key: store.sample_string(rng),
                 value: store.gen_value(sequence as _, rng),
+                ttl: store.ttl(),
             }),
             StoreVerb::Get => StoreClientRequest::Get(store::Get {
                 key: store.sample_string(rng),
@@ -902,6 +903,7 @@ pub struct Store {
     vlen: usize,
     vkind: ValueKind,
     vbuf: Bytes,
+    ttl: Option<Duration>,
 }
 
 impl Store {
@@ -979,6 +981,7 @@ impl Store {
             vlen: store.vlen().unwrap_or(0),
             vkind: store.vkind(),
             vbuf: vbuf.into(),
+            ttl: store.ttl(),
         }
     }
 
@@ -1002,6 +1005,10 @@ impl Store {
                 self.vbuf.slice(start..end)
             }
         }
+    }
+
+    pub fn ttl(&self) -> Option<Duration> {
+        self.ttl
     }
 }
 
