@@ -2,6 +2,7 @@ use momento::MomentoError;
 use momento::MomentoErrorCode;
 
 pub mod common;
+pub mod h2_pool;
 
 pub mod cache;
 pub mod leaderboard;

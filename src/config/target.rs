@@ -10,6 +10,8 @@ pub struct Target {
     endpoint_override: Option<String>,
     /// Configure protosocket clients to use private endpoints
     use_private_endpoints: Option<bool>,
+    /// An object store name
+    object_store_name: Option<String>,
 }
 
 impl Target {
@@ -27,5 +29,9 @@ impl Target {
 
     pub fn use_private_endpoints(&self) -> Option<bool> {
         self.use_private_endpoints
+    }
+
+    pub fn object_store_name(&self) -> Option<&str> {
+        self.object_store_name.as_deref()
     }
 }

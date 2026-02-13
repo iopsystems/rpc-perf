@@ -74,6 +74,8 @@ pub struct Store {
     vkind: Option<ValueKind>,
     #[serde(default)]
     compression_ratio: Option<f64>,
+    #[serde(default)]
+    ttl: Option<String>,
 }
 
 impl Store {
@@ -107,6 +109,12 @@ impl Store {
 
     pub fn compression_ratio(&self) -> f64 {
         self.compression_ratio.unwrap_or(1.0)
+    }
+
+    pub fn ttl(&self) -> Option<Duration> {
+        self.ttl
+            .as_ref()
+            .map(|ttl| ttl.parse::<humantime::Duration>().unwrap().into())
     }
 }
 

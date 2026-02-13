@@ -1,11 +1,21 @@
 use super::*;
 
+fn default_concurrency() -> usize {
+    1
+}
+
 #[derive(Clone, Deserialize)]
 pub struct Storage {
     /// The number of connections this process will have to each endpoint.
     poolsize: usize,
     // number of threads for client tasks
     threads: usize,
+    /// The number of concurrent sessions per connection (for H2 mux).
+    #[serde(default = "default_concurrency")]
+    concurrency: usize,
+    /// Request timeout in milliseconds.
+    #[serde(default)]
+    request_timeout: Option<u64>,
 }
 
 impl Storage {
@@ -15,5 +25,13 @@ impl Storage {
 
     pub fn poolsize(&self) -> usize {
         std::cmp::max(1, self.poolsize)
+    }
+
+    pub fn concurrency(&self) -> usize {
+        std::cmp::max(1, self.concurrency)
+    }
+
+    pub fn request_timeout(&self) -> Option<Duration> {
+        self.request_timeout.map(Duration::from_millis)
     }
 }
