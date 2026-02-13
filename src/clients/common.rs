@@ -1,6 +1,6 @@
 use http::uri::Authority;
 
-use std::io::{Error, ErrorKind};
+use std::io::Error;
 
 #[derive(Clone)]
 pub struct Queue<T> {
@@ -27,11 +27,11 @@ impl<T> Queue<T> {
 pub async fn resolve(uri: &str) -> Result<(std::net::SocketAddr, Authority), std::io::Error> {
     let uri = uri
         .parse::<http::Uri>()
-        .map_err(|_| Error::new(ErrorKind::Other, "failed to parse uri"))?;
+        .map_err(|_| Error::other("failed to parse uri"))?;
 
     let auth = uri
         .authority()
-        .ok_or(Error::new(ErrorKind::Other, "uri has no authority"))?
+        .ok_or(Error::other("uri has no authority"))?
         .clone();
 
     let port = auth.port_u16().unwrap_or(443);
@@ -39,7 +39,7 @@ pub async fn resolve(uri: &str) -> Result<(std::net::SocketAddr, Authority), std
     let addr = tokio::net::lookup_host((auth.host(), port))
         .await?
         .next()
-        .ok_or(Error::new(ErrorKind::Other, "dns found no addresses"))?;
+        .ok_or(Error::other("dns found no addresses"))?;
 
     Ok((addr, auth))
 }

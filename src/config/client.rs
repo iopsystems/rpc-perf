@@ -60,12 +60,12 @@ impl Client {
     pub fn read_buffer_size(&self) -> usize {
         // rounds the read buffer size up to the next nearest multiple of the
         // pagesize
-        ((std::cmp::max(1, self.read_buffer_size) + PAGESIZE - 1) / PAGESIZE) * PAGESIZE
+        std::cmp::max(1, self.read_buffer_size).div_ceil(PAGESIZE) * PAGESIZE
     }
 
     pub fn write_buffer_size(&self) -> usize {
         // rounds the write buffer size up to the next nearest multiple of the
         // pagesize
-        ((std::cmp::max(1, self.write_buffer_size) + PAGESIZE - 1) / PAGESIZE) * PAGESIZE
+        std::cmp::max(1, self.write_buffer_size).div_ceil(PAGESIZE) * PAGESIZE
     }
 }

@@ -1,21 +1,15 @@
 use crate::clients::common::*;
+use crate::clients::h2_pool::{h2_pool_manager, MomentoHttpRequestBuilder};
 use crate::workload::{ClientRequest, ClientWorkItemKind};
 use crate::*;
-use rustls::KeyLogFile;
 
 use async_channel::Receiver;
 use bytes::{Bytes, BytesMut};
 use h2::client::SendRequest;
-use http::{Method, Version};
-use rustls::pki_types::ServerName;
-use rustls::RootCertStore;
-use tokio::net::TcpStream;
+use http::Method;
 use tokio::runtime::Runtime;
-use tokio_rustls::TlsConnector;
 
 use std::time::Instant;
-
-const MB: u32 = 1024 * 1024;
 
 // launch a pool manager and worker tasks since HTTP/2.0 is mux'ed we prepare
 // senders in the pool manager and pass them over a queue to our worker tasks
@@ -32,11 +26,7 @@ pub fn launch_tasks(
             // a single TCP stream
 
             let queue = Queue::new(1);
-            runtime.spawn(pool_manager(
-                endpoint.clone(),
-                config.clone(),
-                queue.clone(),
-            ));
+            runtime.spawn(h2_pool_manager(endpoint.clone(), queue.clone()));
 
             // since HTTP/2.0 allows muxing several sessions onto a single TCP
             // stream, we launch one task for each session on this TCP stream
@@ -48,72 +38,6 @@ pub fn launch_tasks(
                     queue.clone(),
                 ));
             }
-        }
-    }
-}
-
-pub async fn pool_manager(endpoint: String, _config: Config, queue: Queue<SendRequest<Bytes>>) {
-    let mut client = None;
-
-    let root_store = RootCertStore {
-        roots: webpki_roots::TLS_SERVER_ROOTS.into(),
-    };
-
-    let mut config = rustls::ClientConfig::builder()
-        .with_root_certificates(root_store)
-        .with_no_client_auth();
-
-    config.key_log = Arc::new(KeyLogFile::new());
-
-    let config = Arc::new(config);
-
-    while RUNNING.load(Ordering::Relaxed) {
-        if client.is_none() {
-            CONNECT.increment();
-
-            if let Ok((addr, auth)) = resolve(&endpoint).await {
-                if let Ok(tcp) = TcpStream::connect(addr).await {
-                    if tcp.set_nodelay(true).is_err() {
-                        continue;
-                    }
-
-                    let connector: TlsConnector = TlsConnector::from(config.clone());
-                    let stream = connector
-                        .connect(ServerName::try_from(auth.host().to_string()).unwrap(), tcp)
-                        .await
-                        .unwrap();
-
-                    let client_builder = ::h2::client::Builder::new()
-                        .initial_window_size(8 * MB)
-                        .initial_connection_window_size(8 * MB)
-                        .max_frame_size(2 * MB)
-                        .handshake(stream);
-
-                    if let Ok((h2, connection)) = client_builder.await {
-                        tokio::spawn(async move {
-                            let _ = connection.await;
-                        });
-
-                        if let Ok(h2) = h2.ready().await {
-                            CONNECT_OK.increment();
-                            CONNECT_CURR.increment();
-
-                            client = Some(h2);
-
-                            continue;
-                        }
-                    }
-                }
-            }
-
-            // Successfully negotiated connections result in early continue back
-            // to the top of the loop. If we hit this, that means there was some
-            // exception during connection establishment / negotiation.
-            CONNECT_EX.increment();
-        } else if let Ok(s) = client.clone().unwrap().ready().await {
-            let _ = queue.send(s).await;
-        } else {
-            client = None;
         }
     }
 }
@@ -164,10 +88,7 @@ async fn task(
         let work_item = match work_receiver.recv().await {
             Ok(w) => w,
             Err(_) => {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    "channel closed",
-                ));
+                return Err(std::io::Error::other("channel closed"));
             }
         };
 
@@ -176,12 +97,10 @@ async fn task(
         match &work_item {
             ClientWorkItemKind::Request { request, .. } => match request {
                 ClientRequest::Get(r) => {
-                    let request = MomentoRequestBuilder::get(
-                        &endpoint,
-                        cache,
-                        std::str::from_utf8(&r.key).unwrap(),
-                    )
-                    .build(&token);
+                    let key = std::str::from_utf8(&r.key).unwrap();
+                    let uri = format!("/cache/{cache}?key={key}");
+                    let request =
+                        MomentoHttpRequestBuilder::new(&endpoint, Method::GET, &uri).build(&token);
 
                     let start = Instant::now();
 
@@ -284,13 +203,11 @@ async fn task(
                     }
                 }
                 ClientRequest::Set(r) => {
-                    let request = MomentoRequestBuilder::set(
-                        &endpoint,
-                        cache,
-                        std::str::from_utf8(&r.key).unwrap(),
-                        r.ttl.unwrap_or_else(|| Duration::from_secs(900)),
-                    )
-                    .build(&token);
+                    let key = std::str::from_utf8(&r.key).unwrap();
+                    let ttl = r.ttl.unwrap_or_else(|| Duration::from_secs(900));
+                    let uri = format!("/cache/{cache}?key={key}&ttl_seconds={}", ttl.as_secs());
+                    let request =
+                        MomentoHttpRequestBuilder::new(&endpoint, Method::PUT, &uri).build(&token);
 
                     let start = Instant::now();
 
@@ -387,12 +304,10 @@ async fn task(
                     }
                 }
                 ClientRequest::Delete(r) => {
-                    let request = MomentoRequestBuilder::delete(
-                        &endpoint,
-                        cache,
-                        std::str::from_utf8(&r.key).unwrap(),
-                    )
-                    .build(&token);
+                    let key = std::str::from_utf8(&r.key).unwrap();
+                    let uri = format!("/cache/{cache}?key={key}");
+                    let request = MomentoHttpRequestBuilder::new(&endpoint, Method::DELETE, &uri)
+                        .build(&token);
 
                     let start = Instant::now();
 
@@ -503,41 +418,4 @@ async fn task(
     }
 
     Ok(())
-}
-
-pub struct MomentoRequestBuilder {
-    inner: http::request::Builder,
-}
-
-impl MomentoRequestBuilder {
-    fn new(endpoint: &str, method: Method, relative_uri: &str) -> Self {
-        let inner = http::request::Builder::new()
-            .version(Version::HTTP_2)
-            .method(method)
-            .uri(format!("https://{endpoint}{relative_uri}"));
-
-        Self { inner }
-    }
-
-    pub fn build(self, token: &str) -> http::Request<()> {
-        self.inner.header("authorization", token).body(()).unwrap()
-    }
-
-    pub fn delete(endpoint: &str, cache: &str, key: &str) -> Self {
-        let uri = format!("/cache/{cache}?key={key}");
-
-        Self::new(endpoint, Method::DELETE, &uri)
-    }
-
-    pub fn get(endpoint: &str, cache: &str, key: &str) -> Self {
-        let uri = format!("/cache/{cache}?key={key}");
-
-        Self::new(endpoint, Method::GET, &uri)
-    }
-
-    pub fn set(endpoint: &str, cache: &str, key: &str, ttl: Duration) -> Self {
-        let uri = format!("/cache/{cache}?key={key}&ttl_seconds={}", ttl.as_secs());
-
-        Self::new(endpoint, Method::PUT, &uri)
-    }
 }

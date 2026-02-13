@@ -15,7 +15,7 @@ use ahash::RandomState;
 use async_channel::Receiver;
 use tokio::runtime::Runtime;
 
-use std::io::{Error, ErrorKind, Result};
+use std::io::{Error, Result};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 mod blabber;

@@ -2,6 +2,7 @@ use momento::MomentoError;
 use momento::MomentoErrorCode;
 
 pub mod common;
+pub mod h2_pool;
 
 pub mod cache;
 pub mod leaderboard;
@@ -24,8 +25,8 @@ pub enum ResponseError {
 impl From<MomentoError> for ResponseError {
     fn from(other: MomentoError) -> Self {
         match other.error_code {
-            MomentoErrorCode::LimitExceededError { .. } => ResponseError::Ratelimited,
-            MomentoErrorCode::TimeoutError { .. } => ResponseError::BackendTimeout,
+            MomentoErrorCode::LimitExceededError => ResponseError::Ratelimited,
+            MomentoErrorCode::TimeoutError => ResponseError::BackendTimeout,
             _ => ResponseError::Exception,
         }
     }

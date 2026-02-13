@@ -83,7 +83,7 @@ async fn task(
         let work_item = work_receiver
             .recv()
             .await
-            .map_err(|_| Error::new(ErrorKind::Other, "channel closed"))?;
+            .map_err(|_| Error::other("channel closed"))?;
 
         REQUEST.increment();
 

@@ -12,6 +12,7 @@ use async_channel::Receiver;
 use tokio::runtime::Runtime;
 use workload::{ClientWorkItemKind, StoreClientRequest};
 
+mod momento_objectstore;
 mod s3;
 
 pub fn launch(
@@ -35,6 +36,9 @@ pub fn launch(
 
     match config.general().protocol() {
         Protocol::S3 => s3::launch_tasks(&mut client_rt, config.clone(), work_receiver),
+        Protocol::MomentoObjectstore => {
+            momento_objectstore::launch_tasks(&mut client_rt, config.clone(), work_receiver)
+        }
         protocol => {
             eprintln!(
                 "store commands are not supported for the {:?} protocol",

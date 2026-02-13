@@ -78,15 +78,15 @@ macro_rules! record_result {
         paste! {
             match $result {
 		        Ok(Ok(_)) => {
-		            crate::metrics::[<$ok>].increment();
+		            $crate::metrics::[<$ok>].increment();
 		            Ok(())
 		        }
 		        Ok(Err(e)) => {
-		            crate::metrics::[<$command _EX>].increment();
+		            $crate::metrics::[<$command _EX>].increment();
 		            Err(e.into())
 		        }
 		        Err(_) => {
-		            crate::metrics::[<$command _TIMEOUT>].increment();
+		            $crate::metrics::[<$command _TIMEOUT>].increment();
 		            Err(ResponseError::Timeout)
 		        }
 		    }

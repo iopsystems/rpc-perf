@@ -1,5 +1,6 @@
 use bytes::Bytes;
 use std::sync::Arc;
+use std::time::Duration;
 
 #[derive(Debug, PartialEq)]
 pub struct Get {
@@ -17,6 +18,7 @@ pub struct Put {
     /// a `String` type.
     pub key: Arc<String>,
     pub value: Bytes,
+    pub ttl: Option<Duration>,
 }
 
 #[allow(dead_code)]

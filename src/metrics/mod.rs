@@ -657,11 +657,27 @@ pub static STORE_RESPONSE_LATENCY_HISTOGRAM: &str = "store_response_latency";
 
 #[metric(
     name = STORE_RESPONSE_TTFB_HISTOGRAM,
-    description = "Distribution of storage client response time-to-first-byte for read operations",
+    description = "Distribution of storage client response time-to-first-byte for GET requests",
     metadata = { unit = "nanoseconds" }
 )]
 pub static STORE_RESPONSE_TTFB: AtomicHistogram = AtomicHistogram::new(7, 64);
 pub static STORE_RESPONSE_TTFB_HISTOGRAM: &str = "store_response_ttfb";
+
+#[metric(
+    name = STORE_GET_RESPONSE_LATENCY_HISTOGRAM,
+    description = "Distribution of storage client response latencies for GET requests",
+    metadata = { unit = "nanoseconds" }
+)]
+pub static STORE_GET_RESPONSE_LATENCY: AtomicHistogram = AtomicHistogram::new(7, 64);
+pub static STORE_GET_RESPONSE_LATENCY_HISTOGRAM: &str = "store_get_response_latency";
+
+#[metric(
+    name = STORE_PUT_RESPONSE_LATENCY_HISTOGRAM,
+    description = "Distribution of storage client response latencies for PUT requests",
+    metadata = { unit = "nanoseconds" }
+)]
+pub static STORE_PUT_RESPONSE_LATENCY: AtomicHistogram = AtomicHistogram::new(7, 64);
+pub static STORE_PUT_RESPONSE_LATENCY_HISTOGRAM: &str = "store_put_response_latency";
 
 counter!(STORE_CONNECT, "store_client/connect/total");
 counter!(STORE_CONNECT_OK, "store_client/connect/ok");

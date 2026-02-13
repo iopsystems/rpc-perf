@@ -12,7 +12,6 @@ use http::Method;
 use http::Version;
 use rustls::pki_types::CertificateDer;
 use std::io::Error;
-use std::io::ErrorKind;
 use std::time::Instant;
 use tokio::runtime::Runtime;
 
@@ -56,11 +55,11 @@ pub fn launch_tasks(
 async fn resolve(uri: &str) -> Result<(std::net::SocketAddr, Authority), std::io::Error> {
     let uri = uri
         .parse::<http::Uri>()
-        .map_err(|_| Error::new(ErrorKind::Other, "failed to parse uri"))?;
+        .map_err(|_| Error::other("failed to parse uri"))?;
 
     let auth = uri
         .authority()
-        .ok_or(Error::new(ErrorKind::Other, "uri has no authority"))?
+        .ok_or(Error::other("uri has no authority"))?
         .clone();
 
     let port = auth.port_u16().unwrap_or(443);
@@ -68,7 +67,7 @@ async fn resolve(uri: &str) -> Result<(std::net::SocketAddr, Authority), std::io
     let addr = tokio::net::lookup_host((auth.host(), port))
         .await?
         .next()
-        .ok_or(Error::new(ErrorKind::Other, "dns found no addresses"))?;
+        .ok_or(Error::other("dns found no addresses"))?;
 
     Ok((addr, auth))
 }
@@ -185,11 +184,11 @@ async fn task(
 ) -> Result<(), std::io::Error> {
     let uri = endpoint
         .parse::<http::Uri>()
-        .map_err(|_| Error::new(ErrorKind::Other, "failed to parse uri"))?;
+        .map_err(|_| Error::other("failed to parse uri"))?;
 
     let auth = uri
         .authority()
-        .ok_or(Error::new(ErrorKind::Other, "uri has no authority"))?
+        .ok_or(Error::other("uri has no authority"))?
         .clone();
 
     let _port = auth.port_u16().unwrap_or(443);
@@ -206,7 +205,7 @@ async fn task(
         let work_item = work_receiver
             .recv()
             .await
-            .map_err(|_| Error::new(ErrorKind::Other, "channel closed"))?;
+            .map_err(|_| Error::other("channel closed"))?;
 
         REQUEST.increment();
 
@@ -231,7 +230,7 @@ async fn task(
         let request = http::request::Builder::new()
             .version(Version::HTTP_3)
             .method(Method::POST)
-            .uri(&format!("https://{auth}/pingpong.Ping/Ping"))
+            .uri(format!("https://{auth}/pingpong.Ping/Ping"))
             .header("content-type", "application/grpc")
             .header("date", date)
             .header("user-agent", "unknown/0.0.0")
