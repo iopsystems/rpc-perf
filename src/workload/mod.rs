@@ -569,7 +569,9 @@ pub enum Component {
 #[derive(Clone)]
 pub struct Topics {
     topics: Vec<Arc<String>>,
+    #[allow(dead_code)]
     partitions: usize,
+    #[allow(dead_code)]
     replications: usize,
     topic_dist: Distribution,
     key_len: usize,
@@ -651,10 +653,12 @@ impl Topics {
         &self.topics
     }
 
+    #[allow(dead_code)]
     pub fn partitions(&self) -> usize {
         self.partitions
     }
 
+    #[allow(dead_code)]
     pub fn replications(&self) -> usize {
         self.replications
     }
@@ -1142,7 +1146,7 @@ impl Leaderboard {
     pub fn generate_elements(&self, num_elements: usize, rng: &mut dyn RngCore) -> Vec<(u32, f64)> {
         let ids = self.sample_ids(num_elements, rng);
 
-        ids.into_iter()
+        ids.iter()
             .map(|id| (*id, self.generate_score(rng)))
             .collect()
     }
@@ -1314,9 +1318,7 @@ fn estimate_random_bytes_needed(length: usize, compression_ratio: f64) -> usize 
 
     for idx in 0..m.len() {
         // zero all bytes
-        for b in &mut m {
-            *b = 0
-        }
+        m.fill(0);
 
         // fill first N bytes with pseudorandom data
         rng.fill_bytes(&mut m[0..idx]);

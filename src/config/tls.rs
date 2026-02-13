@@ -7,6 +7,7 @@ fn default_true() -> bool {
 #[derive(Clone, Deserialize)]
 pub struct Tls {
     private_key: Option<String>,
+    #[allow(dead_code)]
     private_key_password: Option<String>,
     certificate: Option<String>,
     certificate_chain: Option<String>,
@@ -36,6 +37,7 @@ impl Tls {
         self.private_key.as_deref()
     }
 
+    #[allow(dead_code)]
     pub fn private_key_password(&self) -> Option<&str> {
         self.private_key_password.as_deref()
     }

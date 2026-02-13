@@ -132,31 +132,34 @@ impl Connector {
         }
 
         // mTLS configuration
-        if private_key.is_some() && (certificate.is_some() || certificate_chain.is_some()) {
-            ssl_connector
-                .set_private_key_file(private_key.unwrap(), openssl::ssl::SslFiletype::PEM)?;
+        if let Some(key) = private_key {
+            if certificate.is_some() || certificate_chain.is_some() {
+                ssl_connector
+                    .set_private_key_file(key, openssl::ssl::SslFiletype::PEM)?;
 
-            match (certificate, certificate_chain) {
-                (Some(cert), Some(chain)) => {
-                    // assume cert is just a leaf and that we need to append the
-                    // certs in the chain file after loading the leaf cert
+                match (certificate, certificate_chain) {
+                    (Some(cert), Some(chain)) => {
+                        // assume cert is just a leaf and that we need to append the
+                        // certs in the chain file after loading the leaf cert
 
-                    ssl_connector.set_certificate_file(cert, openssl::ssl::SslFiletype::PEM)?;
-                    let pem = std::fs::read(chain)?;
-                    let chain = openssl::x509::X509::stack_from_pem(&pem)?;
-                    for cert in chain {
-                        ssl_connector.add_extra_chain_cert(cert)?;
+                        ssl_connector
+                            .set_certificate_file(cert, openssl::ssl::SslFiletype::PEM)?;
+                        let pem = std::fs::read(chain)?;
+                        let chain = openssl::x509::X509::stack_from_pem(&pem)?;
+                        for cert in chain {
+                            ssl_connector.add_extra_chain_cert(cert)?;
+                        }
                     }
+                    (Some(cert), None) => {
+                        // treat cert file like it's a chain for convenience
+                        ssl_connector.set_certificate_chain_file(cert)?;
+                    }
+                    (None, Some(chain)) => {
+                        // load all certs from chain
+                        ssl_connector.set_certificate_chain_file(chain)?;
+                    }
+                    (None, None) => unreachable!(),
                 }
-                (Some(cert), None) => {
-                    // treat cert file like it's a chain for convenience
-                    ssl_connector.set_certificate_chain_file(cert)?;
-                }
-                (None, Some(chain)) => {
-                    // load all certs from chain
-                    ssl_connector.set_certificate_chain_file(chain)?;
-                }
-                (None, None) => unreachable!(),
             }
         }
 
@@ -226,8 +229,7 @@ impl Connector {
                     }),
                     Err(e) => match e.io_error() {
                         Some(e) => Err(std::io::Error::new(e.kind(), e.to_string())),
-                        None => Err(std::io::Error::new(
-                            std::io::ErrorKind::Other,
+                        None => Err(std::io::Error::other(
                             e.to_string(),
                         )),
                     },

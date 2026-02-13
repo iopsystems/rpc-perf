@@ -257,16 +257,13 @@ impl Oltp {
 
 #[derive(Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum Distribution {
+    #[default]
     Uniform,
     Zipf,
 }
 
-impl Default for Distribution {
-    fn default() -> Self {
-        Self::Uniform
-    }
-}
 
 #[derive(Clone, Deserialize)]
 pub struct Keyspace {

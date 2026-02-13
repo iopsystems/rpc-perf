@@ -88,8 +88,7 @@ async fn task(
         let work_item = match work_receiver.recv().await {
             Ok(w) => w,
             Err(_) => {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::Other,
+                return Err(std::io::Error::other(
                     "channel closed",
                 ));
             }

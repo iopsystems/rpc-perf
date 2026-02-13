@@ -15,6 +15,7 @@ pub struct Storage {
     concurrency: usize,
     /// Request timeout in milliseconds.
     #[serde(default)]
+    #[allow(dead_code)]
     request_timeout: Option<u64>,
 }
 
@@ -31,6 +32,7 @@ impl Storage {
         std::cmp::max(1, self.concurrency)
     }
 
+    #[allow(dead_code)]
     pub fn request_timeout(&self) -> Option<Duration> {
         self.request_timeout.map(Duration::from_millis)
     }
