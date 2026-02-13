@@ -251,7 +251,7 @@ async fn task(
                         STORE_REQUEST_OK.increment();
 
                         match status {
-                            200 => {
+                            204 => {
                                 STORE_PUT_OK.increment();
                                 STORE_PUT_STORED.increment();
 
