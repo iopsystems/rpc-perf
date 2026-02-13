@@ -151,10 +151,9 @@ async fn task(
                                     STORE_RESPONSE_OK.increment();
                                     STORE_RESPONSE_FOUND.increment();
 
-                                    let _ = STORE_RESPONSE_LATENCY
-                                        .increment(latency.as_nanos() as _);
                                     let _ =
-                                        STORE_RESPONSE_TTFB.increment(ttfb.as_nanos() as _);
+                                        STORE_RESPONSE_LATENCY.increment(latency.as_nanos() as _);
+                                    let _ = STORE_RESPONSE_TTFB.increment(ttfb.as_nanos() as _);
                                 }
                                 404 => {
                                     STORE_GET_OK.increment();
@@ -163,10 +162,9 @@ async fn task(
                                     STORE_RESPONSE_OK.increment();
                                     STORE_RESPONSE_NOT_FOUND.increment();
 
-                                    let _ = STORE_RESPONSE_LATENCY
-                                        .increment(latency.as_nanos() as _);
                                     let _ =
-                                        STORE_RESPONSE_TTFB.increment(ttfb.as_nanos() as _);
+                                        STORE_RESPONSE_LATENCY.increment(latency.as_nanos() as _);
+                                    let _ = STORE_RESPONSE_TTFB.increment(ttfb.as_nanos() as _);
                                 }
                                 429 => {
                                     STORE_GET_EX.increment();
@@ -185,12 +183,8 @@ async fn task(
                 }
                 StoreClientRequest::Put(r) => {
                     let key = &*r.key;
-                    let ttl_seconds = r
-                        .ttl
-                        .map(|d| d.as_secs())
-                        .unwrap_or(3600);
-                    let uri =
-                        format!("/objectstore/{store}/{key}?ttl_seconds={ttl_seconds}");
+                    let ttl_seconds = r.ttl.map(|d| d.as_secs()).unwrap_or(3600);
+                    let uri = format!("/objectstore/{store}/{key}?ttl_seconds={ttl_seconds}");
                     let request =
                         MomentoHttpRequestBuilder::new(&endpoint, Method::PUT, &uri).build(&token);
 
@@ -263,8 +257,7 @@ async fn task(
 
                                 STORE_RESPONSE_OK.increment();
 
-                                let _ =
-                                    STORE_RESPONSE_LATENCY.increment(latency.as_nanos() as _);
+                                let _ = STORE_RESPONSE_LATENCY.increment(latency.as_nanos() as _);
                                 let _ = STORE_RESPONSE_TTFB.increment(ttfb.as_nanos() as _);
                             }
                             429 => {
@@ -336,10 +329,9 @@ async fn task(
 
                                     STORE_RESPONSE_OK.increment();
 
-                                    let _ = STORE_RESPONSE_LATENCY
-                                        .increment(latency.as_nanos() as _);
                                     let _ =
-                                        STORE_RESPONSE_TTFB.increment(ttfb.as_nanos() as _);
+                                        STORE_RESPONSE_LATENCY.increment(latency.as_nanos() as _);
+                                    let _ = STORE_RESPONSE_TTFB.increment(ttfb.as_nanos() as _);
                                 }
                                 429 => {
                                     STORE_DELETE_EX.increment();

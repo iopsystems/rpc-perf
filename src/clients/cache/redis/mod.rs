@@ -246,17 +246,25 @@ async fn execute_request(
             ClientRequest::SetRemove(r) => set_remove(&mut con, &config, r).await,
             ClientRequest::SortedSetAdd(r) => sorted_set_add(&mut con, &config, r).await,
             ClientRequest::SortedSetRange(r) => sorted_set_range(&mut con, &config, r).await,
-            ClientRequest::SortedSetIncrement(r) => sorted_set_increment(&mut con, &config, r).await,
+            ClientRequest::SortedSetIncrement(r) => {
+                sorted_set_increment(&mut con, &config, r).await
+            }
             ClientRequest::SortedSetRemove(r) => sorted_set_remove(&mut con, &config, r).await,
             ClientRequest::SortedSetScore(r) => sorted_set_score(&mut con, &config, r).await,
             ClientRequest::SortedSetRank(r) => sorted_set_rank(&mut con, &config, r).await,
             _ => {
                 REQUEST_UNSUPPORTED.increment();
-                return RequestResult::Ok { latency_ns: 0, latency_histograms: vec![] };
+                return RequestResult::Ok {
+                    latency_ns: 0,
+                    latency_histograms: vec![],
+                };
             }
         },
         ClientWorkItemKind::Reconnect => {
-            return RequestResult::Ok { latency_ns: 0, latency_histograms: vec![] };
+            return RequestResult::Ok {
+                latency_ns: 0,
+                latency_histograms: vec![],
+            };
         }
     };
 
@@ -264,10 +272,19 @@ async fn execute_request(
     let latency_ns = start.elapsed().as_nanos() as u64;
 
     match result {
-        Ok(_) => RequestResult::Ok { latency_ns, latency_histograms },
+        Ok(_) => RequestResult::Ok {
+            latency_ns,
+            latency_histograms,
+        },
         Err(ResponseError::Exception) => RequestResult::Exception,
         Err(ResponseError::Timeout) => RequestResult::Timeout,
-        Err(ResponseError::Ratelimited) => RequestResult::Ratelimited { latency_ns, latency_histograms },
-        Err(ResponseError::BackendTimeout) => RequestResult::BackendTimeout { latency_ns, latency_histograms },
+        Err(ResponseError::Ratelimited) => RequestResult::Ratelimited {
+            latency_ns,
+            latency_histograms,
+        },
+        Err(ResponseError::BackendTimeout) => RequestResult::BackendTimeout {
+            latency_ns,
+            latency_histograms,
+        },
     }
 }
