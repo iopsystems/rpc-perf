@@ -293,6 +293,8 @@ fn store_stats(snapshot: &mut MetricsSnapshot) {
     let connect_sr = 100.0 * connect_ok / connect_total;
 
     let response_latency = snapshot.percentiles(STORE_RESPONSE_LATENCY_HISTOGRAM);
+    let store_get_response_latency = snapshot.percentiles(STORE_GET_RESPONSE_LATENCY_HISTOGRAM);
+    let store_put_response_latency = snapshot.percentiles(STORE_PUT_RESPONSE_LATENCY_HISTOGRAM);
     let response_ttfb = snapshot.percentiles(STORE_RESPONSE_TTFB_HISTOGRAM);
 
     output!(
@@ -351,7 +353,25 @@ fn store_stats(snapshot: &mut MetricsSnapshot) {
 
     output!("{latencies}");
 
-    let mut latencies = "Store Client Time-to-First-Byte (us):".to_owned();
+    let mut store_put_latencies = "Store Client PUT Response Latency (us):".to_owned();
+
+    for (label, _percentile, nanoseconds) in store_put_response_latency {
+        let microseconds = nanoseconds / 1000;
+        store_put_latencies.push_str(&format!(" {label}: {microseconds}"))
+    }
+
+    output!("{store_put_latencies}");
+
+    let mut store_get_latencies = "Store Client GET Response Latency (us):".to_owned();
+
+    for (label, _percentile, nanoseconds) in store_get_response_latency {
+        let microseconds = nanoseconds / 1000;
+        store_get_latencies.push_str(&format!(" {label}: {microseconds}"))
+    }
+
+    output!("{store_get_latencies}");
+
+    let mut latencies = "Store Client GET Time-to-First-Byte (us):".to_owned();
 
     for (label, _percentile, nanoseconds) in response_ttfb {
         let microseconds = nanoseconds / 1000;

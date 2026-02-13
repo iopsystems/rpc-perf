@@ -153,6 +153,8 @@ async fn task(
 
                                     let _ =
                                         STORE_RESPONSE_LATENCY.increment(latency.as_nanos() as _);
+                                    let _ =
+                                        STORE_GET_RESPONSE_LATENCY.increment(latency.as_nanos() as _);
                                     let _ = STORE_RESPONSE_TTFB.increment(ttfb.as_nanos() as _);
                                 }
                                 404 => {
@@ -164,6 +166,8 @@ async fn task(
 
                                     let _ =
                                         STORE_RESPONSE_LATENCY.increment(latency.as_nanos() as _);
+                                    let _ =
+                                        STORE_GET_RESPONSE_LATENCY.increment(latency.as_nanos() as _);
                                     let _ = STORE_RESPONSE_TTFB.increment(ttfb.as_nanos() as _);
                                 }
                                 429 => {
@@ -226,8 +230,6 @@ async fn task(
                             continue;
                         }
 
-                        let ttfb = start.elapsed();
-
                         let mut response = response.unwrap();
                         let body = response.body_mut();
 
@@ -258,7 +260,7 @@ async fn task(
                                 STORE_RESPONSE_OK.increment();
 
                                 let _ = STORE_RESPONSE_LATENCY.increment(latency.as_nanos() as _);
-                                let _ = STORE_RESPONSE_TTFB.increment(ttfb.as_nanos() as _);
+                                let _ = STORE_PUT_RESPONSE_LATENCY.increment(latency.as_nanos() as _);
                             }
                             429 => {
                                 STORE_PUT_EX.increment();
@@ -268,83 +270,6 @@ async fn task(
                                 STORE_PUT_EX.increment();
                                 STORE_RESPONSE_EX.increment();
                             }
-                        }
-                    }
-                }
-                StoreClientRequest::Delete(r) => {
-                    let key = &*r.key;
-                    let uri = format!("/objectstore/{store}/{key}");
-                    let request = MomentoHttpRequestBuilder::new(&endpoint, Method::DELETE, &uri)
-                        .build(&token);
-
-                    let start = Instant::now();
-
-                    match sender.send_request(request, true) {
-                        Ok((response, _)) => {
-                            let response = response.await;
-
-                            let mut response = match response {
-                                Ok(r) => r,
-                                Err(_e) => {
-                                    STORE_DELETE_EX.increment();
-                                    STORE_RESPONSE_EX.increment();
-                                    continue;
-                                }
-                            };
-
-                            let ttfb = start.elapsed();
-                            let status = response.status().as_u16();
-
-                            // drain the response body
-                            let body = response.body_mut();
-
-                            if !body.is_end_stream() {
-                                let mut flow_control = body.flow_control().clone();
-
-                                let used = flow_control.used_capacity();
-                                if flow_control.release_capacity(used).is_err() {
-                                    STORE_DELETE_EX.increment();
-                                    STORE_RESPONSE_EX.increment();
-                                    continue;
-                                }
-
-                                while let Some(chunk) = body.data().await {
-                                    if chunk.is_err() {
-                                        STORE_DELETE_EX.increment();
-                                        STORE_RESPONSE_EX.increment();
-                                        continue;
-                                    }
-
-                                    let _ = flow_control.release_capacity(chunk.unwrap().len());
-                                }
-                            }
-
-                            let latency = start.elapsed();
-
-                            STORE_REQUEST_OK.increment();
-
-                            match status {
-                                204 => {
-                                    STORE_DELETE_OK.increment();
-
-                                    STORE_RESPONSE_OK.increment();
-
-                                    let _ =
-                                        STORE_RESPONSE_LATENCY.increment(latency.as_nanos() as _);
-                                    let _ = STORE_RESPONSE_TTFB.increment(ttfb.as_nanos() as _);
-                                }
-                                429 => {
-                                    STORE_DELETE_EX.increment();
-                                    STORE_RESPONSE_RATELIMITED.increment();
-                                }
-                                _ => {
-                                    STORE_DELETE_EX.increment();
-                                    STORE_RESPONSE_EX.increment();
-                                }
-                            }
-                        }
-                        Err(_) => {
-                            continue;
                         }
                     }
                 }
