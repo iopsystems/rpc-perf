@@ -153,8 +153,8 @@ async fn task(
 
                                     let _ =
                                         STORE_RESPONSE_LATENCY.increment(latency.as_nanos() as _);
-                                    let _ =
-                                        STORE_GET_RESPONSE_LATENCY.increment(latency.as_nanos() as _);
+                                    let _ = STORE_GET_RESPONSE_LATENCY
+                                        .increment(latency.as_nanos() as _);
                                     let _ = STORE_RESPONSE_TTFB.increment(ttfb.as_nanos() as _);
                                 }
                                 404 => {
@@ -166,8 +166,8 @@ async fn task(
 
                                     let _ =
                                         STORE_RESPONSE_LATENCY.increment(latency.as_nanos() as _);
-                                    let _ =
-                                        STORE_GET_RESPONSE_LATENCY.increment(latency.as_nanos() as _);
+                                    let _ = STORE_GET_RESPONSE_LATENCY
+                                        .increment(latency.as_nanos() as _);
                                     let _ = STORE_RESPONSE_TTFB.increment(ttfb.as_nanos() as _);
                                 }
                                 429 => {
@@ -260,7 +260,8 @@ async fn task(
                                 STORE_RESPONSE_OK.increment();
 
                                 let _ = STORE_RESPONSE_LATENCY.increment(latency.as_nanos() as _);
-                                let _ = STORE_PUT_RESPONSE_LATENCY.increment(latency.as_nanos() as _);
+                                let _ =
+                                    STORE_PUT_RESPONSE_LATENCY.increment(latency.as_nanos() as _);
                             }
                             429 => {
                                 STORE_PUT_EX.increment();
