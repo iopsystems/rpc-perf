@@ -134,16 +134,14 @@ impl Connector {
         // mTLS configuration
         if let Some(key) = private_key {
             if certificate.is_some() || certificate_chain.is_some() {
-                ssl_connector
-                    .set_private_key_file(key, openssl::ssl::SslFiletype::PEM)?;
+                ssl_connector.set_private_key_file(key, openssl::ssl::SslFiletype::PEM)?;
 
                 match (certificate, certificate_chain) {
                     (Some(cert), Some(chain)) => {
                         // assume cert is just a leaf and that we need to append the
                         // certs in the chain file after loading the leaf cert
 
-                        ssl_connector
-                            .set_certificate_file(cert, openssl::ssl::SslFiletype::PEM)?;
+                        ssl_connector.set_certificate_file(cert, openssl::ssl::SslFiletype::PEM)?;
                         let pem = std::fs::read(chain)?;
                         let chain = openssl::x509::X509::stack_from_pem(&pem)?;
                         for cert in chain {
@@ -229,9 +227,7 @@ impl Connector {
                     }),
                     Err(e) => match e.io_error() {
                         Some(e) => Err(std::io::Error::new(e.kind(), e.to_string())),
-                        None => Err(std::io::Error::other(
-                            e.to_string(),
-                        )),
+                        None => Err(std::io::Error::other(e.to_string())),
                     },
                 }
             }

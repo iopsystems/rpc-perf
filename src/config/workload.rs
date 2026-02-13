@@ -264,7 +264,6 @@ pub enum Distribution {
     Zipf,
 }
 
-
 #[derive(Clone, Deserialize)]
 pub struct Keyspace {
     #[serde(default)]
