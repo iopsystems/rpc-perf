@@ -362,6 +362,11 @@ impl Generator {
             Verb::Get => ClientRequest::Get(client::Get {
                 key: keyspace.sample(rng),
             }),
+            Verb::GetBatch => ClientRequest::GetBatch(client::GetBatch {
+                keys: (0..command.cardinality())
+                    .map(|_| keyspace.sample(rng))
+                    .collect(),
+            }),
             Verb::Set => ClientRequest::Set(client::Set {
                 key: keyspace.sample(rng),
                 value: keyspace.gen_value(sequence as _, rng),

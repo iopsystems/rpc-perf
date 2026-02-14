@@ -146,7 +146,7 @@ commands = [
 	{ verb = "dictionary_set", weight = 5, cardinality = 5 },
 
 	# delete an entire dictionary
-	{ verb = "delete", weight = 5 }
+	{ verb = "delete", weight = 5 },
 ]
 
 # An example keyspace showcasing the use of the `list` family of commands.
@@ -277,13 +277,45 @@ commands = [
 	{ verb = "set_add_element", weight = 5, cardinality = 5 },
 
 	# retrieve all elements in the set
-	{ verb = "set_fetch", weight = 20},
+	{ verb = "set_fetch", weight = 20 },
 
 	# remove an element from the set
-	{ verb = "set_remove_element", weight = 5},
+	{ verb = "set_remove_element", weight = 5 },
 	# set the cardinality > 1 to remove multiple elements
 	{ verb = "set_remove_element", weight = 5, cardinality = 5 },
 
 	# remove an entire set with delete
-	{ verb = "delete", weight = 5 }
+	{ verb = "delete", weight = 5 },
+]
+
+# An example keyspace showcasing the use of the get-batch command.
+#
+# Note that we can constrain the number of keys in the keyspace and specify that
+# the generated values are random bytes with 128B values.
+[[workload.keyspace]]
+# sets the relative weight of this keyspace: defaults to 1
+weight = 1
+# sets the length of the key, in bytes
+klen = 32
+# sets the number of keys that will be generated
+nkeys = 1_000_000
+# sets the value length, in bytes
+vlen = 128
+# optionally, specify an approximate compression ratio for the value payload.
+# Defaults to 1.0 meaning the message is high-entropy and not compressible.
+compression_ratio = 1.0
+# use random bytes for the values
+vkind = "bytes"
+# override the default ttl for this keyspace setting it to 15 minutes
+ttl = "15m"
+# controls what commands will be used in this keyspace
+commands = [
+	# 65% of get batch requests consist of 6 items
+	{ verb = "get_batch", weight = 65, cardinality = 6 },
+	# 30% of get batch requests consist of 20 items
+	{ verb = "get_batch", weight = 30, cardinality = 20 },
+	# 4% of get batch requests consist of 50 items
+	{ verb = "get_batch", weight = 4, cardinality = 50 },
+	# 1% of get batch requests consist of 200 items
+	{ verb = "get_batch", weight = 1, cardinality = 200 },
 ]
