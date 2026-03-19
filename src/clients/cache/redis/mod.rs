@@ -9,6 +9,7 @@ use futures::stream::FuturesUnordered;
 use futures::StreamExt;
 use std::borrow::Borrow;
 use std::net::SocketAddr;
+use std::sync::Arc;
 
 mod commands;
 
@@ -87,17 +88,17 @@ pub async fn pool_manager(endpoint: String, _config: Config, queue: Queue<Multip
 enum RequestResult {
     Ok {
         latency_ns: u64,
-        latency_histograms: Vec<&'static metriken::AtomicHistogram>,
+        extra_histogram: Option<&'static metriken::AtomicHistogram>,
     },
     Exception,
     Timeout,
     Ratelimited {
         latency_ns: u64,
-        latency_histograms: Vec<&'static metriken::AtomicHistogram>,
+        extra_histogram: Option<&'static metriken::AtomicHistogram>,
     },
     BackendTimeout {
         latency_ns: u64,
-        latency_histograms: Vec<&'static metriken::AtomicHistogram>,
+        extra_histogram: Option<&'static metriken::AtomicHistogram>,
     },
 }
 
@@ -109,6 +110,7 @@ async fn task(
     queue: Queue<MultiplexedConnection>,
 ) {
     let concurrency_limit = config.client().unwrap().concurrency();
+    let config = Arc::new(config);
 
     while RUNNING.load(Ordering::Relaxed) {
         // Get a connection from the pool manager
@@ -130,7 +132,7 @@ async fn task(
 async fn run_pipelined(
     work_receiver: &Receiver<ClientWorkItemKind<ClientRequest>>,
     connection: MultiplexedConnection,
-    config: &Config,
+    config: &Arc<Config>,
     concurrency_limit: usize,
 ) {
     let mut in_flight: FuturesUnordered<_> = FuturesUnordered::new();
@@ -150,9 +152,10 @@ async fn run_pipelined(
                 }
             } => {
                 match result {
-                    Some(RequestResult::Ok { latency_ns, latency_histograms }) => {
+                    Some(RequestResult::Ok { latency_ns, extra_histogram }) => {
                         RESPONSE_OK.increment();
-                        for hist in latency_histograms {
+                        let _ = RESPONSE_LATENCY.increment(latency_ns);
+                        if let Some(hist) = extra_histogram {
                             let _ = hist.increment(latency_ns);
                         }
                     }
@@ -162,15 +165,17 @@ async fn run_pipelined(
                     Some(RequestResult::Timeout) => {
                         RESPONSE_TIMEOUT.increment();
                     }
-                    Some(RequestResult::Ratelimited { latency_ns, latency_histograms }) => {
+                    Some(RequestResult::Ratelimited { latency_ns, extra_histogram }) => {
                         RESPONSE_RATELIMITED.increment();
-                        for hist in latency_histograms {
+                        let _ = RESPONSE_LATENCY.increment(latency_ns);
+                        if let Some(hist) = extra_histogram {
                             let _ = hist.increment(latency_ns);
                         }
                     }
-                    Some(RequestResult::BackendTimeout { latency_ns, latency_histograms }) => {
+                    Some(RequestResult::BackendTimeout { latency_ns, extra_histogram }) => {
                         RESPONSE_BACKEND_TIMEOUT.increment();
-                        for hist in latency_histograms {
+                        let _ = RESPONSE_LATENCY.increment(latency_ns);
+                        if let Some(hist) = extra_histogram {
                             let _ = hist.increment(latency_ns);
                         }
                     }
@@ -209,11 +214,11 @@ async fn run_pipelined(
 async fn execute_request(
     work_item: ClientWorkItemKind<ClientRequest>,
     mut con: MultiplexedConnection,
-    config: Config,
+    config: Arc<Config>,
 ) -> RequestResult {
     REQUEST.increment();
     let start = Instant::now();
-    let mut latency_histograms: Vec<&'static metriken::AtomicHistogram> = vec![&RESPONSE_LATENCY];
+    let mut extra_histogram: Option<&'static metriken::AtomicHistogram> = None;
 
     let result = match work_item {
         ClientWorkItemKind::Request { request, .. } => match request {
@@ -221,12 +226,12 @@ async fn execute_request(
             ClientRequest::Add(r) => add(&mut con, &config, r).await,
             ClientRequest::Delete(r) => delete(&mut con, &config, r).await,
             ClientRequest::Get(r) => {
-                latency_histograms.push(&KVGET_RESPONSE_LATENCY);
+                extra_histogram = Some(&KVGET_RESPONSE_LATENCY);
                 get(&mut con, &config, r).await
             }
             ClientRequest::Replace(r) => replace(&mut con, &config, r).await,
             ClientRequest::Set(r) => {
-                latency_histograms.push(&KVSET_RESPONSE_LATENCY);
+                extra_histogram = Some(&KVSET_RESPONSE_LATENCY);
                 set(&mut con, &config, r).await
             }
             ClientRequest::HashDelete(r) => hash_delete(&mut con, &config, r).await,
@@ -256,14 +261,14 @@ async fn execute_request(
                 REQUEST_UNSUPPORTED.increment();
                 return RequestResult::Ok {
                     latency_ns: 0,
-                    latency_histograms: vec![],
+                    extra_histogram: None,
                 };
             }
         },
         ClientWorkItemKind::Reconnect => {
             return RequestResult::Ok {
                 latency_ns: 0,
-                latency_histograms: vec![],
+                extra_histogram: None,
             };
         }
     };
@@ -274,17 +279,17 @@ async fn execute_request(
     match result {
         Ok(_) => RequestResult::Ok {
             latency_ns,
-            latency_histograms,
+            extra_histogram,
         },
         Err(ResponseError::Exception) => RequestResult::Exception,
         Err(ResponseError::Timeout) => RequestResult::Timeout,
         Err(ResponseError::Ratelimited) => RequestResult::Ratelimited {
             latency_ns,
-            latency_histograms,
+            extra_histogram,
         },
         Err(ResponseError::BackendTimeout) => RequestResult::BackendTimeout {
             latency_ns,
-            latency_histograms,
+            extra_histogram,
         },
     }
 }
