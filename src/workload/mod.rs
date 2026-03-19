@@ -470,9 +470,8 @@ impl Generator {
             }),
             Verb::Ping => ClientRequest::Ping(client::Ping {}),
             Verb::SetAdd => {
-                let members = sample_unique_vec(command.cardinality(), rng, |rng| {
-                    keyspace.sample_inner(rng)
-                });
+                let members =
+                    sample_unique_vec(command.cardinality(), rng, |rng| keyspace.sample_inner(rng));
                 ClientRequest::SetAdd(client::SetAdd {
                     key: keyspace.sample(rng),
                     members,
@@ -483,18 +482,16 @@ impl Generator {
                 key: keyspace.sample(rng),
             }),
             Verb::SetRemove => {
-                let members = sample_unique_vec(command.cardinality(), rng, |rng| {
-                    keyspace.sample_inner(rng)
-                });
+                let members =
+                    sample_unique_vec(command.cardinality(), rng, |rng| keyspace.sample_inner(rng));
                 ClientRequest::SetRemove(client::SetRemove {
                     key: keyspace.sample(rng),
                     members,
                 })
             }
             Verb::SortedSetAdd => {
-                let unique = sample_unique_vec(command.cardinality(), rng, |rng| {
-                    keyspace.sample_inner(rng)
-                });
+                let unique =
+                    sample_unique_vec(command.cardinality(), rng, |rng| keyspace.sample_inner(rng));
                 let members = unique.into_iter().map(|m| (m, rng.random())).collect();
                 ClientRequest::SortedSetAdd(client::SortedSetAdd {
                     key: keyspace.sample(rng),
@@ -509,9 +506,8 @@ impl Generator {
                 by_score: command.by_score(),
             }),
             Verb::SortedSetRemove => {
-                let members = sample_unique_vec(command.cardinality(), rng, |rng| {
-                    keyspace.sample_inner(rng)
-                });
+                let members =
+                    sample_unique_vec(command.cardinality(), rng, |rng| keyspace.sample_inner(rng));
                 ClientRequest::SortedSetRemove(client::SortedSetRemove {
                     key: keyspace.sample(rng),
                     members,
@@ -526,9 +522,8 @@ impl Generator {
                 })
             }
             Verb::SortedSetScore => {
-                let members = sample_unique_vec(command.cardinality(), rng, |rng| {
-                    keyspace.sample_inner(rng)
-                });
+                let members =
+                    sample_unique_vec(command.cardinality(), rng, |rng| keyspace.sample_inner(rng));
                 ClientRequest::SortedSetScore(client::SortedSetScore {
                     key: keyspace.sample(rng),
                     members,
