@@ -1,3 +1,7 @@
+#[cfg(not(target_env = "msvc"))]
+#[global_allocator]
+static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
+
 use crate::{
     replay::replay_engine::launch_replay_workload,
     workload::{launch_workload, Generator, Ratelimit},

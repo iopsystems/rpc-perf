@@ -8,6 +8,9 @@ homepage = "https://github.com/iopsystems/rpc-perf"
 repository = "https://github.com/iopsystems/rpc-perf"
 license = "MIT OR Apache-2.0"
 
+[target.'cfg(not(target_env = "msvc"))'.dependencies]
+tikv-jemallocator = "0.6"
+
 [dependencies]
 ahash = "0.8.11"
 async-channel = "2.3.1"
@@ -106,7 +109,9 @@ openssl = [
 opt-level = 3
 debug = true
 rpath = false
-lto = "thin"
+lto = true
+codegen-units = 1
+panic = "abort"
 debug-assertions = false
 
 [profile.bench]

@@ -170,15 +170,15 @@ async fn run_work_item(
 ) {
     REQUEST.increment();
     let start = Instant::now();
-    let mut latency_histograms = vec![&RESPONSE_LATENCY];
+    let extra_histogram: Option<&'static metriken::AtomicHistogram>;
     let result = match work_item {
         ClientWorkItemKind::Request { request, .. } => match request {
             ClientRequest::Get(r) => {
-                latency_histograms.push(&KVGET_RESPONSE_LATENCY);
+                extra_histogram = Some(&KVGET_RESPONSE_LATENCY);
                 protosocket_commands::get(client, config, cache_name, r).await
             }
             ClientRequest::Set(r) => {
-                latency_histograms.push(&KVSET_RESPONSE_LATENCY);
+                extra_histogram = Some(&KVSET_RESPONSE_LATENCY);
                 protosocket_commands::set(client, config, cache_name, r).await
             }
             // ClientRequest::Delete(r) => {
@@ -203,7 +203,8 @@ async fn run_work_item(
         Ok(_) => {
             RESPONSE_OK.increment();
             let latency = stop.duration_since(start).as_nanos() as u64;
-            for hist in latency_histograms {
+            let _ = RESPONSE_LATENCY.increment(latency);
+            if let Some(hist) = extra_histogram {
                 let _ = hist.increment(latency);
             }
         }

@@ -80,18 +80,18 @@ async fn task(
 
         REQUEST.increment();
         let start = Instant::now();
-        let mut latency_histograms = vec![&RESPONSE_LATENCY];
+        let mut extra_histogram: Option<&'static metriken::AtomicHistogram> = None;
         let result = match work_item {
             ClientWorkItemKind::Request { request, .. } => match request {
                 /*
                  * KEY-VALUE
                  */
                 ClientRequest::Get(r) => {
-                    latency_histograms.push(&KVGET_RESPONSE_LATENCY);
+                    extra_histogram = Some(&KVGET_RESPONSE_LATENCY);
                     get(&mut client, &config, cache_name, r).await
                 }
                 ClientRequest::Set(r) => {
-                    latency_histograms.push(&KVSET_RESPONSE_LATENCY);
+                    extra_histogram = Some(&KVSET_RESPONSE_LATENCY);
                     set(&mut client, &config, cache_name, r).await
                 }
                 ClientRequest::Delete(r) => delete(&mut client, &config, cache_name, r).await,
@@ -191,7 +191,8 @@ async fn task(
                 RESPONSE_OK.increment();
 
                 let latency = stop.duration_since(start).as_nanos() as u64;
-                for hist in latency_histograms {
+                let _ = RESPONSE_LATENCY.increment(latency);
+                if let Some(hist) = extra_histogram {
                     let _ = hist.increment(latency);
                 }
             }

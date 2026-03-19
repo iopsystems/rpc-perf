@@ -103,16 +103,11 @@ async fn task(
 
         let request = request.unwrap();
 
-        let mut latency_histograms = vec![&RESPONSE_LATENCY];
-        match &request.request {
-            Request::Get(_) => {
-                latency_histograms.push(&KVGET_RESPONSE_LATENCY);
-            }
-            Request::Set(_) => {
-                latency_histograms.push(&KVSET_RESPONSE_LATENCY);
-            }
-            _ => {}
-        }
+        let extra_histogram: Option<&'static metriken::AtomicHistogram> = match &request.request {
+            Request::Get(_) => Some(&KVGET_RESPONSE_LATENCY),
+            Request::Set(_) => Some(&KVSET_RESPONSE_LATENCY),
+            _ => None,
+        };
         // compose request
         REQUEST_OK.increment();
         let _ = protocol.compose_request(&request.request, &mut write_buffer);
@@ -184,7 +179,8 @@ async fn task(
                 } else {
                     // increment success stats and latency
                     RESPONSE_OK.increment();
-                    for hist in latency_histograms {
+                    let _ = RESPONSE_LATENCY.increment(latency_ns);
+                    if let Some(hist) = extra_histogram {
                         let _ = hist.increment(latency_ns);
                     }
                     // preserve the connection for the next request

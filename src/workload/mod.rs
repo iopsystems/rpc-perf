@@ -193,7 +193,7 @@ impl Generator {
                     break;
                 }
 
-                std::thread::sleep(std::time::Duration::from_micros(100));
+                tokio::time::sleep(std::time::Duration::from_micros(100)).await;
             }
         }
 
@@ -470,11 +470,9 @@ impl Generator {
             }),
             Verb::Ping => ClientRequest::Ping(client::Ping {}),
             Verb::SetAdd => {
-                let mut members = HashSet::new();
-                while members.len() < command.cardinality() {
-                    members.insert(keyspace.sample_inner(rng));
-                }
-                let members = members.drain().collect();
+                let members = sample_unique_vec(command.cardinality(), rng, |rng| {
+                    keyspace.sample_inner(rng)
+                });
                 ClientRequest::SetAdd(client::SetAdd {
                     key: keyspace.sample(rng),
                     members,
@@ -485,22 +483,19 @@ impl Generator {
                 key: keyspace.sample(rng),
             }),
             Verb::SetRemove => {
-                let mut members = HashSet::new();
-                while members.len() < command.cardinality() {
-                    members.insert(keyspace.sample_inner(rng));
-                }
-                let members = members.drain().collect();
+                let members = sample_unique_vec(command.cardinality(), rng, |rng| {
+                    keyspace.sample_inner(rng)
+                });
                 ClientRequest::SetRemove(client::SetRemove {
                     key: keyspace.sample(rng),
                     members,
                 })
             }
             Verb::SortedSetAdd => {
-                let mut members = HashSet::new();
-                while members.len() < command.cardinality() {
-                    members.insert(keyspace.sample_inner(rng));
-                }
-                let members = members.drain().map(|m| (m, rng.random())).collect();
+                let unique = sample_unique_vec(command.cardinality(), rng, |rng| {
+                    keyspace.sample_inner(rng)
+                });
+                let members = unique.into_iter().map(|m| (m, rng.random())).collect();
                 ClientRequest::SortedSetAdd(client::SortedSetAdd {
                     key: keyspace.sample(rng),
                     members,
@@ -514,11 +509,9 @@ impl Generator {
                 by_score: command.by_score(),
             }),
             Verb::SortedSetRemove => {
-                let mut members = HashSet::new();
-                while members.len() < command.cardinality() {
-                    members.insert(keyspace.sample_inner(rng));
-                }
-                let members = members.drain().collect();
+                let members = sample_unique_vec(command.cardinality(), rng, |rng| {
+                    keyspace.sample_inner(rng)
+                });
                 ClientRequest::SortedSetRemove(client::SortedSetRemove {
                     key: keyspace.sample(rng),
                     members,
@@ -533,11 +526,9 @@ impl Generator {
                 })
             }
             Verb::SortedSetScore => {
-                let mut members = HashSet::new();
-                while members.len() < command.cardinality() {
-                    members.insert(keyspace.sample_inner(rng));
-                }
-                let members = members.drain().collect();
+                let members = sample_unique_vec(command.cardinality(), rng, |rng| {
+                    keyspace.sample_inner(rng)
+                });
                 ClientRequest::SortedSetScore(client::SortedSetScore {
                     key: keyspace.sample(rng),
                     members,
@@ -900,7 +891,7 @@ impl Keyspace {
 
 #[derive(Clone)]
 pub struct Store {
-    keys: Vec<Arc<[u8]>>,
+    string_keys: Vec<Arc<String>>,
     key_dist: Distribution,
     commands: Vec<StoreCommand>,
     command_dist: WeightedAliasIndex<usize>,
@@ -941,7 +932,11 @@ impl Store {
                 .collect::<Vec<u8>>();
             let _ = keys.insert(key);
         }
-        let keys = keys.drain().map(|k| k.into()).collect();
+        let keys: Vec<Arc<[u8]>> = keys.drain().map(|k| k.into()).collect();
+        let string_keys: Vec<Arc<String>> = keys
+            .iter()
+            .map(|k| Arc::new(String::from_utf8_lossy(k).into_owned()))
+            .collect();
         let key_dist = match store.key_distribution() {
             config::Distribution::Uniform => Distribution::Uniform(Uniform::new(0, nkeys).unwrap()),
             config::Distribution::Zipf => Distribution::Zipf(Zipf::new(nkeys as f64, 1.0).unwrap()),
@@ -978,7 +973,7 @@ impl Store {
 
         let command_dist = WeightedAliasIndex::new(command_weights).unwrap();
         Self {
-            keys,
+            string_keys,
             key_dist,
             commands,
             command_dist,
@@ -989,14 +984,9 @@ impl Store {
         }
     }
 
-    pub fn sample(&self, rng: &mut dyn RngCore) -> Arc<[u8]> {
-        let index = self.key_dist.sample(rng);
-        self.keys[index].clone()
-    }
-
     pub fn sample_string(&self, rng: &mut dyn RngCore) -> Arc<String> {
-        let keys = self.sample(rng);
-        Arc::new(String::from_utf8_lossy(&keys).into_owned())
+        let index = self.key_dist.sample(rng);
+        self.string_keys[index].clone()
     }
 
     pub fn gen_value(&self, sequence: usize, rng: &mut dyn RngCore) -> Bytes {
@@ -1018,7 +1008,7 @@ impl Store {
 
 #[derive(Clone)]
 pub struct Leaderboard {
-    leaderboards: Vec<Arc<[u8]>>,
+    leaderboards: Vec<Arc<String>>,
     leaderboard_dist: Distribution,
     ids: Vec<Arc<u32>>,
     id_dist: Distribution,
@@ -1067,13 +1057,13 @@ impl Leaderboard {
 
         // generate leaderboards
         let mut rng = Xoshiro512PlusPlus::from_seed(leaderboard_seed);
-        let leaderboards = sample_unique(nleaderboards, &mut rng, |rng| {
+        let leaderboards: Vec<Arc<String>> = sample_unique(nleaderboards, &mut rng, |rng| {
             rng.sample_iter(&Alphanumeric)
                 .take(leadboard_len)
                 .collect::<Vec<u8>>()
         })
         .into_iter()
-        .map(|l| l.into())
+        .map(|l| Arc::new(String::from_utf8(l).expect("alphanumeric keys are valid UTF-8")))
         .collect();
         let leaderboard_dist = Distribution::Uniform(Uniform::new(0, nleaderboards).unwrap());
 
@@ -1124,7 +1114,7 @@ impl Leaderboard {
 
     pub fn sample_leaderboard(&self, rng: &mut dyn RngCore) -> Arc<String> {
         let index = self.leaderboard_dist.sample(rng);
-        Arc::new(String::from_utf8_lossy(&self.leaderboards[index]).into_owned())
+        self.leaderboards[index].clone()
     }
 
     pub fn sample_ids(&self, num_ids: usize, rng: &mut dyn RngCore) -> Arc<[u32]> {
@@ -1360,4 +1350,21 @@ where
         unique_items.insert(item);
     }
     unique_items.into_iter().collect()
+}
+
+/// Like `sample_unique` but uses a Vec for dedup, which is faster for small `n`
+/// (avoids HashSet allocation and hashing overhead for typical cardinalities of 1-16).
+fn sample_unique_vec<T, F>(n: usize, rng: &mut dyn RngCore, mut generator_fn: F) -> Vec<T>
+where
+    T: Eq,
+    F: FnMut(&mut dyn RngCore) -> T,
+{
+    let mut items = Vec::with_capacity(n);
+    while items.len() < n {
+        let item = generator_fn(rng);
+        if !items.contains(&item) {
+            items.push(item);
+        }
+    }
+    items
 }
