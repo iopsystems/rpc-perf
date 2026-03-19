@@ -71,8 +71,7 @@ pub async fn hash_set(
     // If set was successful, we may need to set an expiration. This is
     // best-effort and could fail if the connection is unreliable or a timeout
     // occurs.
-    if result.is_ok() && request.ttl.is_some() {
-        let ttl = request.ttl.unwrap();
+    if let (Ok(_), Some(ttl)) = (&result, request.ttl) {
 
         let (mut base_command, ttl) = if ttl.subsec_nanos() == 0 {
             (::redis::cmd("EXPIRE"), ttl.as_secs())
