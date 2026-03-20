@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+### Fixed
+
+- Updated `aws-lc-rs` to fix CRL Distribution Point scope check logic error
+  (RUSTSEC-2026-0048) and X.509 Name Constraints bypass via wildcard/unicode CN
+  (RUSTSEC-2026-0044).
+
 ## [5.25.0] - 2026-03-19
 
 ### Changed
