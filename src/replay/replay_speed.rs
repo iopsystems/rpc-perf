@@ -27,16 +27,10 @@ impl RateController {
     pub fn new(ratelimit: &Ratelimit) -> Self {
         let ratelimiter = ratelimit.start().map(|rate| {
             let rate = rate.get();
-            let amount = (rate as f64 / 1_000_000.0).ceil() as u64;
             RATELIMIT_CURR.set(rate as i64);
 
-            // even though we might not have nanosecond level clock resolution,
-            // by using a nanosecond level duration, we achieve more accurate
-            // ratelimits.
-            let interval = Duration::from_nanos(1_000_000_000 / (rate / amount));
-
-            Ratelimiter::builder(amount, interval)
-                .max_tokens(amount * BUCKET_CAPACITY)
+            Ratelimiter::builder(rate)
+                .max_tokens(rate * BUCKET_CAPACITY)
                 .build()
                 .expect("failed to initialize ratelimiter")
         });

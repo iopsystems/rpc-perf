@@ -233,22 +233,10 @@ pub mod handlers {
         ratelimit: Option<Arc<Ratelimiter>>,
     ) -> Result<impl warp::Reply, Infallible> {
         if let Some(r) = ratelimit {
-            let amount = (rate as f64 / 1_000_000.0).ceil() as u64;
             RATELIMIT_CURR.set(rate as i64);
 
-            // even though we might not have nanosecond level clock resolution,
-            // by using a nanosecond level duration, we achieve more accurate
-            // ratelimits.
-            let interval = Duration::from_nanos(1_000_000_000 / (rate / amount));
-
-            let capacity = std::cmp::max(100, amount);
-
-            r.set_max_tokens(capacity)
-                .expect("failed to set max tokens");
-            r.set_refill_interval(interval)
-                .expect("failed to set refill interval");
-            r.set_refill_amount(amount)
-                .expect("failed to set refill amount");
+            r.set_rate(rate);
+            r.set_max_tokens(std::cmp::max(100, rate));
 
             Ok(StatusCode::OK)
         } else {

@@ -113,17 +113,11 @@ impl Generator {
     pub fn new(config: &Config) -> Self {
         let ratelimiter = config.workload().ratelimit().start().map(|rate| {
             let rate = rate.get();
-            let amount = (rate as f64 / 1_000_000.0).ceil() as u64;
             RATELIMIT_CURR.set(rate as i64);
 
-            // even though we might not have nanosecond level clock resolution,
-            // by using a nanosecond level duration, we achieve more accurate
-            // ratelimits.
-            let interval = Duration::from_nanos(1_000_000_000 / (rate / amount));
-
             Arc::new(
-                Ratelimiter::builder(amount, interval)
-                    .max_tokens(amount * BUCKET_CAPACITY)
+                Ratelimiter::builder(rate)
+                    .max_tokens(rate * BUCKET_CAPACITY)
                     .build()
                     .expect("failed to initialize ratelimiter"),
             )
@@ -1170,17 +1164,11 @@ pub async fn reconnect<TRequestKind>(
 
     let ratelimiter = config.client().unwrap().reconnect_rate().map(|rate| {
         let rate = rate.get();
-        let amount = (rate as f64 / 1_000_000.0).ceil() as u64;
         RATELIMIT_CURR.set(rate as i64);
 
-        // even though we might not have nanosecond level clock resolution,
-        // by using a nanosecond level duration, we achieve more accurate
-        // ratelimits.
-        let interval = Duration::from_nanos(1_000_000_000 / (rate / amount));
-
         Arc::new(
-            Ratelimiter::builder(amount, interval)
-                .max_tokens(amount * BUCKET_CAPACITY)
+            Ratelimiter::builder(rate)
+                .max_tokens(rate * BUCKET_CAPACITY)
                 .build()
                 .expect("failed to initialize ratelimiter"),
         )
