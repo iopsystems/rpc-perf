@@ -72,7 +72,6 @@ pub async fn hash_set(
     // best-effort and could fail if the connection is unreliable or a timeout
     // occurs.
     if let (Ok(_), Some(ttl)) = (&result, request.ttl) {
-
         let (mut base_command, ttl) = if ttl.subsec_nanos() == 0 {
             (::redis::cmd("EXPIRE"), ttl.as_secs())
         } else {

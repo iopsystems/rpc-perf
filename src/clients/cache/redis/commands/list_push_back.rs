@@ -64,7 +64,6 @@ pub async fn list_push_back(
 
     // If successful, we may need to set an expiration. This is best-effort only
     if let (Ok(_), Some(ttl)) = (&result, request.ttl) {
-
         let (mut base_command, ttl) = if ttl.subsec_nanos() == 0 {
             (::redis::cmd("EXPIRE"), ttl.as_secs())
         } else {
