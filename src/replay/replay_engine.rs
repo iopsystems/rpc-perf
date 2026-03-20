@@ -3,7 +3,6 @@ use bytes::{Bytes, BytesMut};
 use momento::IntoBytes;
 use rand::{RngCore, SeedableRng};
 use rand_xoshiro::Xoshiro512PlusPlus;
-use ringlog::info;
 use std::{
     io::{BufRead, BufReader},
     str::FromStr,
@@ -11,6 +10,7 @@ use std::{
     time::Duration,
 };
 use tokio::runtime::{Builder, Runtime};
+use tracing::info;
 
 use crate::{
     config::{Config, Replay},

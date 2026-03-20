@@ -62,7 +62,10 @@ redis = { version = "0.23.3", features = [
     "tls-native-tls",
     "tokio-native-tls-comp",
 ] }
-ringlog = "0.8.0"
+logroller = "0.1"
+tracing = "0.1"
+tracing-appender = "0.2"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 rustls = "0.23.23"
 rustls-native-certs = "0.8.1"
 serde = { version = "1.0.218", features = ["derive"] }

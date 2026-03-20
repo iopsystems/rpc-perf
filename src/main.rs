@@ -11,13 +11,14 @@ use backtrace::Backtrace;
 use clap::{Arg, Command};
 use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use once_cell::sync::Lazy;
-use ringlog::*;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::runtime::Builder;
 use tokio::sync::RwLock;
 use tokio::time::sleep;
+
+pub use tracing::{debug, error, info, trace, warn};
 
 mod admin;
 mod clients;
@@ -81,39 +82,43 @@ fn main() {
     output!("Protocol: {:?}", config.general().protocol());
     output!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
 
-    // configure debug log
-    let debug_output: Box<dyn Output> = if let Some(file) = config.debug().log_file() {
-        let backup = config
-            .debug()
-            .log_backup()
-            .unwrap_or(format!("{}.old", file));
-        Box::new(
-            File::new(&file, &backup, config.debug().log_max_size())
-                .expect("failed to open debug log file"),
-        )
+    // configure logging
+    let _tracing_guard = if let Some(file) = config.debug().log_file() {
+        let path = std::path::Path::new(&file);
+        let directory = path.parent().unwrap_or(std::path::Path::new("."));
+        let file_name = std::path::Path::new(
+            path.file_name()
+                .unwrap_or(std::ffi::OsStr::new("rpc-perf.log")),
+        );
+
+        let max_size_mb = (config.debug().log_max_size() / (1024 * 1024)).max(1);
+
+        let roller = logroller::LogRollerBuilder::new(directory, file_name)
+            .rotation(logroller::Rotation::SizeBased(logroller::RotationSize::MB(
+                max_size_mb,
+            )))
+            .max_keep_files(1)
+            .build()
+            .expect("failed to open debug log file");
+
+        let (non_blocking, guard) = tracing_appender::non_blocking(roller);
+
+        tracing_subscriber::fmt()
+            .with_max_level(config.debug().level_filter())
+            .with_writer(non_blocking)
+            .init();
+
+        guard
     } else {
-        // by default, log to stderr
-        Box::new(Stderr::new())
+        let (non_blocking, guard) = tracing_appender::non_blocking(std::io::stderr());
+
+        tracing_subscriber::fmt()
+            .with_max_level(config.debug().level_filter())
+            .with_writer(non_blocking)
+            .init();
+
+        guard
     };
-
-    let level = config.debug().log_level();
-
-    let debug_log = if level <= Level::Info {
-        LogBuilder::new().format(ringlog::default_format)
-    } else {
-        LogBuilder::new()
-    }
-    .output(debug_output)
-    .log_queue_depth(config.debug().log_queue_depth())
-    .single_message_size(config.debug().log_single_message_size())
-    .build()
-    .expect("failed to initialize debug log");
-
-    let mut log = MultiLogBuilder::new()
-        .level_filter(config.debug().log_level().to_level_filter())
-        .default(debug_log)
-        .build()
-        .start();
 
     // initialize async runtime for control plane
     let control_runtime = Builder::new_multi_thread()
@@ -121,15 +126,6 @@ fn main() {
         .worker_threads(4)
         .build()
         .expect("failed to initialize tokio runtime");
-
-    // spawn logging thread
-    control_runtime.spawn(async move {
-        while RUNNING.load(Ordering::Relaxed) {
-            sleep(Duration::from_millis(1)).await;
-            let _ = log.flush();
-        }
-        let _ = log.flush();
-    });
 
     // spawn thread to maintain histogram snapshots
     {
