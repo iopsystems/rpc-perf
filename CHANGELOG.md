@@ -1,5 +1,30 @@
 ## [Unreleased]
 
+## [5.25.0] - 2026-03-19
+
+### Changed
+
+- Optimized hot paths to reduce per-request allocations: replaced blocking
+  `std::thread::sleep` with `tokio::time::sleep` in workload generator, wrapped
+  `Config` in `Arc` for Redis pipelined requests, replaced `Vec` with `Option`
+  for per-request latency histogram tracking, and pre-cached leaderboard/store
+  key strings at initialization. (#425)
+- Added jemalloc as the global allocator for improved multi-threaded allocation
+  throughput. (#425)
+- Optimized release profile with full LTO, single codegen unit, and
+  `panic=abort`. (#425)
+- Replaced `HashSet` with `Vec`-based linear dedup for small-cardinality
+  set/sorted-set member generation. (#425)
+
+### Fixed
+
+- Resolved cargo audit vulnerabilities: lz4_flex (RUSTSEC-2026-0041),
+  quinn-proto (RUSTSEC-2026-0037), tokio (RUSTSEC-2025-0023). (#425)
+- Resolved clippy `unnecessary_unwrap` warnings in redis commands. (#425)
+- Updated `aws-lc-rs` to fix CRL Distribution Point scope check logic error
+  (RUSTSEC-2026-0048) and X.509 Name Constraints bypass via wildcard/unicode CN
+  (RUSTSEC-2026-0044).
+
 ## [5.24.0] - 2026-02-13
 
 ### Added
@@ -327,7 +352,8 @@
 - Support Momento topics.
 - Basic HTTP/1.1 and HTTP/2.0 load generation.
 
-[unreleased]: https://github.com/iopsystems/rpc-perf/compare/v5.24.0...HEAD
+[unreleased]: https://github.com/iopsystems/rpc-perf/compare/v5.25.0...HEAD
+[5.25.0]: https://github.com/iopsystems/rpc-perf/compare/v5.24.0...v5.25.0
 [5.24.0]: https://github.com/iopsystems/rpc-perf/compare/v5.23.0...v5.24.0
 [5.23.0]: https://github.com/iopsystems/rpc-perf/compare/v5.22.0...v5.23.0
 [5.22.0]: https://github.com/iopsystems/rpc-perf/compare/v5.21.0...v5.22.0

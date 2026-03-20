@@ -75,9 +75,7 @@ pub async fn sorted_set_add(
     };
 
     // If successful, we may need to set an expiration. This is best-effort only
-    if result.is_ok() && request.ttl.is_some() {
-        let ttl = request.ttl.unwrap();
-
+    if let (Ok(_), Some(ttl)) = (&result, request.ttl) {
         let (mut base_command, ttl) = if ttl.subsec_nanos() == 0 {
             (::redis::cmd("EXPIRE"), ttl.as_secs())
         } else {
