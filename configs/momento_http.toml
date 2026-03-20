@@ -39,13 +39,6 @@ initial_seed = "0"
 [debug]
 # choose from: error, warn, info, debug, trace
 log_level = "info"
-# optionally, log to the file below instead of standard out
-# log_file = "rpc-perf.log"
-# backup file name for use with log rotation
-log_backup = "rpc-perf.log.old"
-# trigger log rotation when the file grows beyond this size (in bytes). Set this
-# option to '0' to disable log rotation.
-log_max_size = 1073741824
 
 [target]
 # specify the Momento HTTP Cache API Endpoint

@@ -6,6 +6,7 @@ use futures::stream::FuturesUnordered;
 use futures::StreamExt;
 use momento::protosocket::cache::Configuration;
 use momento::{CredentialProvider, ProtosocketCacheClient};
+use tracing::warn;
 
 use async_channel::Receiver;
 use tokio::runtime::Runtime;

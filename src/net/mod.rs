@@ -1,5 +1,5 @@
-use crate::error;
 use crate::{Config, Tls};
+use tracing::error;
 
 use std::io::Result;
 

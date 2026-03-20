@@ -4,6 +4,7 @@ use crate::workload::*;
 use ::momento::topics::Subscription;
 use async_channel::Receiver;
 use tokio::runtime::Runtime;
+use tracing::error;
 
 use ::momento::topics::configurations::LowLatency;
 use ::momento::topics::{TopicClient, ValueKind};

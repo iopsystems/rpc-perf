@@ -9,6 +9,7 @@ use sqlx::QueryBuilder;
 use std::io::Result;
 use std::time::Instant;
 use tokio::runtime::Runtime;
+use tracing::error;
 
 /// Launch tasks with one conncetion per task as ping protocol is not mux-enabled.
 pub fn launch_tasks(

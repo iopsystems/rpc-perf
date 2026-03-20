@@ -13,6 +13,7 @@ use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
 use tokio::runtime::Runtime;
 use tokio::time::timeout;
+use tracing::error;
 
 /// Launch tasks with one conncetion per task as ping protocol is not mux-enabled.
 pub fn launch_tasks(

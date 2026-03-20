@@ -2,6 +2,7 @@ use crate::workload::{ClientWorkItemKind, StoreClientRequest};
 use crate::*;
 use http::Uri;
 use std::fmt::Display;
+use tracing::{error, trace};
 
 use async_channel::Receiver;
 use bytes::{Bytes, BytesMut};

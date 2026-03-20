@@ -10,6 +10,7 @@
 use crate::workload::Component;
 use crate::workload::PublisherWorkItem as WorkItem;
 use crate::*;
+use tracing::error;
 
 use ahash::RandomState;
 use async_channel::Receiver;
