@@ -1,11 +1,5 @@
 ## [Unreleased]
 
-### Fixed
-
-- Updated `aws-lc-rs` to fix CRL Distribution Point scope check logic error
-  (RUSTSEC-2026-0048) and X.509 Name Constraints bypass via wildcard/unicode CN
-  (RUSTSEC-2026-0044).
-
 ## [5.25.0] - 2026-03-19
 
 ### Changed
@@ -27,6 +21,9 @@
 - Resolved cargo audit vulnerabilities: lz4_flex (RUSTSEC-2026-0041),
   quinn-proto (RUSTSEC-2026-0037), tokio (RUSTSEC-2025-0023). (#425)
 - Resolved clippy `unnecessary_unwrap` warnings in redis commands. (#425)
+- Updated `aws-lc-rs` to fix CRL Distribution Point scope check logic error
+  (RUSTSEC-2026-0048) and X.509 Name Constraints bypass via wildcard/unicode CN
+  (RUSTSEC-2026-0044).
 
 ## [5.24.0] - 2026-02-13
 
