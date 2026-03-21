@@ -43,7 +43,7 @@ once_cell = "1.21.4"
 paste = "1.0.15"
 pelikan-net = { git = "https://github.com/pelikan-io/pelikan" }
 pin-project = "1.1.11"
-prost = "0.13.5"
+prost = "0.14.3"
 protocol-memcache = { git = "https://github.com/pelikan-io/pelikan" }
 protocol-ping = { git = "https://github.com/pelikan-io/pelikan" }
 quinn = "0.11.9"
@@ -73,7 +73,8 @@ tempfile = "3.27.0"
 tokio = { version = "1.50.0", features = ["full"] }
 tokio-rustls = "0.26.4"
 toml = "1.0.7"
-tonic = "0.12.3"
+tonic = "0.14.5"
+tonic-prost = "0.14.5"
 tracing = "0.1"
 tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
@@ -82,7 +83,7 @@ warp = { version = "0.4.2", features = ["server"] }
 webpki-roots = "1.0.6"
 
 [build-dependencies]
-tonic-build = "0.12.3"
+tonic-prost-build = "0.14.5"
 
 [profile.release]
 opt-level = 3
