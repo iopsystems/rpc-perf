@@ -58,7 +58,7 @@ pub fn launch_subscribers(
                     }
 
                     let credential_provider =
-                        match CredentialProvider::from_env_var("MOMENTO_API_KEY".to_string()) {
+                        match CredentialProvider::from_env_var_v2("MOMENTO_API_KEY", "MOMENTO_ENDPOINT") {
                             Ok(v) => v,
                             Err(e) => {
                                 eprintln!("MOMENTO_API_KEY key should be valid: {e}");
@@ -158,7 +158,7 @@ pub fn launch_publishers(runtime: &mut Runtime, config: Config, work_receiver: R
             }
 
             let credential_provider =
-                match CredentialProvider::from_env_var("MOMENTO_API_KEY".to_string()) {
+                match CredentialProvider::from_env_var_v2("MOMENTO_API_KEY", "MOMENTO_ENDPOINT") {
                     Ok(v) => v,
                     Err(e) => {
                         eprintln!("MOMENTO_API_KEY key should be valid: {e}");
