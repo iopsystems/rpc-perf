@@ -21,7 +21,10 @@ pub fn launch_tasks(
 ) {
     debug!("launching momento-protosocket protocol tasks");
 
-    let credential_provider = match CredentialProvider::from_env_var_v2("MOMENTO_API_KEY", "MOMENTO_ENDPOINT") {
+    let credential_provider = match CredentialProvider::from_env_var_v2(
+        "MOMENTO_API_KEY",
+        "MOMENTO_ENDPOINT",
+    ) {
         Ok(v) => {
             if config.target().endpoint_override().is_some()
                 && config.target().use_private_endpoints().is_some()

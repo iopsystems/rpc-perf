@@ -57,14 +57,16 @@ pub fn launch_subscribers(
                         std::process::exit(1);
                     }
 
-                    let credential_provider =
-                        match CredentialProvider::from_env_var_v2("MOMENTO_API_KEY", "MOMENTO_ENDPOINT") {
-                            Ok(v) => v,
-                            Err(e) => {
-                                eprintln!("MOMENTO_API_KEY key should be valid: {e}");
-                                std::process::exit(1);
-                            }
-                        };
+                    let credential_provider = match CredentialProvider::from_env_var_v2(
+                        "MOMENTO_API_KEY",
+                        "MOMENTO_ENDPOINT",
+                    ) {
+                        Ok(v) => v,
+                        Err(e) => {
+                            eprintln!("MOMENTO_API_KEY key should be valid: {e}");
+                            std::process::exit(1);
+                        }
+                    };
                     let _guard = runtime.enter();
                     match TopicClient::builder()
                         .configuration(LowLatency::v1())

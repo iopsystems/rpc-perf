@@ -3098,12 +3098,10 @@ dependencies = [
  "hyper-util",
  "metriken 0.8.0",
  "metriken-exposition",
- "mio",
  "momento",
  "once_cell",
  "paste",
  "pelikan-net",
- "pin-project",
  "prost 0.14.3",
  "protocol-memcache",
  "protocol-ping",
@@ -3118,9 +3116,7 @@ dependencies = [
  "rustls-pemfile",
  "serde",
  "session",
- "sha1",
  "sha2",
- "slab",
  "sqlx",
  "tempfile",
  "tikv-jemallocator",
@@ -3133,7 +3129,6 @@ dependencies = [
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
- "url-escape",
  "warp",
  "webpki-roots 1.0.6",
 ]
@@ -4431,15 +4426,6 @@ dependencies = [
  "idna",
  "percent-encoding",
  "serde",
-]
-
-[[package]]
-name = "url-escape"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "44e0ce4d1246d075ca5abec4b41d33e87a6054d08e2366b63205665e950db218"
-dependencies = [
- "percent-encoding",
 ]
 
 [[package]]

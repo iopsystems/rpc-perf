@@ -41,8 +41,8 @@ impl Connector {
         if let Some(ca_file) = tls_config.ca_file() {
             let file = std::fs::File::open(ca_file)?;
             let mut reader = BufReader::new(file);
-            let certs = rustls_pemfile::certs(&mut reader)
-                .collect::<std::result::Result<Vec<_>, _>>()?;
+            let certs =
+                rustls_pemfile::certs(&mut reader).collect::<std::result::Result<Vec<_>, _>>()?;
             for cert in certs {
                 root_store.add(cert).map_err(|e| {
                     std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string())
@@ -72,7 +72,9 @@ impl Connector {
                     .dangerous()
                     .with_custom_certificate_verifier(Arc::new(NoVerifier))
                     .with_client_auth_cert(certs, key)
-                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string()))?
+                    .map_err(|e| {
+                        std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string())
+                    })?
             } else {
                 rustls::ClientConfig::builder()
                     .dangerous()
@@ -152,15 +154,20 @@ fn load_client_identity(
     let key_path = tls_config.private_key().unwrap();
     let key_file = std::fs::File::open(key_path)?;
     let mut key_reader = BufReader::new(key_file);
-    let key = rustls_pemfile::private_key(&mut key_reader)?
-        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidData, "no private key found in PEM file"))?;
+    let key = rustls_pemfile::private_key(&mut key_reader)?.ok_or_else(|| {
+        std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "no private key found in PEM file",
+        )
+    })?;
 
     let certs = match (tls_config.certificate(), tls_config.certificate_chain()) {
         (Some(cert), Some(chain)) => {
             let cert_file = std::fs::File::open(cert)?;
             let mut cert_reader = BufReader::new(cert_file);
             let mut certs: Vec<CertificateDer<'static>> = rustls_pemfile::certs(&mut cert_reader)
-                .collect::<std::result::Result<Vec<_>, _>>()?;
+                .collect::<std::result::Result<Vec<_>, _>>(
+            )?;
 
             let chain_file = std::fs::File::open(chain)?;
             let mut chain_reader = BufReader::new(chain_file);
@@ -173,8 +180,7 @@ fn load_client_identity(
         (Some(cert_or_chain), None) | (None, Some(cert_or_chain)) => {
             let file = std::fs::File::open(cert_or_chain)?;
             let mut reader = BufReader::new(file);
-            rustls_pemfile::certs(&mut reader)
-                .collect::<std::result::Result<Vec<_>, _>>()?
+            rustls_pemfile::certs(&mut reader).collect::<std::result::Result<Vec<_>, _>>()?
         }
         (None, None) => unreachable!(),
     };
