@@ -9,9 +9,9 @@ use paste::paste;
 use async_channel::Receiver;
 use momento::leaderboard::{configurations, LeaderboardClient};
 use momento::CredentialProvider;
-use ringlog::debug;
 use tokio::runtime::Runtime;
 use tokio::time::timeout;
+use tracing::debug;
 
 use std::io::{Error, Result};
 use std::sync::atomic::Ordering;

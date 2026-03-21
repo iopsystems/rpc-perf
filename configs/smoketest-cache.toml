@@ -12,8 +12,6 @@ format = "parquet"
 
 [debug]
 log_level = "info"
-log_backup = "rpc-perf.log.old"
-log_max_size = 1073741824
 
 [target]
 endpoints = [

@@ -11,13 +11,15 @@ use backtrace::Backtrace;
 use clap::{Arg, Command};
 use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use once_cell::sync::Lazy;
-use ringlog::*;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::runtime::Builder;
 use tokio::sync::RwLock;
 use tokio::time::sleep;
+use tracing::{debug, info};
+use tracing_appender::non_blocking;
+use tracing_subscriber::EnvFilter;
 
 mod admin;
 mod clients;
@@ -81,39 +83,17 @@ fn main() {
     output!("Protocol: {:?}", config.general().protocol());
     output!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
 
-    // configure debug log
-    let debug_output: Box<dyn Output> = if let Some(file) = config.debug().log_file() {
-        let backup = config
-            .debug()
-            .log_backup()
-            .unwrap_or(format!("{}.old", file));
-        Box::new(
-            File::new(&file, &backup, config.debug().log_max_size())
-                .expect("failed to open debug log file"),
+    // configure tracing subscriber
+    let (non_blocking_writer, _guard) = non_blocking(std::io::stderr());
+
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            EnvFilter::builder()
+                .with_default_directive(config.debug().log_level().into())
+                .from_env_lossy(),
         )
-    } else {
-        // by default, log to stderr
-        Box::new(Stderr::new())
-    };
-
-    let level = config.debug().log_level();
-
-    let debug_log = if level <= Level::Info {
-        LogBuilder::new().format(ringlog::default_format)
-    } else {
-        LogBuilder::new()
-    }
-    .output(debug_output)
-    .log_queue_depth(config.debug().log_queue_depth())
-    .single_message_size(config.debug().log_single_message_size())
-    .build()
-    .expect("failed to initialize debug log");
-
-    let mut log = MultiLogBuilder::new()
-        .level_filter(config.debug().log_level().to_level_filter())
-        .default(debug_log)
-        .build()
-        .start();
+        .with_writer(non_blocking_writer)
+        .init();
 
     // initialize async runtime for control plane
     let control_runtime = Builder::new_multi_thread()
@@ -121,15 +101,6 @@ fn main() {
         .worker_threads(4)
         .build()
         .expect("failed to initialize tokio runtime");
-
-    // spawn logging thread
-    control_runtime.spawn(async move {
-        while RUNNING.load(Ordering::Relaxed) {
-            sleep(Duration::from_millis(1)).await;
-            let _ = log.flush();
-        }
-        let _ = log.flush();
-    });
 
     // spawn thread to maintain histogram snapshots
     {
