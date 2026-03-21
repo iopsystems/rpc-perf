@@ -35,7 +35,7 @@ pub async fn replace(
 
     match timeout(
         config.client().unwrap().request_timeout(),
-        command.query_async::<MultiplexedConnection, Option<String>>(connection),
+        command.query_async::<Option<String>>(connection),
     )
     .await
     {
