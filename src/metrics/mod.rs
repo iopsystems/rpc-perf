@@ -308,7 +308,7 @@ macro_rules! request {
             paste! {
                 #[allow(dead_code)]
                 pub static [<$ident _EX_COUNTER>]: &'static str = concat!($name, "/exception");
-            }   
+            }
         }
 
         paste! {
@@ -539,6 +539,24 @@ counter!(
     "delete/timeout",
     "delete requests that resulted in timeout"
 );
+
+request!(SET_IF_ABSENT, "set_if_absent");
+counter!(SET_IF_ABSENT_STORED, "set_if_absent/stored");
+counter!(SET_IF_ABSENT_NOT_STORED, "set_if_absent/not_stored");
+
+request!(SET_IF_PRESENT_AND_NOT_EQUAL, "set_if_present_and_not_equal");
+counter!(
+    SET_IF_PRESENT_AND_NOT_EQUAL_STORED,
+    "set_if_present_and_not_equal/stored"
+);
+counter!(
+    SET_IF_PRESENT_AND_NOT_EQUAL_NOT_STORED,
+    "set_if_present_and_not_equal/not_stored"
+);
+
+request!(ITEM_GET_TYPE, "item_get_type");
+counter!(ITEM_GET_TYPE_HIT, "item_get_type/hit");
+counter!(ITEM_GET_TYPE_MISS, "item_get_type/miss");
 
 request!(HASH_GET, "hash_get");
 counter!(HASH_GET_FIELD_HIT, "hash_get/field_hit");
