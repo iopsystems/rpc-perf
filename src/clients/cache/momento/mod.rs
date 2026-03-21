@@ -95,6 +95,10 @@ async fn task(
                     set(&mut client, &config, cache_name, r).await
                 }
                 ClientRequest::Delete(r) => delete(&mut client, &config, cache_name, r).await,
+                ClientRequest::GetBatch(r) => {
+                    latency_histograms.push(&KVGETBATCH_RESPONSE_LATENCY);
+                    get_batch(&mut client, &config, cache_name, r).await
+                }
 
                 /*
                  * HASHES (DICTIONARIES)
