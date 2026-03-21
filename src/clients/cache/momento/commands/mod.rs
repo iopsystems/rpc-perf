@@ -4,7 +4,6 @@ use paste::paste;
 
 mod delete;
 mod get;
-mod get_batch;
 mod hash_delete;
 mod hash_get;
 mod hash_get_all;
@@ -30,7 +29,6 @@ mod sorted_set_score;
 
 pub use delete::*;
 pub use get::*;
-pub use get_batch::*;
 pub use hash_delete::*;
 pub use hash_get::*;
 pub use hash_get_all::*;
