@@ -50,7 +50,7 @@ quinn = "0.11.9"
 rand = "0.10.0"
 rand_distr = "0.6.0"
 rand_xoshiro = "0.8.0"
-ratelimit = { git = "https://github.com/iopsystems/ratelimit" }
+ratelimit = "1.0.0"
 redis = { version = "1.0.5", features = [
     "tokio-comp",
     "tls-rustls",
