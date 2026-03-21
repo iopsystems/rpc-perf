@@ -106,7 +106,7 @@ version = "1.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "40c48f72fd53cd289104fc64099abca73db4166ad86ea0b4341abe65af83dadc"
 dependencies = [
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -117,7 +117,7 @@ checksum = "291e6a250ff86cd4a820112fb8898808a366d8f9f58ce16d1f538353ad55747d"
 dependencies = [
  "anstyle",
  "once_cell_polyfill",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -1090,7 +1090,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2402,9 +2402,9 @@ dependencies = [
 
 [[package]]
 name = "momento"
-version = "0.57.0"
+version = "0.61.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6e5a731eb5c0224bcccdc8a4fa0cd14965f41f2f16880a1fb656b9bf102d1d0b"
+checksum = "5bb9504b110f5084c95af67e0eaf42d8810b02c25951faf994da11a83da33bc1"
 dependencies = [
  "base64 0.22.1",
  "derive_more",
@@ -2422,6 +2422,7 @@ dependencies = [
  "rustls-pki-types",
  "serde",
  "serde_json",
+ "temp-env",
  "thiserror 2.0.18",
  "tokio",
  "tonic 0.13.1",
@@ -2430,9 +2431,9 @@ dependencies = [
 
 [[package]]
 name = "momento-protos"
-version = "0.127.3"
+version = "0.128.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "be2b09b8df95deb923a28d60506e3a8b37c7507046cdf9a367b470c75a5ddbff"
+checksum = "3b06b41c5c34c07bc99048f38cdf073467414460bb5fa6231fb45971d68dec06"
 dependencies = [
  "prost",
  "protosocket-rpc",
@@ -2505,7 +2506,7 @@ version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
 dependencies = [
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -3067,9 +3068,9 @@ dependencies = [
 
 [[package]]
 name = "protosocket"
-version = "0.11.2"
+version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6bffbeee0f00fa5d13b45edfe8919992ec56a6603128f409544bf690e8e1d768"
+checksum = "62d1f11b21e33dea20b9fd42f0832cdb13ab98f6fbf83bb38260027747f55dc5"
 dependencies = [
  "bytes",
  "futures",
@@ -3081,9 +3082,9 @@ dependencies = [
 
 [[package]]
 name = "protosocket-prost"
-version = "0.11.2"
+version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e05b23958866ccf631af931706d0ff20890293af06b582d328286d41c32b93df"
+checksum = "3061ed45eea92f668ff46639a2b7b71c948a368c49f92a965b4b1e12b95a527b"
 dependencies = [
  "bytes",
  "log",
@@ -3095,9 +3096,9 @@ dependencies = [
 
 [[package]]
 name = "protosocket-rpc"
-version = "0.11.2"
+version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6b0dc62f7dd9d4ff00c74d0476042e1b9e5628e281fe8101a23aeb9114913a43"
+checksum = "44c39ac0bf30b8488a4d72a8d19d9c91214b2648883357f460b5ecd373e2e6f4"
 dependencies = [
  "futures",
  "k-lock",
@@ -3555,7 +3556,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -3623,7 +3624,7 @@ dependencies = [
  "security-framework",
  "security-framework-sys",
  "webpki-root-certs",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -3928,7 +3929,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3a766e1110788c36f4fa1c2b71b387a7815aa65f88ce0229841826633d93723e"
 dependencies = [
  "libc",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -4226,6 +4227,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "temp-env"
+version = "0.3.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "96374855068f47402c3121c6eed88d29cb1de8f3ab27090e273e420bdabcf050"
+dependencies = [
+ "parking_lot",
+]
+
+[[package]]
 name = "tempfile"
 version = "3.27.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4235,7 +4245,7 @@ dependencies = [
  "getrandom 0.4.2",
  "once_cell",
  "rustix",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
