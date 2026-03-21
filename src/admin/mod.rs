@@ -115,7 +115,7 @@ pub mod handlers {
     /// Serves Prometheus / OpenMetrics text format metrics. All metrics have
     /// type information, some have descriptions as well. Percentiles read from
     /// heatmaps are exposed with a `percentile` label where the value
-    /// corresponds to the percentile in the range of 0.0 - 100.0.
+    /// corresponds to the percentile in the range of 0.0 - 1.0.
     ///
     /// See: https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md
     ///
@@ -126,8 +126,8 @@ pub mod handlers {
     /// # TYPE some_gauge gauge
     /// # HELP some_gauge A signed 64bit gauge.
     /// some_gauge 0
-    /// # TYPE some_distribution{percentile="50.0"} gauge
-    /// some_distribution{percentile="50.0"} 0
+    /// # TYPE some_distribution{percentile="0.50"} gauge
+    /// some_distribution{percentile="0.50"} 0
     /// ```
     pub async fn prometheus_stats() -> Result<impl warp::Reply, Infallible> {
         let mut data = Vec::new();

@@ -27,7 +27,7 @@ h2 = "0.4.8"
 h3 = "0.0.8"
 h3-quinn = "0.0.10"
 hex = "0.4.3"
-histogram = "0.11.3"
+histogram = "1.0.0"
 hmac = "0.12.1"
 http = "1.2.0"
 http-body-util = "0.1.2"
@@ -35,8 +35,8 @@ humantime = "2.1.0"
 hyper = { version = "1.6.0", features = ["http1", "http2", "client"] }
 hyper-rustls = "0.27.5"
 hyper-util = { version = "0.1.10", features = ["full"] }
-metriken = "0.7.0"
-metriken-exposition = { version = "0.12.2", features = [
+metriken = "0.8.0"
+metriken-exposition = { version = "0.14.0", features = [
     "json",
     "parquet-conversion",
 ] }
