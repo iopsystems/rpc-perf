@@ -31,7 +31,7 @@ pub fn launch_tasks(
             }
 
             let credential_provider =
-                match CredentialProvider::from_env_var("MOMENTO_API_KEY".to_string()) {
+                match CredentialProvider::from_env_var_v2("MOMENTO_API_KEY", "MOMENTO_ENDPOINT") {
                     Ok(v) => v,
                     Err(e) => {
                         eprintln!("MOMENTO_API_KEY key should be valid: {e}");

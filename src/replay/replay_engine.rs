@@ -1,7 +1,7 @@
 use async_channel::Sender;
 use bytes::{Bytes, BytesMut};
 use momento::IntoBytes;
-use rand::{RngCore, SeedableRng};
+use rand::{Rng, SeedableRng};
 use rand_xoshiro::Xoshiro512PlusPlus;
 use std::{
     io::{BufRead, BufReader},

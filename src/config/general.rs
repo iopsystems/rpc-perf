@@ -1,5 +1,5 @@
 use super::*;
-use rand::Rng;
+use rand::RngExt;
 use rand_xoshiro::Seed512;
 use serde::Deserialize;
 use sha2::{Digest, Sha512};

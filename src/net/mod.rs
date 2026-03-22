@@ -1,40 +1,23 @@
 use crate::{Config, Tls};
-use tracing::error;
+use std::io::{BufReader, Result};
+use std::sync::Arc;
 
-use std::io::Result;
-
+use rustls::pki_types::{CertificateDer, PrivateKeyDer, ServerName};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
-
-pub enum SslProvider {
-    #[cfg(feature = "boringssl")]
-    Boringssl,
-    #[cfg(feature = "openssl")]
-    Openssl,
-    Unknown,
-}
-
-// clippy doesn't realize that the default changes depending on enabled features
-// so we suppress this warning
-#[allow(clippy::derivable_impls)]
-#[allow(unreachable_code)]
-impl Default for SslProvider {
-    fn default() -> Self {
-        #[cfg(feature = "boringssl")]
-        {
-            return SslProvider::Boringssl;
-        }
-
-        #[cfg(feature = "openssl")]
-        {
-            return SslProvider::Openssl;
-        }
-
-        SslProvider::Unknown
-    }
-}
+use tokio_rustls::TlsConnector;
 
 pub struct Connector {
     inner: ConnectorImpl,
+}
+
+enum ConnectorImpl {
+    Tcp,
+    Tls(TlsConnectorState),
+}
+
+struct TlsConnectorState {
+    connector: TlsConnector,
+    use_sni: bool,
 }
 
 impl Connector {
@@ -53,120 +36,72 @@ impl Connector {
     }
 
     pub fn tls(tls_config: &Tls) -> Result<Self> {
-        match SslProvider::default() {
-            #[cfg(feature = "boringssl")]
-            SslProvider::Boringssl => Self::boringssl(tls_config),
-            #[cfg(feature = "openssl")]
-            SslProvider::Openssl => Self::openssl(tls_config),
-            SslProvider::Unknown => {
-                error!("no TLS/SSL provider could be found. Check that rpc-perf was built with either boringssl or openssl support");
-                std::process::exit(1);
-            }
-        }
-    }
-
-    #[cfg(feature = "boringssl")]
-    fn boringssl(tls_config: &Tls) -> Result<Self> {
-        let private_key = tls_config.private_key();
-        let certificate = tls_config.certificate();
-        let certificate_chain = tls_config.certificate_chain();
-
-        let mut ssl_connector =
-            boring::ssl::SslConnector::builder(boring::ssl::SslMethod::tls_client())?;
+        let mut root_store = rustls::RootCertStore::empty();
 
         if let Some(ca_file) = tls_config.ca_file() {
-            ssl_connector.set_ca_file(ca_file)?;
-        }
-
-        // mTLS configuration
-        if private_key.is_some() && (certificate.is_some() || certificate_chain.is_some()) {
-            ssl_connector
-                .set_private_key_file(private_key.unwrap(), boring::ssl::SslFiletype::PEM)?;
-
-            match (certificate, certificate_chain) {
-                (Some(cert), Some(chain)) => {
-                    // assume cert is just a leaf and that we need to append the
-                    // certs in the chain file after loading the leaf cert
-
-                    ssl_connector.set_certificate_file(cert, boring::ssl::SslFiletype::PEM)?;
-                    let pem = std::fs::read(chain)?;
-                    let chain = boring::x509::X509::stack_from_pem(&pem)?;
-                    for cert in chain {
-                        ssl_connector.add_extra_chain_cert(cert)?;
-                    }
-                }
-                (Some(cert), None) => {
-                    // treat cert file like it's a chain for convenience
-                    ssl_connector.set_certificate_chain_file(cert)?;
-                }
-                (None, Some(chain)) => {
-                    // load all certs from chain
-                    ssl_connector.set_certificate_chain_file(chain)?;
-                }
-                (None, None) => unreachable!(),
+            let file = std::fs::File::open(ca_file)?;
+            let mut reader = BufReader::new(file);
+            let certs =
+                rustls_pemfile::certs(&mut reader).collect::<std::result::Result<Vec<_>, _>>()?;
+            for cert in certs {
+                root_store.add(cert).map_err(|e| {
+                    std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string())
+                })?;
+            }
+        } else {
+            let native_certs = rustls_native_certs::load_native_certs();
+            for cert in native_certs.certs {
+                root_store.add(cert).map_err(|e| {
+                    std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string())
+                })?;
             }
         }
 
-        let ssl_connector = ssl_connector.build();
+        let builder = if tls_config.verify_hostname() {
+            rustls::ClientConfig::builder().with_root_certificates(root_store)
+        } else {
+            rustls::ClientConfig::builder()
+                .dangerous()
+                .with_custom_certificate_verifier(Arc::new(NoVerifier))
+                .with_no_client_auth();
+            // Fall through to mTLS check below won't work with this path,
+            // so handle both cases explicitly
+            let config = if has_mtls_config(tls_config) {
+                let (certs, key) = load_client_identity(tls_config)?;
+                rustls::ClientConfig::builder()
+                    .dangerous()
+                    .with_custom_certificate_verifier(Arc::new(NoVerifier))
+                    .with_client_auth_cert(certs, key)
+                    .map_err(|e| {
+                        std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string())
+                    })?
+            } else {
+                rustls::ClientConfig::builder()
+                    .dangerous()
+                    .with_custom_certificate_verifier(Arc::new(NoVerifier))
+                    .with_no_client_auth()
+            };
+
+            return Ok(Connector {
+                inner: ConnectorImpl::Tls(TlsConnectorState {
+                    connector: TlsConnector::from(Arc::new(config)),
+                    use_sni: tls_config.use_sni(),
+                }),
+            });
+        };
+
+        let config = if has_mtls_config(tls_config) {
+            let (certs, key) = load_client_identity(tls_config)?;
+            builder
+                .with_client_auth_cert(certs, key)
+                .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string()))?
+        } else {
+            builder.with_no_client_auth()
+        };
 
         Ok(Connector {
-            inner: ConnectorImpl::BoringsslTlsTcp(BoringsslTlsTcp {
-                inner: ssl_connector,
-                verify_hostname: tls_config.verify_hostname(),
-                use_sni: tls_config.use_sni(),
-            }),
-        })
-    }
-
-    #[cfg(feature = "openssl")]
-    fn openssl(tls_config: &Tls) -> Result<Self> {
-        let private_key = tls_config.private_key();
-        let certificate = tls_config.certificate();
-        let certificate_chain = tls_config.certificate_chain();
-
-        let mut ssl_connector =
-            openssl::ssl::SslConnector::builder(openssl::ssl::SslMethod::tls_client())?;
-
-        if let Some(ca_file) = tls_config.ca_file() {
-            ssl_connector.set_ca_file(ca_file)?;
-        }
-
-        // mTLS configuration
-        if let Some(key) = private_key {
-            if certificate.is_some() || certificate_chain.is_some() {
-                ssl_connector.set_private_key_file(key, openssl::ssl::SslFiletype::PEM)?;
-
-                match (certificate, certificate_chain) {
-                    (Some(cert), Some(chain)) => {
-                        // assume cert is just a leaf and that we need to append the
-                        // certs in the chain file after loading the leaf cert
-
-                        ssl_connector.set_certificate_file(cert, openssl::ssl::SslFiletype::PEM)?;
-                        let pem = std::fs::read(chain)?;
-                        let chain = openssl::x509::X509::stack_from_pem(&pem)?;
-                        for cert in chain {
-                            ssl_connector.add_extra_chain_cert(cert)?;
-                        }
-                    }
-                    (Some(cert), None) => {
-                        // treat cert file like it's a chain for convenience
-                        ssl_connector.set_certificate_chain_file(cert)?;
-                    }
-                    (None, Some(chain)) => {
-                        // load all certs from chain
-                        ssl_connector.set_certificate_chain_file(chain)?;
-                    }
-                    (None, None) => unreachable!(),
-                }
-            }
-        }
-
-        let ssl_connector = ssl_connector.build();
-
-        Ok(Connector {
-            inner: ConnectorImpl::OpensslTlsTcp(OpensslTlsTcp {
-                inner: ssl_connector,
-                verify_hostname: tls_config.verify_hostname(),
+            inner: ConnectorImpl::Tls(TlsConnectorState {
+                connector: TlsConnector::from(Arc::new(config)),
                 use_sni: tls_config.use_sni(),
             }),
         })
@@ -184,77 +119,115 @@ impl Connector {
                     inner: StreamImpl::Tcp(s),
                 })
             }
-            #[cfg(feature = "boringssl")]
-            ConnectorImpl::BoringsslTlsTcp(connector) => {
+            ConnectorImpl::Tls(state) => {
                 let stream = tokio::net::TcpStream::connect(addr).await?;
-                let domain = addr.split(':').next().unwrap().to_owned();
+                let _ = stream.set_nodelay(true);
 
-                let config = connector
-                    .inner
-                    .configure()?
-                    .verify_hostname(connector.verify_hostname)
-                    .use_server_name_indication(connector.use_sni);
+                let domain = addr.split(':').next().unwrap_or(addr);
+                let server_name = if state.use_sni {
+                    ServerName::try_from(domain.to_owned()).map_err(|e| {
+                        std::io::Error::new(std::io::ErrorKind::InvalidInput, e.to_string())
+                    })?
+                } else {
+                    ServerName::try_from(domain.to_owned()).map_err(|e| {
+                        std::io::Error::new(std::io::ErrorKind::InvalidInput, e.to_string())
+                    })?
+                };
 
-                match tokio_boring::connect(config, &domain, stream).await {
-                    Ok(stream) => Ok(Stream {
-                        inner: StreamImpl::BoringsslTlsTcp(stream),
-                    }),
-                    Err(e) => match e.as_io_error() {
-                        Some(e) => Err(std::io::Error::new(e.kind(), e.to_string())),
-                        None => Err(std::io::Error::new(
-                            std::io::ErrorKind::Other,
-                            e.to_string(),
-                        )),
-                    },
-                }
-            }
-            #[cfg(feature = "openssl")]
-            ConnectorImpl::OpensslTlsTcp(connector) => {
-                let stream = tokio::net::TcpStream::connect(addr).await?;
-                let domain = addr.split(':').next().unwrap().to_owned();
-
-                let config = connector
-                    .inner
-                    .configure()?
-                    .verify_hostname(connector.verify_hostname)
-                    .use_server_name_indication(connector.use_sni);
-
-                let mut ssl = tokio_openssl::SslStream::new(config.into_ssl(&domain)?, stream)?;
-
-                match tokio_openssl::SslStream::connect(std::pin::Pin::new(&mut ssl)).await {
-                    Ok(_) => Ok(Stream {
-                        inner: StreamImpl::OpensslTlsTcp(ssl),
-                    }),
-                    Err(e) => match e.io_error() {
-                        Some(e) => Err(std::io::Error::new(e.kind(), e.to_string())),
-                        None => Err(std::io::Error::other(e.to_string())),
-                    },
-                }
+                let tls_stream = state.connector.connect(server_name, stream).await?;
+                Ok(Stream {
+                    inner: StreamImpl::Tls(tls_stream),
+                })
             }
         }
     }
 }
 
-enum ConnectorImpl {
-    Tcp,
-    #[cfg(feature = "boringssl")]
-    BoringsslTlsTcp(BoringsslTlsTcp),
-    #[cfg(feature = "openssl")]
-    OpensslTlsTcp(OpensslTlsTcp),
+fn has_mtls_config(tls_config: &Tls) -> bool {
+    tls_config.private_key().is_some()
+        && (tls_config.certificate().is_some() || tls_config.certificate_chain().is_some())
 }
 
-#[cfg(feature = "boringssl")]
-pub struct BoringsslTlsTcp {
-    inner: boring::ssl::SslConnector,
-    verify_hostname: bool,
-    use_sni: bool,
+fn load_client_identity(
+    tls_config: &Tls,
+) -> Result<(Vec<CertificateDer<'static>>, PrivateKeyDer<'static>)> {
+    let key_path = tls_config.private_key().unwrap();
+    let key_file = std::fs::File::open(key_path)?;
+    let mut key_reader = BufReader::new(key_file);
+    let key = rustls_pemfile::private_key(&mut key_reader)?.ok_or_else(|| {
+        std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "no private key found in PEM file",
+        )
+    })?;
+
+    let certs = match (tls_config.certificate(), tls_config.certificate_chain()) {
+        (Some(cert), Some(chain)) => {
+            let cert_file = std::fs::File::open(cert)?;
+            let mut cert_reader = BufReader::new(cert_file);
+            let mut certs: Vec<CertificateDer<'static>> = rustls_pemfile::certs(&mut cert_reader)
+                .collect::<std::result::Result<Vec<_>, _>>(
+            )?;
+
+            let chain_file = std::fs::File::open(chain)?;
+            let mut chain_reader = BufReader::new(chain_file);
+            let chain_certs: Vec<CertificateDer<'static>> =
+                rustls_pemfile::certs(&mut chain_reader)
+                    .collect::<std::result::Result<Vec<_>, _>>()?;
+            certs.extend(chain_certs);
+            certs
+        }
+        (Some(cert_or_chain), None) | (None, Some(cert_or_chain)) => {
+            let file = std::fs::File::open(cert_or_chain)?;
+            let mut reader = BufReader::new(file);
+            rustls_pemfile::certs(&mut reader).collect::<std::result::Result<Vec<_>, _>>()?
+        }
+        (None, None) => unreachable!(),
+    };
+
+    Ok((certs, key))
 }
 
-#[cfg(feature = "openssl")]
-pub struct OpensslTlsTcp {
-    inner: openssl::ssl::SslConnector,
-    verify_hostname: bool,
-    use_sni: bool,
+/// Certificate verifier that accepts any certificate.
+/// Used when `verify_hostname: false` is set in the TLS config.
+#[derive(Debug)]
+struct NoVerifier;
+
+impl rustls::client::danger::ServerCertVerifier for NoVerifier {
+    fn verify_server_cert(
+        &self,
+        _end_entity: &CertificateDer<'_>,
+        _intermediates: &[CertificateDer<'_>],
+        _server_name: &ServerName<'_>,
+        _ocsp_response: &[u8],
+        _now: rustls::pki_types::UnixTime,
+    ) -> std::result::Result<rustls::client::danger::ServerCertVerified, rustls::Error> {
+        Ok(rustls::client::danger::ServerCertVerified::assertion())
+    }
+
+    fn verify_tls12_signature(
+        &self,
+        _message: &[u8],
+        _cert: &CertificateDer<'_>,
+        _dss: &rustls::DigitallySignedStruct,
+    ) -> std::result::Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
+        Ok(rustls::client::danger::HandshakeSignatureValid::assertion())
+    }
+
+    fn verify_tls13_signature(
+        &self,
+        _message: &[u8],
+        _cert: &CertificateDer<'_>,
+        _dss: &rustls::DigitallySignedStruct,
+    ) -> std::result::Result<rustls::client::danger::HandshakeSignatureValid, rustls::Error> {
+        Ok(rustls::client::danger::HandshakeSignatureValid::assertion())
+    }
+
+    fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> {
+        rustls::crypto::aws_lc_rs::default_provider()
+            .signature_verification_algorithms
+            .supported_schemes()
+    }
 }
 
 pub struct Stream {
@@ -263,24 +236,18 @@ pub struct Stream {
 
 enum StreamImpl {
     Tcp(tokio::net::TcpStream),
-    #[cfg(feature = "boringssl")]
-    BoringsslTlsTcp(tokio_boring::SslStream<tokio::net::TcpStream>),
-    #[cfg(feature = "openssl")]
-    OpensslTlsTcp(tokio_openssl::SslStream<tokio::net::TcpStream>),
+    Tls(tokio_rustls::client::TlsStream<tokio::net::TcpStream>),
 }
 
 impl AsyncRead for Stream {
     fn poll_read(
         mut self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
-        buf: &mut tokio::io::ReadBuf<'_>,
+        buf: &mut ReadBuf<'_>,
     ) -> std::task::Poll<std::result::Result<(), std::io::Error>> {
         match &mut self.inner {
             StreamImpl::Tcp(s) => std::pin::Pin::new(s).poll_read(cx, buf),
-            #[cfg(feature = "boringssl")]
-            StreamImpl::BoringsslTlsTcp(s) => std::pin::Pin::new(s).poll_read(cx, buf),
-            #[cfg(feature = "openssl")]
-            StreamImpl::OpensslTlsTcp(s) => std::pin::Pin::new(s).poll_read(cx, buf),
+            StreamImpl::Tls(s) => std::pin::Pin::new(s).poll_read(cx, buf),
         }
     }
 }
@@ -293,10 +260,7 @@ impl AsyncWrite for Stream {
     ) -> std::task::Poll<std::result::Result<usize, std::io::Error>> {
         match &mut self.inner {
             StreamImpl::Tcp(s) => std::pin::Pin::new(s).poll_write(cx, buf),
-            #[cfg(feature = "boringssl")]
-            StreamImpl::BoringsslTlsTcp(s) => std::pin::Pin::new(s).poll_write(cx, buf),
-            #[cfg(feature = "openssl")]
-            StreamImpl::OpensslTlsTcp(s) => std::pin::Pin::new(s).poll_write(cx, buf),
+            StreamImpl::Tls(s) => std::pin::Pin::new(s).poll_write(cx, buf),
         }
     }
     fn poll_flush(
@@ -305,10 +269,7 @@ impl AsyncWrite for Stream {
     ) -> std::task::Poll<std::result::Result<(), std::io::Error>> {
         match &mut self.inner {
             StreamImpl::Tcp(s) => std::pin::Pin::new(s).poll_flush(cx),
-            #[cfg(feature = "boringssl")]
-            StreamImpl::BoringsslTlsTcp(s) => std::pin::Pin::new(s).poll_flush(cx),
-            #[cfg(feature = "openssl")]
-            StreamImpl::OpensslTlsTcp(s) => std::pin::Pin::new(s).poll_flush(cx),
+            StreamImpl::Tls(s) => std::pin::Pin::new(s).poll_flush(cx),
         }
     }
     fn poll_shutdown(
@@ -317,10 +278,7 @@ impl AsyncWrite for Stream {
     ) -> std::task::Poll<std::result::Result<(), std::io::Error>> {
         match &mut self.inner {
             StreamImpl::Tcp(s) => std::pin::Pin::new(s).poll_shutdown(cx),
-            #[cfg(feature = "boringssl")]
-            StreamImpl::BoringsslTlsTcp(s) => std::pin::Pin::new(s).poll_shutdown(cx),
-            #[cfg(feature = "openssl")]
-            StreamImpl::OpensslTlsTcp(s) => std::pin::Pin::new(s).poll_shutdown(cx),
+            StreamImpl::Tls(s) => std::pin::Pin::new(s).poll_shutdown(cx),
         }
     }
 }
@@ -336,13 +294,7 @@ impl hyper::rt::Read for Stream {
                 let mut buf = ReadBuf::uninit(unsafe { rbc.as_mut() });
                 std::pin::Pin::new(s).poll_read(cx, &mut buf)
             }
-            #[cfg(feature = "boringssl")]
-            StreamImpl::BoringsslTlsTcp(s) => {
-                let mut buf = ReadBuf::uninit(unsafe { rbc.as_mut() });
-                std::pin::Pin::new(s).poll_read(cx, &mut buf)
-            }
-            #[cfg(feature = "openssl")]
-            StreamImpl::OpensslTlsTcp(s) => {
+            StreamImpl::Tls(s) => {
                 let mut buf = ReadBuf::uninit(unsafe { rbc.as_mut() });
                 std::pin::Pin::new(s).poll_read(cx, &mut buf)
             }
@@ -358,10 +310,7 @@ impl hyper::rt::Write for Stream {
     ) -> std::task::Poll<std::result::Result<usize, std::io::Error>> {
         match &mut self.inner {
             StreamImpl::Tcp(s) => std::pin::Pin::new(s).poll_write(cx, buf),
-            #[cfg(feature = "boringssl")]
-            StreamImpl::BoringsslTlsTcp(s) => std::pin::Pin::new(s).poll_write(cx, buf),
-            #[cfg(feature = "openssl")]
-            StreamImpl::OpensslTlsTcp(s) => std::pin::Pin::new(s).poll_write(cx, buf),
+            StreamImpl::Tls(s) => std::pin::Pin::new(s).poll_write(cx, buf),
         }
     }
 
@@ -371,10 +320,7 @@ impl hyper::rt::Write for Stream {
     ) -> std::task::Poll<std::result::Result<(), std::io::Error>> {
         match &mut self.inner {
             StreamImpl::Tcp(s) => std::pin::Pin::new(s).poll_flush(cx),
-            #[cfg(feature = "boringssl")]
-            StreamImpl::BoringsslTlsTcp(s) => std::pin::Pin::new(s).poll_flush(cx),
-            #[cfg(feature = "openssl")]
-            StreamImpl::OpensslTlsTcp(s) => std::pin::Pin::new(s).poll_flush(cx),
+            StreamImpl::Tls(s) => std::pin::Pin::new(s).poll_flush(cx),
         }
     }
 
@@ -384,10 +330,7 @@ impl hyper::rt::Write for Stream {
     ) -> std::task::Poll<std::result::Result<(), std::io::Error>> {
         match &mut self.inner {
             StreamImpl::Tcp(s) => std::pin::Pin::new(s).poll_shutdown(cx),
-            #[cfg(feature = "boringssl")]
-            StreamImpl::BoringsslTlsTcp(s) => std::pin::Pin::new(s).poll_shutdown(cx),
-            #[cfg(feature = "openssl")]
-            StreamImpl::OpensslTlsTcp(s) => std::pin::Pin::new(s).poll_shutdown(cx),
+            StreamImpl::Tls(s) => std::pin::Pin::new(s).poll_shutdown(cx),
         }
     }
 }

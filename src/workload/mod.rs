@@ -5,7 +5,7 @@ use config::{Command, RampCompletionAction, RampType, ValueKind, Verb};
 use flate2::write::GzEncoder;
 use flate2::Compression;
 use rand::seq::SliceRandom;
-use rand::{rng, Rng, RngCore, SeedableRng};
+use rand::{rng, Rng, RngExt, SeedableRng};
 use rand_distr::weighted::WeightedAliasIndex;
 use rand_distr::Distribution as RandomDistribution;
 use rand_distr::{Alphanumeric, Uniform, Zipf};
@@ -240,7 +240,7 @@ impl Generator {
         }
     }
 
-    fn generate_pubsub(&self, topics: &Topics, rng: &mut dyn RngCore) -> PublisherWorkItem {
+    fn generate_pubsub(&self, topics: &Topics, rng: &mut dyn Rng) -> PublisherWorkItem {
         let topic_index = topics.topic_dist.sample(rng);
         let topic = topics.topics[topic_index].clone();
 
@@ -275,7 +275,7 @@ impl Generator {
     fn generate_store_request(
         &self,
         store: &Store,
-        rng: &mut dyn RngCore,
+        rng: &mut dyn Rng,
     ) -> ClientWorkItemKind<StoreClientRequest> {
         let command = &store.commands[store.command_dist.sample(rng)];
         let sequence = SEQUENCE_NUMBER.fetch_add(1, Ordering::Relaxed);
@@ -299,7 +299,7 @@ impl Generator {
     fn generate_leaderboard_request(
         &self,
         leaderboard_workload: &Leaderboard,
-        rng: &mut dyn RngCore,
+        rng: &mut dyn Rng,
     ) -> ClientWorkItemKind<LeaderboardClientRequest> {
         let sequence = SEQUENCE_NUMBER.fetch_add(1, Ordering::Relaxed);
 
@@ -324,7 +324,7 @@ impl Generator {
     fn generate_oltp_request(
         &self,
         oltp: &Oltp,
-        rng: &mut dyn RngCore,
+        rng: &mut dyn Rng,
     ) -> ClientWorkItemKind<OltpRequest> {
         let id = rng.random_range(1..=oltp.keys);
         let table = rng.random_range(1..=oltp.tables) as i32;
@@ -341,7 +341,7 @@ impl Generator {
     fn generate_request(
         &self,
         keyspace: &Keyspace,
-        rng: &mut dyn RngCore,
+        rng: &mut dyn Rng,
     ) -> ClientWorkItemKind<ClientRequest> {
         let command = &keyspace.commands[keyspace.command_dist.sample(rng)];
 
@@ -677,7 +677,7 @@ pub enum Distribution {
 }
 
 impl Distribution {
-    pub fn sample(&self, rng: &mut dyn RngCore) -> usize {
+    pub fn sample(&self, rng: &mut dyn Rng) -> usize {
         match self {
             Self::Uniform(dist) => dist.sample(rng),
             Self::Zipf(dist) => dist.sample(rng) as usize,
@@ -851,17 +851,17 @@ impl Keyspace {
         }
     }
 
-    pub fn sample(&self, rng: &mut dyn RngCore) -> Arc<[u8]> {
+    pub fn sample(&self, rng: &mut dyn Rng) -> Arc<[u8]> {
         let index = self.key_dist.sample(rng);
         self.keys[index].clone()
     }
 
-    pub fn sample_inner(&self, rng: &mut dyn RngCore) -> Arc<[u8]> {
+    pub fn sample_inner(&self, rng: &mut dyn Rng) -> Arc<[u8]> {
         let index = self.inner_key_dist.sample(rng);
         self.inner_keys[index].clone()
     }
 
-    pub fn gen_value(&self, sequence: usize, rng: &mut dyn RngCore) -> Bytes {
+    pub fn gen_value(&self, sequence: usize, rng: &mut dyn Rng) -> Bytes {
         match self.vkind {
             ValueKind::I64 => format!("{}", rng.random::<i64>()).into_bytes().into(),
             ValueKind::Bytes => {
@@ -973,12 +973,12 @@ impl Store {
         }
     }
 
-    pub fn sample_string(&self, rng: &mut dyn RngCore) -> Arc<String> {
+    pub fn sample_string(&self, rng: &mut dyn Rng) -> Arc<String> {
         let index = self.key_dist.sample(rng);
         self.string_keys[index].clone()
     }
 
-    pub fn gen_value(&self, sequence: usize, rng: &mut dyn RngCore) -> Bytes {
+    pub fn gen_value(&self, sequence: usize, rng: &mut dyn Rng) -> Bytes {
         match self.vkind {
             ValueKind::I64 => format!("{}", rng.random::<i64>()).into_bytes().into(),
             ValueKind::Bytes => {
@@ -1096,17 +1096,17 @@ impl Leaderboard {
         }
     }
 
-    pub fn sample_command(&self, rng: &mut dyn RngCore) -> &LeaderboardCommand {
+    pub fn sample_command(&self, rng: &mut dyn Rng) -> &LeaderboardCommand {
         let index = self.command_dist.sample(rng);
         &self.commands[index]
     }
 
-    pub fn sample_leaderboard(&self, rng: &mut dyn RngCore) -> Arc<String> {
+    pub fn sample_leaderboard(&self, rng: &mut dyn Rng) -> Arc<String> {
         let index = self.leaderboard_dist.sample(rng);
         self.leaderboards[index].clone()
     }
 
-    pub fn sample_ids(&self, num_ids: usize, rng: &mut dyn RngCore) -> Arc<[u32]> {
+    pub fn sample_ids(&self, num_ids: usize, rng: &mut dyn Rng) -> Arc<[u32]> {
         let sample: Vec<u32> = sample_unique(num_ids, rng, |rng| {
             let index = self.id_dist.sample(rng);
             *self.ids[index].as_ref()
@@ -1115,14 +1115,14 @@ impl Leaderboard {
     }
 
     /// Generate a score in the unit interval [0, 1)
-    pub fn generate_score(&self, rng: &mut dyn RngCore) -> f64 {
+    pub fn generate_score(&self, rng: &mut dyn Rng) -> f64 {
         rng.random()
     }
 
     /// Generate a set of id-score pairs to upsert into a leaderboard.
     /// Samples the ids uniformly at random from the set of ids and generates
     /// a score in the unit interval [0, 1) for each id.
-    pub fn generate_elements(&self, num_elements: usize, rng: &mut dyn RngCore) -> Vec<(u32, f64)> {
+    pub fn generate_elements(&self, num_elements: usize, rng: &mut dyn Rng) -> Vec<(u32, f64)> {
         let ids = self.sample_ids(num_elements, rng);
 
         ids.iter()
@@ -1325,7 +1325,7 @@ fn sample_unique<T, F, R>(n: usize, mut rng: R, mut generator_fn: F) -> Vec<T>
 where
     T: Eq + Hash,
     F: FnMut(&mut R) -> T,
-    R: RngCore,
+    R: Rng,
 {
     let mut unique_items = HashSet::with_capacity(n);
     while unique_items.len() < n {
@@ -1337,10 +1337,10 @@ where
 
 /// Like `sample_unique` but uses a Vec for dedup, which is faster for small `n`
 /// (avoids HashSet allocation and hashing overhead for typical cardinalities of 1-16).
-fn sample_unique_vec<T, F>(n: usize, rng: &mut dyn RngCore, mut generator_fn: F) -> Vec<T>
+fn sample_unique_vec<T, F>(n: usize, rng: &mut dyn Rng, mut generator_fn: F) -> Vec<T>
 where
     T: Eq,
-    F: FnMut(&mut dyn RngCore) -> T,
+    F: FnMut(&mut dyn Rng) -> T,
 {
     let mut items = Vec::with_capacity(n);
     while items.len() < n {
