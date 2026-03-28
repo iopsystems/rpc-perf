@@ -95,6 +95,15 @@ async fn task(
                     set(&mut client, &config, cache_name, r).await
                 }
                 ClientRequest::Delete(r) => delete(&mut client, &config, cache_name, r).await,
+                ClientRequest::SetIfAbsent(r) => {
+                    set_if_absent(&mut client, &config, cache_name, r).await
+                }
+                ClientRequest::SetIfPresentAndNotEqual(r) => {
+                    set_if_present_and_not_equal(&mut client, &config, cache_name, r).await
+                }
+                ClientRequest::ItemGetType(r) => {
+                    item_get_type(&mut client, &config, cache_name, r).await
+                }
 
                 /*
                  * HASHES (DICTIONARIES)
