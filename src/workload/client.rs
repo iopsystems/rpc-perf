@@ -19,7 +19,7 @@ pub struct Get {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct MultiGet {
+pub struct GetBatch {
     pub keys: Vec<Arc<[u8]>>,
 }
 
@@ -209,7 +209,7 @@ pub enum ClientRequest {
     Add(Add),
     Get(Get),
     Delete(Delete),
-    MultiGet(MultiGet),
+    GetBatch(GetBatch),
     Replace(Replace),
     Set(Set),
 

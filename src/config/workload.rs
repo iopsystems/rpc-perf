@@ -338,7 +338,7 @@ impl Keyspace {
     }
 }
 
-#[derive(Clone, Copy, Deserialize)]
+#[derive(Clone, Copy, Deserialize, Debug)]
 pub struct Command {
     verb: Verb,
     #[serde(default = "one")]
@@ -409,6 +409,11 @@ pub enum Verb {
     /// * Momento: `get` (NOTE: cardinality > 1 is not supported)
     /// * RESP: `GET` or `MGET`
     Get,
+    /// Read the value for multiple keys.
+    /// * Memcache: `get`
+    /// * Momento: `get_batch`
+    /// * RESP: `GET` or `MGET`
+    GetBatch,
     /// Set the value for a key.
     /// * Memcache: `set`
     /// * Momento: `set`
@@ -584,6 +589,7 @@ impl Verb {
                 | Self::SortedSetAdd
                 | Self::SortedSetScore
                 | Self::SortedSetRemove
+                | Self::GetBatch
         )
     }
 

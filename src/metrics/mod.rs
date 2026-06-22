@@ -352,6 +352,22 @@ pub static RESPONSE_LATENCY: AtomicHistogram = AtomicHistogram::new(7, 64);
 pub static RESPONSE_LATENCY_HISTOGRAM: &str = "response_latency";
 
 #[metric(
+    name = KVGETBATCH_BATCH_SIZE_HISTOGRAM,
+    description = "Distribution of batch sizes for key-value GET BATCH requests",
+    metadata = { unit = "nanoseconds" }
+)]
+pub static KVGETBATCH_BATCH_SIZE: AtomicHistogram = AtomicHistogram::new(7, 64);
+pub static KVGETBATCH_BATCH_SIZE_HISTOGRAM: &str = "kvgetbatch_batch_size";
+
+#[metric(
+    name = KVGETBATCH_RESPONSE_LATENCY_HISTOGRAM,
+    description = "Distribution of response latencies for key-value GET BATCH requests",
+    metadata = { unit = "nanoseconds" }
+)]
+pub static KVGETBATCH_RESPONSE_LATENCY: AtomicHistogram = AtomicHistogram::new(7, 64);
+pub static KVGETBATCH_RESPONSE_LATENCY_HISTOGRAM: &str = "kvgetbatch_response_latency";
+
+#[metric(
     name = KVGET_RESPONSE_LATENCY_HISTOGRAM,
     description = "Distribution of response latencies for key-value GET requests",
     metadata = { unit = "nanoseconds" }
